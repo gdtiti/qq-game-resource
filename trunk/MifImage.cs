@@ -51,7 +51,7 @@ namespace QQGameRes
                 {
                     // Skip four bytes if Type is 7.
                     if (header.Type == 7)
-                        reader.ReadInt32();
+                        System.Diagnostics.Debug.WriteLine("Type 7: " + reader.ReadInt32());
 
                     // Load image into memory buffer.
                     if (reader.Read(buffer, 0, bytesPerImage) != bytesPerImage)

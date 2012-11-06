@@ -42,7 +42,11 @@ namespace QQGameRes
                 return;
 
             int index = lvEntries.SelectedIndices[0];
-            string filename = @"E:\Dev\Projects\QQRes\data\extract.output";
+            saveFileDialog1.FileName = Path.GetFileName(lvEntries.Items[index].Text);
+            if (saveFileDialog1.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            string filename = saveFileDialog1.FileName;
             using (Stream stream = pkg.Extract(index))
             {
                 byte[] buffer = new byte[65536];
@@ -54,7 +58,8 @@ namespace QQGameRes
                         output.Write(buffer, 0, n);
                 }
             }
-            MessageBox.Show("Extracted to " + filename);
+            MessageBox.Show(this, "成功导出到 " + filename,
+                this.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void lvEntries_SelectedIndexChanged(object sender, EventArgs e)
@@ -87,6 +92,44 @@ namespace QQGameRes
             {
                 LoadPackage(openFileDialog1.FileName);
             }
+        }
+
+        private Image[] animationFrames;
+        private int animationCurrent;
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+#if true
+            if (lvEntries.SelectedIndices.Count == 0)
+                return;
+
+            int index = lvEntries.SelectedIndices[0];
+            using (Stream stream = pkg.Extract(index))
+            {
+                Image[] images = MifImage.Load(stream);
+                animationFrames = images;
+                animationCurrent = 0;
+                pictureBox1.Image = images[0];
+                timer1.Interval = 100;
+                timer1.Start();
+            }
+#endif
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            if (animationFrames == null || ++animationCurrent >= animationFrames.Length)
+            {
+                timer1.Stop();
+                return;
+            }
+            pictureBox1.Image = animationFrames[animationCurrent];
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            lvEntries.Columns[2].Width = 0;
+            lvEntries.Columns[3].Width = 0;
         }
     }
 }
