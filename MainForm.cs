@@ -24,7 +24,7 @@ namespace QQGameRes
         {
             pkg = new Package(filename);
             lvEntries.Items.Clear();
-            pictureBox1.Image = null;
+            picPreview.Image = null;
             for (int i = 0; i < pkg.EntryCount; i++)
             {
                 PackageEntry entry = pkg.GetEntry(i);
@@ -62,8 +62,41 @@ namespace QQGameRes
                 this.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
+        private MifImage currentImage;
+
+        private void PlayNextFrame()
+        {
+            // If there's no image present, reset the timer and exit.
+            if (currentImage == null)
+            {
+                timerAnimation.Stop();
+                return;
+            }
+
+            // Load the next frame in the current image.
+            MifFrame frame = currentImage.GetNextFrame();
+
+            // If there are no more frames, we reset the timer and leave
+            // the preview box with the last frame displayed.
+            if (frame == null)
+            {
+                timerAnimation.Stop();
+                return;
+            }
+
+            // Display the next frame and set the timer interval.
+            picPreview.Image = frame.Image;
+            timerAnimation.Interval = Math.Max(frame.Interval, 25);
+            timerAnimation.Start();
+        }
+
         private void lvEntries_SelectedIndexChanged(object sender, EventArgs e)
         {
+            // Reset the animation and preview box.
+            timerAnimation.Stop();
+            picPreview.Image = null;
+
+            // Do nothing if no item is selected.
             if (lvEntries.SelectedIndices.Count == 0)
                 return;
 
@@ -71,17 +104,14 @@ namespace QQGameRes
             string filename = lvEntries.Items[index].Text;
             if (filename.EndsWith(".mif", StringComparison.InvariantCultureIgnoreCase))
             {
-                using (Stream stream = pkg.Extract(index))
-                {
-                    Image[] images = MifImage.Load(stream);
-                    pictureBox1.Image = images[0];
-                }
+                currentImage = new MifImage(pkg.Extract(index));
+                PlayNextFrame();
             }
             else if (filename.EndsWith(".bmp", StringComparison.InvariantCultureIgnoreCase))
             {
                 using (Stream stream = pkg.Extract(index))
                 {
-                    pictureBox1.Image = new Bitmap(stream);
+                    picPreview.Image = new Bitmap(stream);
                 }
             }
         }
@@ -94,42 +124,15 @@ namespace QQGameRes
             }
         }
 
-        private Image[] animationFrames;
-        private int animationCurrent;
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-#if true
-            if (lvEntries.SelectedIndices.Count == 0)
-                return;
-
-            int index = lvEntries.SelectedIndices[0];
-            using (Stream stream = pkg.Extract(index))
-            {
-                Image[] images = MifImage.Load(stream);
-                animationFrames = images;
-                animationCurrent = 0;
-                pictureBox1.Image = images[0];
-                timer1.Interval = 100;
-                timer1.Start();
-            }
-#endif
-        }
-
-        private void timer1_Tick(object sender, EventArgs e)
-        {
-            if (animationFrames == null || ++animationCurrent >= animationFrames.Length)
-            {
-                timer1.Stop();
-                return;
-            }
-            pictureBox1.Image = animationFrames[animationCurrent];
-        }
-
         private void MainForm_Load(object sender, EventArgs e)
         {
             lvEntries.Columns[2].Width = 0;
             lvEntries.Columns[3].Width = 0;
+        }
+
+        private void timerAnimation_Tick(object sender, EventArgs e)
+        {
+            PlayNextFrame();
         }
     }
 }
