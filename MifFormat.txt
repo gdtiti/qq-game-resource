@@ -1,28 +1,31 @@
 MIF File Format Description
 ===========================
 
-The MIF file format is used by QQ Games to store images and clip arts used
-in the user interface. A single MIF image file may contain multiple frames,
-which may be played in sequence to form an animation. An MIF file is usually
-directly stored in the file system, though it sometimes is embedded as part
-of a resource package (.PKG file).
+The MIF format is an image file format used by QQ Games to store images, clip
+arts, and animations. An image is stored as an uncompressed bitmap with 16-bit
+color depth and (an extra) 5 bits of alpha. Multiple frames may be stored in
+a single MIF file.
 
-The overall layout of an MIF file is as follows:
+A MIF file has the extension ".MIF". It is usually stored directly in the file
+system, though sometimes it is embedded in a resource package (.PKG file).
 
-+---------------+
-|  file header  |
-+---------------+
-|    frame 1    |
-+---------------+
-|      ...      |
-+---------------+
-|    frame N    |
-+---------------+
+The overall layout of a MIF file is as follows:
+
+  +---------------+
+  |  file header  |
+  +---------------+
+  |    frame 1    |
+  +---------------+
+  |      ...      |
+  +---------------+
+  |    frame N    |
+  +---------------+
 
 It begins with a 20-byte file header describing the size of each frame (which
 must be identical) and the number of frames (N). Then N blocks of data follow,
 each representing the bitmap of a frame. At least one frame must be present
-in an MIF file.
+in a MIF file.
+
 
 File Header Format
 ------------------
@@ -30,18 +33,19 @@ File Header Format
 The file header is a 20-byte range at the beginning of the file. It contains
 five DWORD fields, all stored in little endian:
 
- 0            4            8            12           16
-+------------+------------+------------+------------+------------+
-|   Version  |    Width   |   Height   |    Type    | FrameCount |
-+------------+------------+------------+------------+------------+
+   0            4            8            12           16
+  +------------+------------+------------+------------+------------+
+  |   Version  |    Width   |   Height   |    Type    | FrameCount |
+  +------------+------------+------------+------------+------------+
 
-Version     4 bytes  DWORD  Version of the file. Must be 0 or 1.
-Width       4 bytes  DWORD  Width of each frame, in pixels. 
-Height      4 bytes  DWORD  Height of each frame, in pixels.
-Type        4 bytes  DWORD  Type of the image. Must be one of the following:
-                            3 - the image contains only one frame
-							7 - the image contains multiple frames
-FrameCount  4 bytes  DWORD  Number of frames in the image.
+  Version     4 bytes  DWORD  Version of the file. Must be 0 or 1.
+  Width       4 bytes  DWORD  Width of each frame, in pixels. 
+  Height      4 bytes  DWORD  Height of each frame, in pixels.
+  Type        4 bytes  DWORD  Type of the image. Must be one of the following:
+                              3 - the image contains only one frame
+                              7 - the image contains multiple frames
+  FrameCount  4 bytes  DWORD  Number of frames in the image.
+
 
 Frame Data Format
 -----------------
@@ -54,22 +58,23 @@ an optional field indicating its delay time when played in an animation.
 Let N = Width * Height be the number of pixels in a frame. The format of a
 frame is as follows: (all numeric fields are stored in little endian)
 
- 0            4               4+2N
-+------------+---------------+---------------+
-|    Delay   |  Color-Array  |  Alpha-Array  |
-+------------+---------------+---------------+
+   0            4               4+2N
+  +------------+---------------+---------------+
+  |    Delay   |  Color-Array  |  Alpha-Array  |
+  +------------+---------------+---------------+
 
-Delay        4 bytes   DWORD   (Optional) Number of milliseconds to delay 
-                               before playing the next frame in an animation.
-							   This field is present if and only if the Type
-							   field in the file header is 7.
-Color-Array  2N bytes  WORD[]  Two bytes are used to encode the color of each
-                               pixel. See below for the encoding format.
-Alpha-Array  N bytes   BYTE[]  One byte is used to encode the transparency of
-                               each pixel. See below for the encoding format.
+  Delay        4 bytes   DWORD   (Optional) Number of milliseconds to delay 
+                                 before playing the next frame of an 
+                                 animation. This field is present if and only
+                                 if the Type field in the file header is 7.
+  Color-Array  2N bytes  WORD[]  Two bytes are used to encode the color of
+                                 each pixel. See details below.
+  Alpha-Array  N bytes   BYTE[]  One byte is used to encode the transparency
+                                 of each pixel. See details below.
 
 For both Color-Array and Alpha-Array, the pixels are encoded row by row from
-top to bottom. For each row, the pixels are encoded from left to right.
+top to bottom; in each row, the pixels are encoded from left to right.
+
 
 Color Encoding
 --------------
@@ -78,24 +83,25 @@ Two bytes are used to encode the color of each pixel. Let c[15..0] be a 16-bit
 integer containing the encoded value. The actual RGB values are found as
 follows:
 
-  RED    c[15..11] 000
-  GREEN  c[10..5]   00
-  BLUE   c[4..0]   000
+  RED   = c[15..11] 000
+  GREEN = c[10..5]   00
+  BLUE  = c[4..0]   000
 
 That is, the bits in c are divided into three groups of length 5, 6, and 5.
 The highest group represents RED; the middle group represents GREEN; the 
 lowest group represents BLUE. Since each group is short of the 8 bits required
 to represent a color component, the bits are left-aligned to make up the most
-significant part of each component. The remaining, less significant bits of
-each color component is set to 0.
+significant part of each component. The remaining less significant bits of
+each color component are set to 0.
 
-A particularity of such encoding is that there is one more bit in GREEN than
+A particularity of such encoding is that there is one extra bit in GREEN than
 in RED and in BLUE. This gives it the ability to encode 1/64 more "greenness".
 By examining the actual UI of a QQ game, we conclude that this extra bit of
 GREEN is indeed in effect.
 
 Another consequence of such encoding is that it's not possible to encode
 WHITE (with R,G,B=255). The closest it can go is (248, 252, 248).
+
 
 Alpha Encoding
 --------------
@@ -106,27 +112,28 @@ as follows:
  
         7   6   5   4   3   2   1   0
       +---+---+---+---+---+---+---+---+
-  a = | 0 | 0 | F |      Value        |
+  a = | 0 | 0 | F |       Value       |
       +---+---+---+---+---+---+---+---+
 
 Bit 6 and bit 7 are always zero. Bit 5 is a flag (F): if it is set (F = 1),
-then alpha = 255 (i.e. completely opaque), and Value is ignored. If F is 
-not set (F = 0), then alpha = Value << 3, i.e. Value is left-aligned to the
-alpha component, and the lower 3 bits of alpha is set to zero.
+then alpha = 255 (i.e. completely opaque), and Value is ignored; if F is 
+not set (F = 0), then alpha = Value << 3, i.e. Value is left-aligned in the
+alpha component, and the lowest 3 bits of alpha is set to zero.
 
 Such encoding allows complete opaqueness to be encoded, which is essential in
 practice. However, the alpha values between 249 and 254 (inclusive) are not
 encodable. While this is not much of a concern visually, it wastes three bits
-with no benefit.
+without any benefit.
+
 
 Animation Control
 -----------------
 
 If the image Type is 7, a Delay field must be present at the beginning of each
 frame block to indicate the number of milliseconds to wait before playing the
-next frame in an animation. Note, however, even if the multiple frames in an
-MIF image is not meant to be animated, the Delay field must still be present,
-but its value should be ignored.
+next frame in an animation. Note, however, that even when the frames in a MIF
+image is not meant to be animated, the Delay field must still be present,
+though its value should be ignored.
 
 In practice, the Delay value (when present) is always 100, regardless of 
 whether the frames are meant to be animated or not.
