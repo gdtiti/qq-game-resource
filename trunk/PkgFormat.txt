@@ -1,0 +1,113 @@
+PKG File Format Description
+===========================
+
+The PKG format is an archive file format used by QQ games to pack multiple
+images and other UI materials together with compression. Each entry in such
+an archive (or package) can be extracted independently. A PKG file has the
+extension ".PKG".
+
+The overall layout of a PKG file is as follows:
+
+  +---------------+
+  |  file header  |
+  +---------------+
+  |    entry 1    |   --\
+  +---------------+     |
+  |      ...      |     |-- data section
+  +---------------+     |
+  |    entry N    |   --/
+  +---------------+
+  |    index 1    |   --\
+  +---------------+     |
+  |      ...      |     |-- index section
+  +---------------+     |
+  |    index N    |   --/
+  +---------------+
+
+It begins with a 16-byte file header which contains the number of entries
+in the archive, N, and an offset to the index section. Then the data section
+follows, which contains N compressed streams of entry data. At the end is 
+the index section, which contains the name, size, and offset of each archive
+entry.
+
+
+File Header Format
+------------------
+
+The file header is a 16-byte range at the beginning of the file. It contains
+four DWORD fields, all stored in little endian:
+
+   0           4            8             12
+  +-----------+------------+-------------+-----------+
+  | Signature | EntryCount | IndexOffset | IndexSize |
+  +-----------+------------+-------------+-----------+
+
+  Signature    4 bytes  DWORD  File format signature. Must be 0x64.
+  EntryCount   4 bytes  DWORD  Number of file entries in the archive.
+  IndexOffset  4 bytes  DWORD  Offset of the index section relative to the
+                               beginning of the archive.
+  IndexSize    4 bytes  DWORD  Number of bytes taken by the index section.
+
+Note: in the typical case where the index section is placed at the end of an
+archive, we have IndexOffset + IndexOffset = size of the PKG file.
+
+
+Index Section Format
+--------------------
+
+The index section contains N variable-length index records, one for each
+archive entry. The format of an index record is as follows: (all numeric
+fields are stored in little endian)
+
+   0          2          2+L        6+L        10+L       14+L
+  +----------+----------+----------+----------+----------+----------+
+  |  NameLen | FileName |  Marker  |  Offset  |  OrgSize |   Size   |
+  +----------+----------+----------+----------+----------+----------+
+
+  NameLen   2 bytes  WORD    Length of the file name, in characters if the
+                             file name is encoded in UTF-16, or in bytes
+                             otherwise.
+  FileName  L bytes  BYTE[]  File name encoded in UTF-16 or GBK. See below.
+  Marker    4 bytes  DWORD   Marks the end of FileName. Always 0.
+  Offset    4 bytes  DWORD   Offset of the entry data relative to the
+                             beginning of the archive.
+  OrgSize   4 bytes  DWORD   Original size of the file entry, in bytes.
+                             This is the file size without compression.
+  Size      4 bytes  DWORD   Size (in bytes) of the file entry stored in this
+                             archive after compression.
+
+FileName may be encoded either in UTF-16LE or in GBK. If encoded in UTF-16LE,
+NameLen will indicate the number of characters, and the actual number of bytes
+used by the filename, L, will be equal to 2 * NameLen. If the encoding is GBK,
+NameLen will indicate the number of bytes, and L will be equal to NameLen.
+
+NameLen and Marker together can be used to determine the encoding of FileName.
+An application should first assume the encoding to be GBK, and read NameLen
+bytes as FileName. If the 4 bytes that follow are all zero, then the Marker is
+confirmed. Otherwise, the encoding is determined to be UTF16-LE, and 2*NameLen
+bytes should be consumed by FileName.
+
+Offset and Size together specify the location and length of the compressed
+stream of entry data. The stream format is described below.
+
+
+Data Section Format
+-------------------
+
+The data section contains N variable-length streams of compressed entry data.
+The location and length of each stream is specified by a corresponding index
+record in the index section. Each entry is compressed separately, therefore
+each stream can be uncompressed and accessed independently.
+
+Each entry is compressed by zlib's compress() function. The exact format of 
+such a compressed stream is specified in RFC 1950. As a quick overview, the
+format of such a compressed stream is as follows:
+
+    0   1   (Optional)
+  +---+---+---+---+---+---+=====================+---+---+---+---+
+  |CMF|FLG|     DICTID    |   COMPRESSED-DATA   |    CHECKSUM   |
+  +---+---+---+---+---+---+=====================+---+---+---+---+
+
+The DICTID field is present only if bit 5 of FLG is set. In practice this
+field is usually omitted, in which case the stream is fully specified by
+COMPRESSED-DATA, which is a Deflate stream as specified in RFC 1951.

@@ -117,6 +117,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="MifFormat.txt" />
+    <Content Include="PkgFormat.txt" />
     <Content Include="QQGameRes.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
