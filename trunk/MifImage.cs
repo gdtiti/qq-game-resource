@@ -43,11 +43,11 @@ namespace QQGameRes
     public class MifFrame
     {
         /// <summary>
-        /// Gets the interval, in milliseconds, before playing the next 
+        /// Gets the delay, in milliseconds, before displaying the next 
         /// frame in an animated MIF image. If the MIF image contains only
         /// one frame, this value may be zero.
         /// </summary>
-        public int Interval { get; set; }
+        public int Delay { get; set; }
 
         /// <summary>
         /// Gets the image to display for the frame.
@@ -104,6 +104,22 @@ namespace QQGameRes
         }
 
         /// <summary>
+        /// Gets the width of the image in pixels.
+        /// </summary>
+        public int Width
+        {
+            get { return header.ImageWidth; }
+        }
+
+        /// <summary>
+        /// Gets the height of the image in pixels.
+        /// </summary>
+        public int Height
+        {
+            get { return header.ImageHeight; }
+        }
+
+        /// <summary>
         /// Returns the next frame in the image.
         /// </summary>
         /// <returns>The next frame in the image, or <code>null</code> if
@@ -128,14 +144,23 @@ namespace QQGameRes
             // Read frame interval if Type is 7.
             MifFrame frame = new MifFrame();
             if (header.Type == 7)
-                frame.Interval = reader.ReadInt32();
+                frame.Delay = reader.ReadInt32();
             else
-                frame.Interval = 0;
+                frame.Delay = 0;
+
+#if DEBUG
+            if (frame.Delay != 0 && frame.Delay != 100)
+                throw new ArgumentException("Unexpected frame interval: " + frame.Delay);
+#endif
 
             // Load image into memory buffer.
             if (reader.Read(buffer, 0, bytesPerImage) != bytesPerImage)
                 throw new IOException("Premature end of file.");
 
+#if DEBUG
+            bool[] colorPresent = new bool[65536];
+            int greenBit = 0;
+#endif
             // Create a bitmap and set its pixels accordingly.
             Bitmap bmp = new Bitmap(width, height);
             for (int y = 0; y < height; y++)
@@ -151,8 +176,23 @@ namespace QQGameRes
                         ((b2 << 5) | (b1 >> 3)) & 0xFC, // green
                         (b1 & 0x1F) << 3);              // blue
                     bmp.SetPixel(x, y, c);
+#if DEBUG
+                    colorPresent[(b2 << 8) | b1] = true;
+                    if ((c.G & 4) != 0)
+                        greenBit++;
+#endif
                 }
             }
+#if DEBUG
+            int colorCount = 0;
+            for (int i = 0; i < 65536; i++)
+            {
+                if (colorPresent[i])
+                    ++colorCount;
+            }
+            System.Diagnostics.Debug.WriteLine("Number of colors: " + colorCount);
+            System.Diagnostics.Debug.WriteLine("Green bit set in " + greenBit + " pixels.");
+#endif
             frame.Image = bmp;
             return frame;
         }
