@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
 
@@ -34,6 +32,7 @@ namespace QQGameRes
                 item.SubItems.Add(entry.Offset.ToString("X8"));
                 lvEntries.Items.Add(item);
             }
+            this.Text = "QQ游戏素材浏览器 - " + Path.GetFileName(filename);
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -59,7 +58,7 @@ namespace QQGameRes
                 }
             }
             MessageBox.Show(this, "成功导出到 " + filename,
-                this.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                "QQ游戏素材浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private MifImage currentImage;
@@ -86,7 +85,7 @@ namespace QQGameRes
 
             // Display the next frame and set the timer interval.
             picPreview.Image = frame.Image;
-            timerAnimation.Interval = Math.Max(frame.Interval, 25);
+            timerAnimation.Interval = Math.Max(frame.Delay, 25);
             timerAnimation.Start();
         }
 
