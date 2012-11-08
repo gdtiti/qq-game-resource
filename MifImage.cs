@@ -55,14 +55,18 @@ namespace QQGameRes
         public Image Image { get; set; }
     }
 
+    /// <summary>
+    /// Represents a multi-frame MIF image.
+    /// </summary>
     public class MifImage : IDisposable
     {
         private BinaryReader reader;
         private MifHeader header;
-        private int frameCounter;
+        private int frameIndex;
+        private MifFrame currentFrame;
 
         /// <summary>
-        /// Creates an MIF image by loading from a stream.
+        /// Loads a MIF image from a stream.
         /// </summary>
         /// <param name="stream">The stream from which the image is loaded.</param>
         public MifImage(Stream stream)
@@ -90,17 +94,34 @@ namespace QQGameRes
             if (header.FrameCount <= 0)
                 throw new IOException("FrameCount field must be positive.");
 
-            // Set frame counter to zero.
-            frameCounter = 0;
+            // Set frame counter to -1 (before loading the first frame).
+            frameIndex = -1;
         }
 
         /// <summary>
-        /// Gets the number of frames in this image. This value is taken from
-        /// the image header, which may or may not be actual frame count.
+        /// Gets the number of frames in this image.
         /// </summary>
         public int FrameCount
         {
             get { return header.FrameCount; }
+        }
+
+        /// <summary>
+        /// Gets the zero-based index of the current frame, or <code>-1</code>
+        /// if <code>GetNextFrame()</code> has never been called.
+        /// </summary>
+        public int FrameIndex
+        {
+            get { return frameIndex; }
+        }
+
+        /// <summary>
+        /// Gets the current frame, or <code>null</code> if 
+        /// <code>GetNextFrame()</code> has never been called.
+        /// </summary>
+        public MifFrame CurrentFrame
+        {
+            get { return currentFrame; }
         }
 
         /// <summary>
@@ -120,23 +141,22 @@ namespace QQGameRes
         }
 
         /// <summary>
-        /// Returns the next frame in the image.
+        /// Reads the next frame from the underlying stream.
         /// </summary>
-        /// <returns>The next frame in the image, or <code>null</code> if
-        /// there are no more frames left.</returns>
-        public MifFrame GetNextFrame()
+        /// <returns><code>true</code> if the next frame is successfully read;
+        /// <code>false</code> if there are no more frames left.</returns>
+        public bool GetNextFrame()
         {
             if (reader == null)
-                throw new ObjectDisposedException("BinaryReader");
+                return false;
 
             // Return null if there are no more frames left.
-            if (frameCounter >= header.FrameCount)
+            if (frameIndex + 1 >= header.FrameCount)
             {
-                reader.Close();
+                reader.Dispose();
                 reader = null;
-                return null;
+                return false;
             }
-            frameCounter++;
 
             // Read the next image from the stream.
             int width = header.ImageWidth;
@@ -199,7 +219,11 @@ namespace QQGameRes
 #endif
 #endif
             frame.Image = bmp;
-            return frame;
+
+            // Update the current frame.
+            frameIndex++;
+            currentFrame = frame;
+            return true;
         }
 
         public void Dispose()
