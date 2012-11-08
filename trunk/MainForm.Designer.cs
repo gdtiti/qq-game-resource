@@ -36,6 +36,9 @@
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.tvFolders = new System.Windows.Forms.TreeView();
+            this.lvEntries = new QQGameRes.DoubleBufferedListView();
+            this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
             this.btnOpenFolder = new System.Windows.Forms.ToolStripButton();
             this.btnOpenPackage = new System.Windows.Forms.ToolStripButton();
@@ -46,11 +49,8 @@
             this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.btnAbout = new System.Windows.Forms.ToolStripButton();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
-            this.txtFrames = new System.Windows.Forms.ToolStripStatusLabel();
             this.txtImageSize = new System.Windows.Forms.ToolStripStatusLabel();
-            this.lvEntries = new QQGameRes.DoubleBufferedListView();
-            this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.txtFrames = new System.Windows.Forms.ToolStripStatusLabel();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -105,6 +105,39 @@
             this.tvFolders.Size = new System.Drawing.Size(284, 366);
             this.tvFolders.TabIndex = 10;
             this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
+            // 
+            // lvEntries
+            // 
+            this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnPath,
+            this.columnSize});
+            this.lvEntries.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lvEntries.FullRowSelect = true;
+            this.lvEntries.GridLines = true;
+            this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+            this.lvEntries.HideSelection = false;
+            this.lvEntries.LargeImageList = this.imageListPreview;
+            this.lvEntries.Location = new System.Drawing.Point(0, 0);
+            this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
+            this.lvEntries.MultiSelect = false;
+            this.lvEntries.Name = "lvEntries";
+            this.lvEntries.OwnerDraw = true;
+            this.lvEntries.Size = new System.Drawing.Size(568, 366);
+            this.lvEntries.TabIndex = 5;
+            this.lvEntries.UseCompatibleStateImageBehavior = false;
+            this.lvEntries.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.lvEntries_DrawItem);
+            this.lvEntries.SelectedIndexChanged += new System.EventHandler(this.lvEntries_SelectedIndexChanged);
+            // 
+            // columnPath
+            // 
+            this.columnPath.Text = "文件名";
+            this.columnPath.Width = 180;
+            // 
+            // columnSize
+            // 
+            this.columnSize.Text = "大小";
+            this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.columnSize.Width = 80;
             // 
             // toolStrip3
             // 
@@ -193,6 +226,12 @@
             this.statusStrip1.TabIndex = 10;
             this.statusStrip1.Text = "statusStrip1";
             // 
+            // txtImageSize
+            // 
+            this.txtImageSize.Name = "txtImageSize";
+            this.txtImageSize.Size = new System.Drawing.Size(65, 23);
+            this.txtImageSize.Text = "图片尺寸";
+            // 
             // txtFrames
             // 
             this.txtFrames.BorderSides = ((System.Windows.Forms.ToolStripStatusLabelBorderSides)((((System.Windows.Forms.ToolStripStatusLabelBorderSides.Left | System.Windows.Forms.ToolStripStatusLabelBorderSides.Top) 
@@ -201,45 +240,6 @@
             this.txtFrames.Name = "txtFrames";
             this.txtFrames.Size = new System.Drawing.Size(47, 23);
             this.txtFrames.Text = "共?帧";
-            // 
-            // txtImageSize
-            // 
-            this.txtImageSize.Name = "txtImageSize";
-            this.txtImageSize.Size = new System.Drawing.Size(65, 23);
-            this.txtImageSize.Text = "图片尺寸";
-            // 
-            // lvEntries
-            // 
-            this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnPath,
-            this.columnSize});
-            this.lvEntries.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvEntries.FullRowSelect = true;
-            this.lvEntries.GridLines = true;
-            this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
-            this.lvEntries.HideSelection = false;
-            this.lvEntries.LargeImageList = this.imageListPreview;
-            this.lvEntries.Location = new System.Drawing.Point(0, 0);
-            this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
-            this.lvEntries.MultiSelect = false;
-            this.lvEntries.Name = "lvEntries";
-            this.lvEntries.OwnerDraw = true;
-            this.lvEntries.Size = new System.Drawing.Size(568, 366);
-            this.lvEntries.TabIndex = 5;
-            this.lvEntries.UseCompatibleStateImageBehavior = false;
-            this.lvEntries.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.lvEntries_DrawItem);
-            this.lvEntries.SelectedIndexChanged += new System.EventHandler(this.lvEntries_SelectedIndexChanged);
-            // 
-            // columnPath
-            // 
-            this.columnPath.Text = "文件名";
-            this.columnPath.Width = 180;
-            // 
-            // columnSize
-            // 
-            this.columnSize.Text = "大小";
-            this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.columnSize.Width = 80;
             // 
             // MainForm
             // 

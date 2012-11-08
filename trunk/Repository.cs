@@ -25,13 +25,13 @@ namespace QQGameRes
             return null;
         }
 
-        List<FileFolder> imageFolders;
+        List<FileGroup> imageFolders;
         List<FileInfo> packageFiles;
 
         public Repository(string path)
         {
             // Search the directory recursively for supported files.
-            imageFolders = new List<FileFolder>();
+            imageFolders = new List<FileGroup>();
             packageFiles = new List<FileInfo>();
             SearchForSupportedFiles(new DirectoryInfo(path));
         }
@@ -49,7 +49,7 @@ namespace QQGameRes
             }
             if (selected.Count > 0)
             {
-                imageFolders.Add(new FileFolder(dir, selected.ToArray()));
+                imageFolders.Add(new FileGroup(dir, selected.ToArray()));
             }
 
             foreach (DirectoryInfo d in dir.GetDirectories())
@@ -58,7 +58,7 @@ namespace QQGameRes
             }
         }
 
-        public IEnumerable<FileFolder> ImageFolders
+        public IEnumerable<FileGroup> ImageFolders
         {
             get { return imageFolders; }
         }
