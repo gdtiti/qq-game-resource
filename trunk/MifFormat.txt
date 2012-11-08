@@ -132,8 +132,9 @@ Animation Control
 If the image Type is 7, a Delay field must be present at the beginning of each
 frame block to indicate the number of milliseconds to wait before playing the
 next frame in an animation. Note, however, that even when the frames in a MIF
-image is not meant to be animated, the Delay field must still be present,
-though its value should be ignored.
+image are not meant to be animated, the Delay field must still be present and
+may contain a legistimate value, though this value should be ignored.
 
-In practice, the Delay value (when present) is always 100, regardless of 
-whether the frames are meant to be animated or not.
+In practice, the Delay value (when present) is typically 100, though we have
+observed values from 50 to 3200. The Delay values in a single MIF file may be
+different for each frame.

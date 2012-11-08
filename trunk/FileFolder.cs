@@ -13,13 +13,20 @@ namespace QQGameRes
     public class FileFolder
     {
         DirectoryInfo dir;
-        FileFolder[] subFolders;
+        FileInfo[] files;
 
-        public FileFolder(string path)
+        public FileFolder(DirectoryInfo dir, FileInfo[] files)
         {
-            dir = new DirectoryInfo(path);
+            this.dir = dir;
+            this.files = files;
         }
 
+        public FileInfo[] Files
+        {
+            get { return files; }
+        }
+
+#if false
         public FileFolder[] GetSubFolders()
         {
             if (subFolders == null)
@@ -38,7 +45,7 @@ namespace QQGameRes
         {
             return dir.GetFiles("*.mif");
         }
-
+#endif
         public string Path
         {
             get { return dir.FullName; }

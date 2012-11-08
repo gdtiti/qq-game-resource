@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("QQGame");
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.lvEntries = new System.Windows.Forms.ListView();
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -42,8 +41,14 @@
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
+            this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.tvFolders = new System.Windows.Forms.TreeView();
             ((System.ComponentModel.ISupportInitialize)(this.picPreview)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
+            this.splitContainer1.Panel1.SuspendLayout();
+            this.splitContainer1.Panel2.SuspendLayout();
+            this.splitContainer1.SuspendLayout();
             this.SuspendLayout();
             // 
             // lvEntries
@@ -59,11 +64,11 @@
             this.lvEntries.GridLines = true;
             this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.lvEntries.HideSelection = false;
-            this.lvEntries.Location = new System.Drawing.Point(237, 59);
+            this.lvEntries.Location = new System.Drawing.Point(21, 25);
             this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
             this.lvEntries.MultiSelect = false;
             this.lvEntries.Name = "lvEntries";
-            this.lvEntries.Size = new System.Drawing.Size(207, 303);
+            this.lvEntries.Size = new System.Drawing.Size(292, 280);
             this.lvEntries.TabIndex = 1;
             this.lvEntries.UseCompatibleStateImageBehavior = false;
             this.lvEntries.View = System.Windows.Forms.View.Details;
@@ -72,7 +77,7 @@
             // columnPath
             // 
             this.columnPath.Text = "文件名";
-            this.columnPath.Width = 300;
+            this.columnPath.Width = 200;
             // 
             // columnOriginalSize
             // 
@@ -107,9 +112,9 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.picPreview.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-            this.picPreview.Location = new System.Drawing.Point(451, 59);
+            this.picPreview.Location = new System.Drawing.Point(539, 59);
             this.picPreview.Name = "picPreview";
-            this.picPreview.Size = new System.Drawing.Size(317, 303);
+            this.picPreview.Size = new System.Drawing.Size(214, 241);
             this.picPreview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.CenterImage;
             this.picPreview.TabIndex = 4;
             this.picPreview.TabStop = false;
@@ -138,17 +143,39 @@
             this.saveFileDialog1.Filter = "所有文件 (*.*)|*.*";
             this.saveFileDialog1.Title = "保存素材";
             // 
+            // splitContainer1
+            // 
+            this.splitContainer1.Location = new System.Drawing.Point(13, 72);
+            this.splitContainer1.Name = "splitContainer1";
+            // 
+            // splitContainer1.Panel1
+            // 
+            this.splitContainer1.Panel1.Controls.Add(this.tvFolders);
+            this.splitContainer1.Panel1.Controls.Add(this.toolStrip1);
+            // 
+            // splitContainer1.Panel2
+            // 
+            this.splitContainer1.Panel2.Controls.Add(this.lvEntries);
+            this.splitContainer1.Size = new System.Drawing.Size(499, 325);
+            this.splitContainer1.SplitterDistance = 166;
+            this.splitContainer1.TabIndex = 8;
+            // 
+            // toolStrip1
+            // 
+            this.toolStrip1.Location = new System.Drawing.Point(0, 0);
+            this.toolStrip1.Name = "toolStrip1";
+            this.toolStrip1.Size = new System.Drawing.Size(166, 25);
+            this.toolStrip1.TabIndex = 7;
+            this.toolStrip1.Text = "toolStrip1";
+            // 
             // tvFolders
             // 
-            this.tvFolders.Location = new System.Drawing.Point(13, 59);
+            this.tvFolders.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tvFolders.HideSelection = false;
+            this.tvFolders.Location = new System.Drawing.Point(0, 25);
             this.tvFolders.Name = "tvFolders";
-            treeNode1.Name = "Node0";
-            treeNode1.Text = "QQGame";
-            this.tvFolders.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
-            treeNode1});
-            this.tvFolders.Size = new System.Drawing.Size(217, 302);
-            this.tvFolders.TabIndex = 6;
-            this.tvFolders.BeforeExpand += new System.Windows.Forms.TreeViewCancelEventHandler(this.tvFolders_BeforeExpand);
+            this.tvFolders.Size = new System.Drawing.Size(166, 300);
+            this.tvFolders.TabIndex = 8;
             this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
             // 
             // MainForm
@@ -156,12 +183,11 @@
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(779, 375);
-            this.Controls.Add(this.tvFolders);
+            this.ClientSize = new System.Drawing.Size(779, 421);
+            this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.btnOpenFile);
             this.Controls.Add(this.picPreview);
             this.Controls.Add(this.button2);
-            this.Controls.Add(this.lvEntries);
             this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Margin = new System.Windows.Forms.Padding(4);
@@ -171,6 +197,11 @@
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragOver += new System.Windows.Forms.DragEventHandler(this.MainForm_DragOver);
             ((System.ComponentModel.ISupportInitialize)(this.picPreview)).EndInit();
+            this.splitContainer1.Panel1.ResumeLayout(false);
+            this.splitContainer1.Panel1.PerformLayout();
+            this.splitContainer1.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
+            this.splitContainer1.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -188,7 +219,9 @@
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
         private System.Windows.Forms.Timer timerAnimation;
         private System.Windows.Forms.SaveFileDialog saveFileDialog1;
+        private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.TreeView tvFolders;
+        private System.Windows.Forms.ToolStrip toolStrip1;
     }
 }
 

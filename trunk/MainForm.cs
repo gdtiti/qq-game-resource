@@ -101,6 +101,15 @@ namespace QQGameRes
 
             int index = lvEntries.SelectedIndices[0];
             string filename = lvEntries.Items[index].Text;
+
+            if (lvEntries.Items[index].Tag is FileInfo)
+            {
+                FileInfo f = lvEntries.Items[index].Tag as FileInfo;
+                currentImage = new MifImage(f.OpenRead());
+                PlayNextFrame();
+                return;
+            }
+
             if (filename.EndsWith(".mif", StringComparison.InvariantCultureIgnoreCase))
             {
                 currentImage = new MifImage(pkg.Extract(index));
@@ -115,22 +124,34 @@ namespace QQGameRes
             }
         }
 
+        private void LoadRepository(string path)
+        {
+            if (path.EndsWith("/") || path.EndsWith("\\"))
+                path = path.Substring(0, path.Length - 1);
+            Repository rep = new Repository(path);
+
+            // Hide and clear the tree view to reduce UI glitter.
+            tvFolders.Visible = false;
+            tvFolders.Nodes.Clear();
+
+            // Add branch for image files under this path.
+            TreeNode root = tvFolders.Nodes.Add(path);
+            foreach (FileFolder f in rep.ImageFolders)
+            {
+                root.Nodes.Add(f.Path.Substring(path.Length + 1)).Tag = f;
+            }
+
+            // Expand the root node and show the tree view.
+            root.Expand();
+            tvFolders.Visible = true;
+        }
+
         private void btnOpenFile_Click(object sender, EventArgs e)
         {
-#if true
-            Repository rep = new Repository(Repository.GetInstallationPath());
-            foreach (FileInfo f in rep.ImageFiles)
-            {
-                ListViewItem item = new ListViewItem(f.FullName);
-                item.SubItems.Add(f.Length.ToString("#,#"));
-                lvEntries.Items.Add(item);
-            }
-#else
             if (openFileDialog1.ShowDialog(this) == DialogResult.OK)
             {
                 LoadPackage(openFileDialog1.FileName);
             }
-#endif
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -142,7 +163,8 @@ namespace QQGameRes
             string rootPath = Repository.GetInstallationPath();
             if (rootPath == null)
                 return;
-
+            LoadRepository(rootPath);
+#if false
             // Load the root folder of QQGame.
             FileFolder folder = new FileFolder(rootPath);
 
@@ -151,6 +173,7 @@ namespace QQGameRes
 
             // Add a small plus to the root.
             tvFolders.Nodes[0].Nodes.Add("DUMMY");
+#endif
         }
 
         private void timerAnimation_Tick(object sender, EventArgs e)
@@ -176,6 +199,24 @@ namespace QQGameRes
             }
         }
 
+        private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (e.Node.Tag is FileFolder)
+            {
+                lvEntries.Visible = false;
+                lvEntries.Items.Clear();
+                foreach (FileInfo f in ((FileFolder)e.Node.Tag).Files)
+                {
+                    ListViewItem item = new ListViewItem(f.Name);
+                    item.SubItems.Add(f.Length.ToString("#,#"));
+                    item.Tag = f;
+                    lvEntries.Items.Add(item);
+                }
+                lvEntries.Visible = true;
+            }
+        }
+
+#if false
         private void tvFolders_BeforeExpand(object sender, TreeViewCancelEventArgs e)
         {
             // Return if the selected node is not a folder.
@@ -201,7 +242,9 @@ namespace QQGameRes
                 }
             }
         }
+#endif
 
+#if false
         private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
         {
             if (e.Node.Tag == null)
@@ -218,5 +261,6 @@ namespace QQGameRes
                 }
             }
         }
+#endif
     }
 }
