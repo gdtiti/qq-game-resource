@@ -32,7 +32,7 @@ namespace QQGameRes
                 item.SubItems.Add(entry.Offset.ToString("X8"));
                 lvEntries.Items.Add(item);
             }
-            this.Text = "QQ游戏素材浏览器 - " + Path.GetFileName(filename);
+            this.Text = "QQ游戏资源浏览器 - " + Path.GetFileName(filename);
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -58,7 +58,7 @@ namespace QQGameRes
                 }
             }
             MessageBox.Show(this, "成功导出到 " + filename,
-                "QQ游戏素材浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                "QQ游戏资源浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private MifImage currentImage;
@@ -106,6 +106,8 @@ namespace QQGameRes
             {
                 FileInfo f = lvEntries.Items[index].Tag as FileInfo;
                 currentImage = new MifImage(f.OpenRead());
+                label1.Text = currentImage.Width + " x " +
+                    currentImage.Height + ", " + currentImage.FrameCount + " Frames";
                 PlayNextFrame();
                 return;
             }
@@ -156,24 +158,11 @@ namespace QQGameRes
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-            lvEntries.Columns[2].Width = 0;
-            lvEntries.Columns[3].Width = 0;
-
             // Find the root path of QQ Game.
             string rootPath = Repository.GetInstallationPath();
             if (rootPath == null)
                 return;
             LoadRepository(rootPath);
-#if false
-            // Load the root folder of QQGame.
-            FileFolder folder = new FileFolder(rootPath);
-
-            // Associate the folder with the tree view root.
-            tvFolders.Nodes[0].Tag = folder;
-
-            // Add a small plus to the root.
-            tvFolders.Nodes[0].Nodes.Add("DUMMY");
-#endif
         }
 
         private void timerAnimation_Tick(object sender, EventArgs e)
@@ -210,10 +199,19 @@ namespace QQGameRes
                     ListViewItem item = new ListViewItem(f.Name);
                     item.SubItems.Add(f.Length.ToString("#,#"));
                     item.Tag = f;
+#if false
+                    using (FileStream stream = f.OpenRead())
+                    {
+                        Image img = new MifImage(stream).GetNextFrame().Image;
+                        imageListPreview.Images.Add(img);
+                        item.ImageIndex = imageListPreview.Images.Count - 1;
+                    }
+#endif
                     lvEntries.Items.Add(item);
                 }
                 lvEntries.Visible = true;
             }
+            //lvEntries.View = View.LargeIcon;
         }
 
 #if false

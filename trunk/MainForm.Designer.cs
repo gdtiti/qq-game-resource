@@ -32,9 +32,7 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.lvEntries = new System.Windows.Forms.ListView();
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnOriginalSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnOffset = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.button2 = new System.Windows.Forms.Button();
             this.picPreview = new System.Windows.Forms.PictureBox();
             this.btnOpenFile = new System.Windows.Forms.Button();
@@ -44,6 +42,8 @@
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.tvFolders = new System.Windows.Forms.TreeView();
+            this.label1 = new System.Windows.Forms.Label();
+            this.imageListPreview = new System.Windows.Forms.ImageList(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.picPreview)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -57,13 +57,12 @@
             | System.Windows.Forms.AnchorStyles.Left)));
             this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnPath,
-            this.columnOriginalSize,
-            this.columnSize,
-            this.columnOffset});
+            this.columnSize});
             this.lvEntries.FullRowSelect = true;
             this.lvEntries.GridLines = true;
             this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.lvEntries.HideSelection = false;
+            this.lvEntries.LargeImageList = this.imageListPreview;
             this.lvEntries.Location = new System.Drawing.Point(21, 25);
             this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
             this.lvEntries.MultiSelect = false;
@@ -77,24 +76,13 @@
             // columnPath
             // 
             this.columnPath.Text = "文件名";
-            this.columnPath.Width = 200;
-            // 
-            // columnOriginalSize
-            // 
-            this.columnOriginalSize.Text = "大小";
-            this.columnOriginalSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.columnOriginalSize.Width = 100;
+            this.columnPath.Width = 180;
             // 
             // columnSize
             // 
-            this.columnSize.Text = "Packed Size";
+            this.columnSize.Text = "大小";
             this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.columnSize.Width = 100;
-            // 
-            // columnOffset
-            // 
-            this.columnOffset.Text = "Offset";
-            this.columnOffset.Width = 100;
+            this.columnSize.Width = 80;
             // 
             // button2
             // 
@@ -131,8 +119,8 @@
             // 
             // openFileDialog1
             // 
-            this.openFileDialog1.Filter = "QQ游戏素材包 (*.pkg)|*.pkg|所有文件 (*.*)|*.*";
-            this.openFileDialog1.Title = "打开QQ游戏素材文件";
+            this.openFileDialog1.Filter = "QQ游戏资源包 (*.pkg)|*.pkg|所有文件 (*.*)|*.*";
+            this.openFileDialog1.Title = "打开QQ游戏资源包";
             // 
             // timerAnimation
             // 
@@ -141,7 +129,7 @@
             // saveFileDialog1
             // 
             this.saveFileDialog1.Filter = "所有文件 (*.*)|*.*";
-            this.saveFileDialog1.Title = "保存素材";
+            this.saveFileDialog1.Title = "导出资源";
             // 
             // splitContainer1
             // 
@@ -178,12 +166,28 @@
             this.tvFolders.TabIndex = 8;
             this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(553, 334);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(45, 19);
+            this.label1.TabIndex = 9;
+            this.label1.Text = "label1";
+            // 
+            // imageListPreview
+            // 
+            this.imageListPreview.ColorDepth = System.Windows.Forms.ColorDepth.Depth32Bit;
+            this.imageListPreview.ImageSize = new System.Drawing.Size(180, 180);
+            this.imageListPreview.TransparentColor = System.Drawing.Color.Transparent;
+            // 
             // MainForm
             // 
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(779, 421);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.btnOpenFile);
             this.Controls.Add(this.picPreview);
@@ -203,6 +207,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -210,9 +215,7 @@
 
         private System.Windows.Forms.ListView lvEntries;
         private System.Windows.Forms.ColumnHeader columnPath;
-        private System.Windows.Forms.ColumnHeader columnOriginalSize;
         private System.Windows.Forms.ColumnHeader columnSize;
-        private System.Windows.Forms.ColumnHeader columnOffset;
         private System.Windows.Forms.Button button2;
         private System.Windows.Forms.PictureBox picPreview;
         private System.Windows.Forms.Button btnOpenFile;
@@ -222,6 +225,8 @@
         private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.TreeView tvFolders;
         private System.Windows.Forms.ToolStrip toolStrip1;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.ImageList imageListPreview;
     }
 }
 

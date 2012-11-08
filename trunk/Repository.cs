@@ -12,13 +12,15 @@ namespace QQGameRes
     {
         public static string GetInstallationPath()
         {
-            RegistryKey key = 
-                Registry.CurrentUser.OpenSubKey(@"Software\Tencent\QQGame\SYS");
-            if (key != null)
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
+                @"Software\Tencent\QQGame\SYS"))
             {
-                object val = key.GetValue("GameDirectory");
-                if (val != null && val is string)
-                    return (string)val;
+                if (key != null)
+                {
+                    object val = key.GetValue("GameDirectory");
+                    if (val != null && val is string)
+                        return (string)val;
+                }
             }
             return null;
         }
