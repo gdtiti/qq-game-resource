@@ -23,13 +23,10 @@ namespace QQGameRes
         {
             pkg = new Package(filename);
             lvEntries.Items.Clear();
-            for (int i = 0; i < pkg.EntryCount; i++)
+            foreach (PackageEntry entry in pkg.Entries)
             {
-                PackageEntry entry = pkg.GetEntry(i);
-                ListViewItem item = new ListViewItem(entry.Path);
-                item.SubItems.Add(entry.OriginalSize.ToString("#,#"));
+                ListViewItem item = new ListViewItem(entry.EntryPath);
                 item.SubItems.Add(entry.Size.ToString("#,#"));
-                item.SubItems.Add(entry.Offset.ToString("X8"));
                 lvEntries.Items.Add(item);
             }
             this.Text = "QQ游戏资源浏览器 - " + Path.GetFileName(filename);
@@ -97,49 +94,34 @@ namespace QQGameRes
 
         private void lvEntries_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Stop the current animation, if any.
+            // Stop the current animation if any.
             StopAnimation();
 
             // Do nothing if no item is selected.
             if (lvEntries.SelectedIndices.Count == 0)
                 return;
 
+            // Get the item selected.
             ListViewItem item = lvEntries.SelectedItems[0];
             string filename = item.Text;
+            ListItemInfo tag = item.Tag as ListItemInfo;
 
-            if (item.Tag is ListItemInfo)
+            // Update status message of the image size.
+            if (tag.Thumbnail != null)
             {
-                ListItemInfo tag = item.Tag as ListItemInfo;
-                if (tag.Thumbnail != null)
-                {
-                    txtImageSize.Text = tag.Thumbnail.Width + " x " + tag.Thumbnail.Height;
-                    txtFrames.Text = tag.FrameCount + " Frames";
-                }
-                if (tag.FrameCount > 1)
-                {
-                    ResourceEntry ent = (item.Tag as ListItemInfo).ResourceEntry;
-                    animatedItem = item;
-                    animatedImage = new MifImage(ent.Open());
-                    animationEnded = false;
-                    PlayNextFrame();
-                }
-                return;
+                txtImageSize.Text = tag.Thumbnail.Width + " x " + tag.Thumbnail.Height;
+                txtFrames.Text = tag.FrameCount + " Frames";
             }
 
-#if false
-            if (filename.EndsWith(".mif", StringComparison.InvariantCultureIgnoreCase))
+            // Start animation if this item is a multi-frame image.
+            if (tag.FrameCount > 1)
             {
-                currentImage = new MifImage(pkg.Extract(item.Index));
+                ResourceEntry entry = tag.ResourceEntry;
+                animatedItem = item;
+                animatedImage = new MifImage(entry.Open());
+                animationEnded = false;
                 PlayNextFrame();
             }
-            else if (filename.EndsWith(".bmp", StringComparison.InvariantCultureIgnoreCase))
-            {
-                using (Stream stream = pkg.Extract(item.Index))
-                {
-                    picPreview.Image = new Bitmap(stream);
-                }
-            }
-#endif
         }
 
         private void LoadRepository(string path)
@@ -152,14 +134,22 @@ namespace QQGameRes
             tvFolders.Visible = false;
             tvFolders.Nodes.Clear();
 
-            // Add branch for image files under this path.
+            // Create a root-level node for the repository.
             TreeNode root = tvFolders.Nodes.Add(path);
-            foreach (FileGroup f in rep.ImageFolders)
+
+            // Create a child node for each image folder in the repository.
+            foreach (FileGroup group in rep.ImageFolders)
             {
-                root.Nodes.Add(f.Name.Substring(path.Length + 1)).Tag = f;
+                root.Nodes.Add(group.Name.Substring(path.Length + 1)).Tag = group;
             }
 
-            // Expand the root node and show the tree view.
+            // Create a root-level node for each .PKG package.
+            foreach (FileInfo file in rep.PackageFiles)
+            {
+                tvFolders.Nodes.Add(Path.GetFileName(file.Name)).Tag = null;
+            }
+
+            // Expand the first root node and show the tree view.
             root.Expand();
             tvFolders.Visible = true;
         }
@@ -205,10 +195,10 @@ namespace QQGameRes
 
         private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (e.Node.Tag is FileGroup)
+            if (e.Node.Tag is ResourceGroup)
             {
                 StopAnimation();
-                PopulateListView(e.Node.Tag as FileGroup);
+                PopulateListView(e.Node.Tag as ResourceGroup);
             }
         }
 
@@ -217,18 +207,18 @@ namespace QQGameRes
         /// After the function returns, the list view will be scrolled to
         /// the top, and no item will be selected.
         /// </summary>
-        /// <param name="folder"></param>
-        private void PopulateListView(FileGroup folder)
+        /// <param name="group"></param>
+        private void PopulateListView(ResourceGroup group)
         {
             lvEntries.Items.Clear();
             lvEntries.SelectedIndices.Clear();
             lvEntries.Visible = false;
-            foreach (ResourceEntry ent in folder.Entries)
+            foreach (ResourceEntry entry in group.Entries)
             {
-                ListViewItem item = new ListViewItem(ent.Name);
-                item.SubItems.Add(ent.Size.ToString("#,#"));
+                ListViewItem item = new ListViewItem(entry.Name);
+                item.SubItems.Add(entry.Size.ToString("#,#"));
                 ListItemInfo tag = new ListItemInfo();
-                tag.ResourceEntry = ent;
+                tag.ResourceEntry = entry;
                 item.Tag = tag;
                 lvEntries.Items.Add(item);
             }
@@ -237,6 +227,43 @@ namespace QQGameRes
                 lvEntries.RedrawItems(0, lvEntries.Items.Count - 1, true);
         }
 
+        /// <summary>
+        /// Loads the thumbnail image for the given list view item 
+        /// if not already loaded.
+        /// </summary>
+        /// <param name="tag"></param>
+        private void LoadThumbnail(ListItemInfo tag)
+        {
+            if (tag.Thumbnail != null) // already loaded
+                return;
+
+            // Check if the resource format is supported.
+            string name = tag.ResourceEntry.Name.ToLowerInvariant();
+            if (name.EndsWith(".mif"))
+            {
+                using (MifImage mif = new MifImage(tag.ResourceEntry.Open()))
+                {
+                    if (mif.GetNextFrame())
+                    {
+                        tag.Thumbnail = mif.CurrentFrame.Image;
+                        tag.FrameCount = mif.FrameCount;
+                        return;
+                    }
+                }
+            }
+            else if (name.EndsWith(".bmp"))
+            {
+                using (Stream stream = tag.ResourceEntry.Open())
+                {
+                    tag.Thumbnail = new Bitmap(stream);
+                    tag.FrameCount = 1;
+                    return;
+                }
+            }
+
+            // If a thumbnail image cannot be loaded, we use a default one.
+            // ...
+        }
 
         private void lvEntries_DrawItem(object sender, DrawListViewItemEventArgs e)
         {
@@ -255,17 +282,7 @@ namespace QQGameRes
             ListItemInfo tag = e.Item.Tag as ListItemInfo;
 
             // Load the thumbnail image if not already loaded.
-            if (tag.Thumbnail == null)
-            {
-                using (MifImage mif = new MifImage(tag.ResourceEntry.Open()))
-                {
-                    if (mif.GetNextFrame())
-                    {
-                        tag.Thumbnail = mif.CurrentFrame.Image;
-                        tag.FrameCount = mif.FrameCount;
-                    }
-                }
-            }
+            LoadThumbnail(tag);
 
             // Check if we're currently animating this item.
             bool animating = (animatedItem == e.Item);
@@ -307,13 +324,15 @@ namespace QQGameRes
             if (lvEntries.SelectedIndices.Count == 0)
                 return;
 
-            int index = lvEntries.SelectedIndices[0];
-            saveFileDialog1.FileName = Path.GetFileName(lvEntries.Items[index].Text);
+            ListViewItem item = lvEntries.SelectedItems[0];
+            ListItemInfo tag = item.Tag as ListItemInfo;
+
+            saveFileDialog1.FileName = Path.GetFileName(item.Text);
             if (saveFileDialog1.ShowDialog(this) != DialogResult.OK)
                 return;
 
             string filename = saveFileDialog1.FileName;
-            using (Stream stream = pkg.ExtractEntry(index))
+            using (Stream stream = tag.ResourceEntry.Open())
             {
                 byte[] buffer = new byte[65536];
                 using (FileStream output = new FileStream(

@@ -44,6 +44,8 @@ namespace QQGameRes
                 string ext = f.Extension.ToLowerInvariant();
                 if (ext == ".mif")
                     selected.Add(f);
+                //else if (ext == ".bmp") // too many trivial clip arts
+                //    selected.Add(f);
                 else if (ext == ".pkg")
                     packageFiles.Add(f);
             }
