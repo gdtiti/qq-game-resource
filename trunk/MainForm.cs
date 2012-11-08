@@ -117,21 +117,106 @@ namespace QQGameRes
 
         private void btnOpenFile_Click(object sender, EventArgs e)
         {
+#if true
+            Repository rep = new Repository(Repository.GetInstallationPath());
+            foreach (FileInfo f in rep.ImageFiles)
+            {
+                ListViewItem item = new ListViewItem(f.FullName);
+                item.SubItems.Add(f.Length.ToString("#,#"));
+                lvEntries.Items.Add(item);
+            }
+#else
             if (openFileDialog1.ShowDialog(this) == DialogResult.OK)
             {
                 LoadPackage(openFileDialog1.FileName);
             }
+#endif
         }
 
         private void MainForm_Load(object sender, EventArgs e)
         {
             lvEntries.Columns[2].Width = 0;
             lvEntries.Columns[3].Width = 0;
+
+            // Find the root path of QQ Game.
+            string rootPath = Repository.GetInstallationPath();
+            if (rootPath == null)
+                return;
+
+            // Load the root folder of QQGame.
+            FileFolder folder = new FileFolder(rootPath);
+
+            // Associate the folder with the tree view root.
+            tvFolders.Nodes[0].Tag = folder;
+
+            // Add a small plus to the root.
+            tvFolders.Nodes[0].Nodes.Add("DUMMY");
         }
 
         private void timerAnimation_Tick(object sender, EventArgs e)
         {
             PlayNextFrame();
+        }
+
+        private void MainForm_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+        }
+
+        private void MainForm_DragDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] filenames = (string[])e.Data.GetData(DataFormats.FileDrop);
+                foreach (string filename in filenames)
+                    System.Diagnostics.Debug.WriteLine(filename);
+            }
+        }
+
+        private void tvFolders_BeforeExpand(object sender, TreeViewCancelEventArgs e)
+        {
+            // Return if the selected node is not a folder.
+            if (e.Node.Tag == null)
+                return;
+
+            // Return if the selected node does not contain a DUMMY child.
+            if (e.Node.Nodes.Count == 0 || e.Node.Nodes[0].Tag != null)
+                return;
+
+            // Remove the dummy child.
+            e.Node.Nodes.Clear();
+
+            if (e.Node.Tag is FileFolder)
+            {
+                FileFolder[] subFolders = ((FileFolder)e.Node.Tag).GetSubFolders();
+                foreach (FileFolder subFolder in subFolders)
+                {
+                    TreeNode child = e.Node.Nodes.Add(subFolder.Name);
+                    child.Tag = subFolder;
+                    if (subFolder.GetSubFolders().Length > 0)
+                        child.Nodes.Add("DUMMY");
+                }
+            }
+        }
+
+        private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (e.Node.Tag == null)
+                return;
+            if (e.Node.Tag is FileFolder)
+            {
+                FileInfo[] files = ((FileFolder)e.Node.Tag).GetFiles();
+                lvEntries.Items.Clear();
+                foreach (FileInfo file in files)
+                {
+                    ListViewItem item = new ListViewItem(file.Name);
+                    item.SubItems.Add(file.Length.ToString("#,#"));
+                    lvEntries.Items.Add(item);
+                }
+            }
         }
     }
 }

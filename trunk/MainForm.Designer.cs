@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("QQGame");
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.lvEntries = new System.Windows.Forms.ListView();
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -41,6 +42,7 @@
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
+            this.tvFolders = new System.Windows.Forms.TreeView();
             ((System.ComponentModel.ISupportInitialize)(this.picPreview)).BeginInit();
             this.SuspendLayout();
             // 
@@ -57,11 +59,11 @@
             this.lvEntries.GridLines = true;
             this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
             this.lvEntries.HideSelection = false;
-            this.lvEntries.Location = new System.Drawing.Point(13, 59);
+            this.lvEntries.Location = new System.Drawing.Point(237, 59);
             this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
             this.lvEntries.MultiSelect = false;
             this.lvEntries.Name = "lvEntries";
-            this.lvEntries.Size = new System.Drawing.Size(431, 303);
+            this.lvEntries.Size = new System.Drawing.Size(207, 303);
             this.lvEntries.TabIndex = 1;
             this.lvEntries.UseCompatibleStateImageBehavior = false;
             this.lvEntries.View = System.Windows.Forms.View.Details;
@@ -124,8 +126,7 @@
             // 
             // openFileDialog1
             // 
-            this.openFileDialog1.DefaultExt = "pkg";
-            this.openFileDialog1.Filter = "QQ游戏素材文件 (*.pkg)|*.pkg|所有文件 (*.*)|*.*";
+            this.openFileDialog1.Filter = "QQ游戏素材包 (*.pkg)|*.pkg|所有文件 (*.*)|*.*";
             this.openFileDialog1.Title = "打开QQ游戏素材文件";
             // 
             // timerAnimation
@@ -137,11 +138,26 @@
             this.saveFileDialog1.Filter = "所有文件 (*.*)|*.*";
             this.saveFileDialog1.Title = "保存素材";
             // 
+            // tvFolders
+            // 
+            this.tvFolders.Location = new System.Drawing.Point(13, 59);
+            this.tvFolders.Name = "tvFolders";
+            treeNode1.Name = "Node0";
+            treeNode1.Text = "QQGame";
+            this.tvFolders.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
+            treeNode1});
+            this.tvFolders.Size = new System.Drawing.Size(217, 302);
+            this.tvFolders.TabIndex = 6;
+            this.tvFolders.BeforeExpand += new System.Windows.Forms.TreeViewCancelEventHandler(this.tvFolders_BeforeExpand);
+            this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
+            // 
             // MainForm
             // 
+            this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(779, 375);
+            this.Controls.Add(this.tvFolders);
             this.Controls.Add(this.btnOpenFile);
             this.Controls.Add(this.picPreview);
             this.Controls.Add(this.button2);
@@ -152,6 +168,8 @@
             this.Name = "MainForm";
             this.Text = "QQ游戏素材浏览器";
             this.Load += new System.EventHandler(this.MainForm_Load);
+            this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
+            this.DragOver += new System.Windows.Forms.DragEventHandler(this.MainForm_DragOver);
             ((System.ComponentModel.ISupportInitialize)(this.picPreview)).EndInit();
             this.ResumeLayout(false);
 
@@ -170,6 +188,7 @@
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
         private System.Windows.Forms.Timer timerAnimation;
         private System.Windows.Forms.SaveFileDialog saveFileDialog1;
+        private System.Windows.Forms.TreeView tvFolders;
     }
 }
 
