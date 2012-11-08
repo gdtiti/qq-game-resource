@@ -62,7 +62,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DoubleBufferedListView.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="FileFolder.cs" />
+    <Compile Include="FileItem.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -120,6 +124,8 @@
   <ItemGroup>
     <Content Include="MifFormat.txt" />
     <Content Include="PkgFormat.txt" />
+    <None Include="Play-Icon.png" />
+    <None Include="Play-Icon-48.png" />
     <Content Include="QQGameRes.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
