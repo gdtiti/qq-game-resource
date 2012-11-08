@@ -86,7 +86,7 @@ namespace QQGameRes
             return entries[index];
         }
 
-        public Stream Extract(int index)
+        public Stream ExtractEntry(int index)
         {
             uint offset = entries[index].Offset;
             uint size = entries[index].Size;
