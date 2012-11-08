@@ -30,9 +30,7 @@
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            this.lvEntries = new System.Windows.Forms.ListView();
-            this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.imageListPreview = new System.Windows.Forms.ImageList(this.components);
             this.button2 = new System.Windows.Forms.Button();
             this.picPreview = new System.Windows.Forms.PictureBox();
             this.btnOpenFile = new System.Windows.Forms.Button();
@@ -40,10 +38,12 @@
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.tvFolders = new System.Windows.Forms.TreeView();
+            this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.label1 = new System.Windows.Forms.Label();
-            this.imageListPreview = new System.Windows.Forms.ImageList(this.components);
+            this.lvEntries = new QQGameRes.DoubleBufferedListView();
+            this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             ((System.ComponentModel.ISupportInitialize)(this.picPreview)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -51,38 +51,11 @@
             this.splitContainer1.SuspendLayout();
             this.SuspendLayout();
             // 
-            // lvEntries
+            // imageListPreview
             // 
-            this.lvEntries.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
-            this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnPath,
-            this.columnSize});
-            this.lvEntries.FullRowSelect = true;
-            this.lvEntries.GridLines = true;
-            this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
-            this.lvEntries.HideSelection = false;
-            this.lvEntries.LargeImageList = this.imageListPreview;
-            this.lvEntries.Location = new System.Drawing.Point(21, 25);
-            this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
-            this.lvEntries.MultiSelect = false;
-            this.lvEntries.Name = "lvEntries";
-            this.lvEntries.Size = new System.Drawing.Size(292, 280);
-            this.lvEntries.TabIndex = 1;
-            this.lvEntries.UseCompatibleStateImageBehavior = false;
-            this.lvEntries.View = System.Windows.Forms.View.Details;
-            this.lvEntries.SelectedIndexChanged += new System.EventHandler(this.lvEntries_SelectedIndexChanged);
-            // 
-            // columnPath
-            // 
-            this.columnPath.Text = "文件名";
-            this.columnPath.Width = 180;
-            // 
-            // columnSize
-            // 
-            this.columnSize.Text = "大小";
-            this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.columnSize.Width = 80;
+            this.imageListPreview.ColorDepth = System.Windows.Forms.ColorDepth.Depth32Bit;
+            this.imageListPreview.ImageSize = new System.Drawing.Size(130, 175);
+            this.imageListPreview.TransparentColor = System.Drawing.Color.Transparent;
             // 
             // button2
             // 
@@ -100,9 +73,9 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.picPreview.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-            this.picPreview.Location = new System.Drawing.Point(539, 59);
+            this.picPreview.Location = new System.Drawing.Point(571, 12);
             this.picPreview.Name = "picPreview";
-            this.picPreview.Size = new System.Drawing.Size(214, 241);
+            this.picPreview.Size = new System.Drawing.Size(273, 198);
             this.picPreview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.CenterImage;
             this.picPreview.TabIndex = 4;
             this.picPreview.TabStop = false;
@@ -133,6 +106,9 @@
             // 
             // splitContainer1
             // 
+            this.splitContainer1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.splitContainer1.Location = new System.Drawing.Point(13, 72);
             this.splitContainer1.Name = "splitContainer1";
             // 
@@ -144,17 +120,9 @@
             // splitContainer1.Panel2
             // 
             this.splitContainer1.Panel2.Controls.Add(this.lvEntries);
-            this.splitContainer1.Size = new System.Drawing.Size(499, 325);
-            this.splitContainer1.SplitterDistance = 166;
+            this.splitContainer1.Size = new System.Drawing.Size(818, 332);
+            this.splitContainer1.SplitterDistance = 272;
             this.splitContainer1.TabIndex = 8;
-            // 
-            // toolStrip1
-            // 
-            this.toolStrip1.Location = new System.Drawing.Point(0, 0);
-            this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(166, 25);
-            this.toolStrip1.TabIndex = 7;
-            this.toolStrip1.Text = "toolStrip1";
             // 
             // tvFolders
             // 
@@ -162,31 +130,70 @@
             this.tvFolders.HideSelection = false;
             this.tvFolders.Location = new System.Drawing.Point(0, 25);
             this.tvFolders.Name = "tvFolders";
-            this.tvFolders.Size = new System.Drawing.Size(166, 300);
+            this.tvFolders.Size = new System.Drawing.Size(272, 307);
             this.tvFolders.TabIndex = 8;
             this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
+            // 
+            // toolStrip1
+            // 
+            this.toolStrip1.Location = new System.Drawing.Point(0, 0);
+            this.toolStrip1.Name = "toolStrip1";
+            this.toolStrip1.Size = new System.Drawing.Size(272, 25);
+            this.toolStrip1.TabIndex = 7;
+            this.toolStrip1.Text = "toolStrip1";
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(553, 334);
+            this.label1.Location = new System.Drawing.Point(310, 23);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(45, 19);
             this.label1.TabIndex = 9;
             this.label1.Text = "label1";
             // 
-            // imageListPreview
+            // lvEntries
             // 
-            this.imageListPreview.ColorDepth = System.Windows.Forms.ColorDepth.Depth32Bit;
-            this.imageListPreview.ImageSize = new System.Drawing.Size(180, 180);
-            this.imageListPreview.TransparentColor = System.Drawing.Color.Transparent;
+            this.lvEntries.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnPath,
+            this.columnSize});
+            this.lvEntries.FullRowSelect = true;
+            this.lvEntries.GridLines = true;
+            this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+            this.lvEntries.HideSelection = false;
+            this.lvEntries.LargeImageList = this.imageListPreview;
+            this.lvEntries.Location = new System.Drawing.Point(16, 25);
+            this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
+            this.lvEntries.MultiSelect = false;
+            this.lvEntries.Name = "lvEntries";
+            this.lvEntries.OwnerDraw = true;
+            this.lvEntries.Size = new System.Drawing.Size(506, 292);
+            this.lvEntries.TabIndex = 1;
+            this.lvEntries.UseCompatibleStateImageBehavior = false;
+            this.lvEntries.View = System.Windows.Forms.View.Details;
+            this.lvEntries.DrawColumnHeader += new System.Windows.Forms.DrawListViewColumnHeaderEventHandler(this.lvEntries_DrawColumnHeader);
+            this.lvEntries.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.lvEntries_DrawItem);
+            this.lvEntries.SelectedIndexChanged += new System.EventHandler(this.lvEntries_SelectedIndexChanged);
+            // 
+            // columnPath
+            // 
+            this.columnPath.Text = "文件名";
+            this.columnPath.Width = 180;
+            // 
+            // columnSize
+            // 
+            this.columnSize.Text = "大小";
+            this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.columnSize.Width = 80;
             // 
             // MainForm
             // 
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(779, 421);
+            this.ClientSize = new System.Drawing.Size(856, 425);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.btnOpenFile);
@@ -213,7 +220,7 @@
 
         #endregion
 
-        private System.Windows.Forms.ListView lvEntries;
+        private DoubleBufferedListView lvEntries;
         private System.Windows.Forms.ColumnHeader columnPath;
         private System.Windows.Forms.ColumnHeader columnSize;
         private System.Windows.Forms.Button button2;

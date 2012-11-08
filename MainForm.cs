@@ -102,9 +102,9 @@ namespace QQGameRes
             int index = lvEntries.SelectedIndices[0];
             string filename = lvEntries.Items[index].Text;
 
-            if (lvEntries.Items[index].Tag is FileInfo)
+            if (lvEntries.Items[index].Tag is FileItem)
             {
-                FileInfo f = lvEntries.Items[index].Tag as FileInfo;
+                FileInfo f = (lvEntries.Items[index].Tag as FileItem).FileInfo;
                 currentImage = new MifImage(f.OpenRead());
                 label1.Text = currentImage.Width + " x " +
                     currentImage.Height + ", " + currentImage.FrameCount + " Frames";
@@ -163,6 +163,7 @@ namespace QQGameRes
             if (rootPath == null)
                 return;
             LoadRepository(rootPath);
+            lvEntries.View = View.LargeIcon;
         }
 
         private void timerAnimation_Tick(object sender, EventArgs e)
@@ -192,73 +193,175 @@ namespace QQGameRes
         {
             if (e.Node.Tag is FileFolder)
             {
-                lvEntries.Visible = false;
-                lvEntries.Items.Clear();
-                foreach (FileInfo f in ((FileFolder)e.Node.Tag).Files)
-                {
-                    ListViewItem item = new ListViewItem(f.Name);
-                    item.SubItems.Add(f.Length.ToString("#,#"));
-                    item.Tag = f;
+                PopulateListView(e.Node.Tag as FileFolder);
+            }
+        }
+
+        private void PopulateListView(FileFolder folder)
+        {
+            lvEntries.Visible = false;
+            lvEntries.Items.Clear();
+            foreach (FileInfo f in folder.Files)
+            {
+                ListViewItem item = new ListViewItem(f.Name);
+                item.SubItems.Add(f.Length.ToString("#,#"));
+                FileItem fi = new FileItem();
+                fi.FileInfo = f;
+                item.Tag = fi;
 #if false
-                    using (FileStream stream = f.OpenRead())
+                using (FileStream stream = f.OpenRead())
+                {
+                    Image img = new MifImage(stream).GetNextFrame().Image;
+                    imageListPreview.Images.Add(img);
+                    item.ImageIndex = imageListPreview.Images.Count - 1;
+                }
+#endif
+                lvEntries.Items.Add(item);
+            }
+            lvEntries.Visible = true;
+        }
+
+        private const int ListViewImageMargin = 5;
+        private const int ListViewItemBorder = 1;
+        private const int ListViewItemMargin = 1;
+
+        private void DrawListViewImage(Image img, Rectangle bounds, Graphics g)
+        {
+            Size frameSize = imageListPreview.ImageSize;
+            frameSize.Width -= ListViewImageMargin * 2;
+            frameSize.Height -= ListViewImageMargin * 2;
+
+            // Reduce the bound width to that of the image frame.
+            bounds.X += (bounds.Width - frameSize.Width) / 2;
+            bounds.Width = frameSize.Width;
+
+            // Allow 1 pixel for the border, 1 pixel for item margin, and
+            // 5 pixels for image margin.
+            bounds.Y += ListViewItemBorder + ListViewItemMargin + ListViewImageMargin;
+            bounds.Height = frameSize.Height;
+
+            // Draw the frame around the image.
+            int spacing = 0;
+            g.DrawRectangle(Pens.DarkGray,
+                bounds.X - 1 - spacing, bounds.Y - 1 - spacing,
+                bounds.Width + 1 + 2 * spacing, bounds.Height + 1 + 2 * spacing);
+
+            // Fit the image into the frame, keeping scale.
+            Size sz = img.Size;
+            if (sz.Width > bounds.Width)
+            {
+                sz.Height = sz.Height * bounds.Width / sz.Width;
+                sz.Width = bounds.Width;
+            }
+            if (sz.Height > bounds.Height)
+            {
+                sz.Width = sz.Width * bounds.Height / sz.Height;
+                sz.Height = bounds.Height;
+            }
+            bounds.X += (bounds.Width - sz.Width) / 2;
+            bounds.Y += (bounds.Height - sz.Height) / 2;
+            bounds.Width = sz.Width;
+            bounds.Height = sz.Height;
+
+            // Draw the image.
+            g.DrawImage(img, bounds);
+        }
+
+        private void DrawListViewText(string text, Rectangle bounds, Graphics g)
+        {
+            // Allow 1 pixel for border and 1 pixel for margin.
+            int n = ListViewItemBorder + ListViewItemMargin;
+            //bounds.X += n;
+            //bounds.Width -= 2 * n;
+            bounds.Y += n;
+            //bounds.Height -= 2 * n;
+
+            // Skip the image height, and leave 2 pixels in between.
+            int h = imageListPreview.ImageSize.Height; // +ListViewItemMargin;
+            bounds.Y += h;
+            bounds.Height -= h;
+
+            // Now draw the text single-line and centered.
+            TextRenderer.DrawText(g, text, lvEntries.Font, bounds, SystemColors.WindowText,
+                TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter |
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
+        }
+
+        private void DrawListViewBorder(Rectangle bounds, Graphics g)
+        {
+            bounds.Width -= 1;
+            bounds.Height -= 1;
+            g.DrawRectangle(Pens.SkyBlue, bounds);
+
+            bounds.X += 1;
+            bounds.Y += 1;
+            bounds.Width -= 2;
+            bounds.Height -= 2;
+            g.DrawRectangle(Pens.SkyBlue, bounds);
+        }
+
+        private void DrawListViewPlayIcon(Rectangle bounds, Graphics g)
+        {
+            Size frameSize = imageListPreview.ImageSize;
+
+            // Allow 1 pixel for the border and 1 pixel for item margin.
+            bounds.Y += ListViewItemBorder + ListViewItemMargin;
+            bounds.Height = frameSize.Height;
+
+            // Center the image in the bounds.
+            Image bmp = QQGameRes.Properties.Resources.Play_Icon_48;
+            bounds.X += (bounds.Width - bmp.Width) / 2;
+            bounds.Y += (bounds.Height - bmp.Height) / 2;
+            bounds.Width = bmp.Width;
+            bounds.Height = bmp.Height;
+            g.DrawImageUnscaled(bmp, bounds);
+        }
+
+        private void lvEntries_DrawItem(object sender, DrawListViewItemEventArgs e)
+        {
+            if (e.Item.Tag is FileItem)
+            {
+                FileItem fi = e.Item.Tag as FileItem;
+                if (fi.Thumbnail == null)
+                {
+                    using (MifImage mif = new MifImage(fi.FileInfo.OpenRead()))
                     {
-                        Image img = new MifImage(stream).GetNextFrame().Image;
-                        imageListPreview.Images.Add(img);
-                        item.ImageIndex = imageListPreview.Images.Count - 1;
+                        fi.Thumbnail = mif.GetNextFrame().Image;
+                        fi.MultiFrame = (mif.FrameCount > 1);
                     }
-#endif
-                    lvEntries.Items.Add(item);
                 }
-                lvEntries.Visible = true;
-            }
-            //lvEntries.View = View.LargeIcon;
-        }
 
+                Image img = fi.Thumbnail;
 #if false
-        private void tvFolders_BeforeExpand(object sender, TreeViewCancelEventArgs e)
-        {
-            // Return if the selected node is not a folder.
-            if (e.Node.Tag == null)
-                return;
-
-            // Return if the selected node does not contain a DUMMY child.
-            if (e.Node.Nodes.Count == 0 || e.Node.Nodes[0].Tag != null)
-                return;
-
-            // Remove the dummy child.
-            e.Node.Nodes.Clear();
-
-            if (e.Node.Tag is FileFolder)
-            {
-                FileFolder[] subFolders = ((FileFolder)e.Node.Tag).GetSubFolders();
-                foreach (FileFolder subFolder in subFolders)
+                if (e.ItemIndex % 2 == 0)
                 {
-                    TreeNode child = e.Node.Nodes.Add(subFolder.Name);
-                    child.Tag = subFolder;
-                    if (subFolder.GetSubFolders().Length > 0)
-                        child.Nodes.Add("DUMMY");
+                    imageListPreview.Images.Add(img);
+                    e.Item.ImageIndex = imageListPreview.Images.Count - 1;
+                    e.DrawDefault = true;
+                    return;
                 }
-            }
-        }
 #endif
-
-#if false
-        private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-            if (e.Node.Tag == null)
-                return;
-            if (e.Node.Tag is FileFolder)
-            {
-                FileInfo[] files = ((FileFolder)e.Node.Tag).GetFiles();
-                lvEntries.Items.Clear();
-                foreach (FileInfo file in files)
+                //e.DrawBackground();
+                //e.DrawFocusRectangle();
+                //System.Diagnostics.Debug.WriteLine(e.Bounds.Width + ", " + e.Bounds.Height);
+                if (e.Item.Selected)
                 {
-                    ListViewItem item = new ListViewItem(file.Name);
-                    item.SubItems.Add(file.Length.ToString("#,#"));
-                    lvEntries.Items.Add(item);
+                    DrawListViewBorder(e.Bounds, e.Graphics);
                 }
+                DrawListViewImage(img, e.Bounds, e.Graphics);
+                if (fi.MultiFrame)
+                {
+                    DrawListViewPlayIcon(e.Bounds, e.Graphics);
+                }
+                DrawListViewText(e.Item.Text, e.Bounds, e.Graphics);
+                return;
             }
+            e.DrawDefault = true;
         }
-#endif
+
+        private void lvEntries_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            e.DrawDefault = true;
+        }
     }
 }
