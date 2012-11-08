@@ -23,26 +23,31 @@ namespace QQGameRes
             return null;
         }
 
-        List<FileInfo> imgFiles;
-        List<FileInfo> pkgFiles;
+        List<FileFolder> imageFolders;
+        List<FileInfo> packageFiles;
 
         public Repository(string path)
         {
             // Search the directory recursively for supported files.
-            imgFiles = new List<FileInfo>();
-            pkgFiles = new List<FileInfo>();
+            imageFolders = new List<FileFolder>();
+            packageFiles = new List<FileInfo>();
             SearchForSupportedFiles(new DirectoryInfo(path));
         }
 
         private void SearchForSupportedFiles(DirectoryInfo dir)
         {
+            List<FileInfo> selected = new List<FileInfo>();
             foreach (FileInfo f in dir.GetFiles())
             {
                 string ext = f.Extension.ToLowerInvariant();
                 if (ext == ".mif")
-                    imgFiles.Add(f);
+                    selected.Add(f);
                 else if (ext == ".pkg")
-                    pkgFiles.Add(f);
+                    packageFiles.Add(f);
+            }
+            if (selected.Count > 0)
+            {
+                imageFolders.Add(new FileFolder(dir, selected.ToArray()));
             }
 
             foreach (DirectoryInfo d in dir.GetDirectories())
@@ -51,14 +56,14 @@ namespace QQGameRes
             }
         }
 
-        public IEnumerable<FileInfo> ImageFiles
+        public IEnumerable<FileFolder> ImageFolders
         {
-            get { return imgFiles; }
+            get { return imageFolders; }
         }
 
         public IEnumerable<FileInfo> PackageFiles
         {
-            get { return pkgFiles; }
+            get { return packageFiles; }
         }
     }
 }

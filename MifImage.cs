@@ -148,9 +148,9 @@ namespace QQGameRes
             else
                 frame.Delay = 0;
 
-#if DEBUG
+#if DEBUG && false
             if (frame.Delay != 0 && frame.Delay != 100)
-                throw new ArgumentException("Unexpected frame interval: " + frame.Delay);
+                System.Diagnostics.Debug.WriteLine("Unexpected frame delay: " + frame.Delay);
 #endif
 
             // Load image into memory buffer.
@@ -190,8 +190,10 @@ namespace QQGameRes
                 if (colorPresent[i])
                     ++colorCount;
             }
+#if false
             System.Diagnostics.Debug.WriteLine("Number of colors: " + colorCount);
             System.Diagnostics.Debug.WriteLine("Green bit set in " + greenBit + " pixels.");
+#endif
 #endif
             frame.Image = bmp;
             return frame;
