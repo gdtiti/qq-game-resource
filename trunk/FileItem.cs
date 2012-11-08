@@ -15,6 +15,6 @@ namespace QQGameRes
     {
         public FileInfo FileInfo;
         public Image Thumbnail;
-        public bool MultiFrame;
+        public int FrameCount;
     }
 }

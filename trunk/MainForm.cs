@@ -61,19 +61,29 @@ namespace QQGameRes
                 "QQ游戏资源浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        private MifImage currentImage;
+        struct AnimationInfo
+        {
+            public bool Enabled;       // whether the animation shall be played
+            public ListViewItem Item;  // which list view item is being animated
+            public MifImage Image;     // the whole image
+            public Image CurrentFrame; // the current frame
+            public int FrameIndex;     // index of the current frame (0-based)
+            public int FrameCount;     // total number of frames
+        }
+
+        private AnimationInfo animation;
 
         private void PlayNextFrame()
         {
-            // If there's no image present, reset the timer and exit.
-            if (currentImage == null)
+            // If there's no animation in progress, reset the timer and exit.
+            if (!animation.Enabled)
             {
                 timerAnimation.Stop();
                 return;
             }
 
             // Load the next frame in the current image.
-            MifFrame frame = currentImage.GetNextFrame();
+            MifFrame frame = animation.Image.GetNextFrame();
 
             // If there are no more frames, we reset the timer and leave
             // the preview box with the last frame displayed.
@@ -84,7 +94,10 @@ namespace QQGameRes
             }
 
             // Display the next frame and set the timer interval.
-            picPreview.Image = frame.Image;
+            //picPreview.Image = frame.Image;
+            animation.FrameIndex++;
+            animation.CurrentFrame = frame.Image;
+            lvEntries.RedrawItems(animation.Item.Index, animation.Item.Index, false);
             timerAnimation.Interval = Math.Max(frame.Delay, 25);
             timerAnimation.Start();
         }
@@ -99,31 +112,46 @@ namespace QQGameRes
             if (lvEntries.SelectedIndices.Count == 0)
                 return;
 
-            int index = lvEntries.SelectedIndices[0];
-            string filename = lvEntries.Items[index].Text;
+            ListViewItem item = lvEntries.SelectedItems[0];
+            string filename = item.Text;
 
-            if (lvEntries.Items[index].Tag is FileItem)
+            if (item.Tag is FileItem)
             {
-                FileInfo f = (lvEntries.Items[index].Tag as FileItem).FileInfo;
-                currentImage = new MifImage(f.OpenRead());
-                label1.Text = currentImage.Width + " x " +
-                    currentImage.Height + ", " + currentImage.FrameCount + " Frames";
-                PlayNextFrame();
+                FileItem ent = item.Tag as FileItem;
+                if (ent.Thumbnail != null)
+                {
+                    label1.Text = 
+                        ent.Thumbnail.Width + " x " +
+                        ent.Thumbnail.Height + ", " +
+                        ent.FrameCount + " Frames";
+                }
+                if (ent.FrameCount > 1)
+                {
+                    FileInfo f = (item.Tag as FileItem).FileInfo;
+                    animation.Enabled = true;
+                    animation.Item = item;
+                    animation.FrameCount = ent.FrameCount;
+                    animation.FrameIndex = 0;
+                    animation.Image = new MifImage(f.OpenRead());
+                    PlayNextFrame();
+                }
                 return;
             }
 
+#if false
             if (filename.EndsWith(".mif", StringComparison.InvariantCultureIgnoreCase))
             {
-                currentImage = new MifImage(pkg.Extract(index));
+                currentImage = new MifImage(pkg.Extract(item.Index));
                 PlayNextFrame();
             }
             else if (filename.EndsWith(".bmp", StringComparison.InvariantCultureIgnoreCase))
             {
-                using (Stream stream = pkg.Extract(index))
+                using (Stream stream = pkg.Extract(item.Index))
                 {
                     picPreview.Image = new Bitmap(stream);
                 }
             }
+#endif
         }
 
         private void LoadRepository(string path)
@@ -319,44 +347,44 @@ namespace QQGameRes
 
         private void lvEntries_DrawItem(object sender, DrawListViewItemEventArgs e)
         {
-            if (e.Item.Tag is FileItem)
+            if (!(e.Item.Tag is FileItem))
             {
-                FileItem fi = e.Item.Tag as FileItem;
-                if (fi.Thumbnail == null)
-                {
-                    using (MifImage mif = new MifImage(fi.FileInfo.OpenRead()))
-                    {
-                        fi.Thumbnail = mif.GetNextFrame().Image;
-                        fi.MultiFrame = (mif.FrameCount > 1);
-                    }
-                }
-
-                Image img = fi.Thumbnail;
-#if false
-                if (e.ItemIndex % 2 == 0)
-                {
-                    imageListPreview.Images.Add(img);
-                    e.Item.ImageIndex = imageListPreview.Images.Count - 1;
-                    e.DrawDefault = true;
-                    return;
-                }
-#endif
-                //e.DrawBackground();
-                //e.DrawFocusRectangle();
-                //System.Diagnostics.Debug.WriteLine(e.Bounds.Width + ", " + e.Bounds.Height);
-                if (e.Item.Selected)
-                {
-                    DrawListViewBorder(e.Bounds, e.Graphics);
-                }
-                DrawListViewImage(img, e.Bounds, e.Graphics);
-                if (fi.MultiFrame)
-                {
-                    DrawListViewPlayIcon(e.Bounds, e.Graphics);
-                }
-                DrawListViewText(e.Item.Text, e.Bounds, e.Graphics);
+                e.DrawDefault = true;
                 return;
             }
-            e.DrawDefault = true;
+            FileItem fi = e.Item.Tag as FileItem;
+
+            // Load the thumbnail image if not already loaded.
+            if (fi.Thumbnail == null)
+            {
+                using (MifImage mif = new MifImage(fi.FileInfo.OpenRead()))
+                {
+                    fi.Thumbnail = mif.GetNextFrame().Image;
+                    fi.FrameCount = mif.FrameCount;
+                }
+            }
+
+            // Check if we're currently animating this item.
+            bool animating = animation.Enabled && (animation.Item == e.Item);
+
+            // If we are in the process of animation, draw the current frame.
+            // Otherwise, draw the thumbnail image.
+            Image img = animating ? animation.CurrentFrame : fi.Thumbnail;
+
+            // Draw a focus rectangle if the item is selected.
+            if (e.Item.Selected)
+                DrawListViewBorder(e.Bounds, e.Graphics);
+            
+            // Draw the thumbnail or current frame.
+            DrawListViewImage(img, e.Bounds, e.Graphics);
+
+            // If this is a multi-frame image, draw a Play icon to indicate
+            // that, unless we are currently playing it.
+            if (fi.FrameCount > 1 && !animating)
+                DrawListViewPlayIcon(e.Bounds, e.Graphics);
+            
+            // Draw the file name text.
+            DrawListViewText(e.Item.Text, e.Bounds, e.Graphics);
         }
 
         private void lvEntries_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
