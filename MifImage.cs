@@ -55,7 +55,7 @@ namespace QQGameRes
         public Image Image { get; set; }
     }
 
-    public class MifImage
+    public class MifImage : IDisposable
     {
         private BinaryReader reader;
         private MifHeader header;
@@ -126,6 +126,9 @@ namespace QQGameRes
         /// there are no more frames left.</returns>
         public MifFrame GetNextFrame()
         {
+            if (reader == null)
+                throw new ObjectDisposedException("BinaryReader");
+
             // Return null if there are no more frames left.
             if (frameCounter >= header.FrameCount)
             {
@@ -197,6 +200,20 @@ namespace QQGameRes
 #endif
             frame.Image = bmp;
             return frame;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (reader == null)
+                return;
+            if (disposing)
+                reader.Dispose();
+            reader = null;
         }
     }
 }
