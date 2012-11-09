@@ -9,9 +9,9 @@ using System.Drawing;
 namespace QQGameRes
 {
     /// <summary>
-    /// Represents a physical file (usually a MIF image) to be previewed.
+    /// Stores information associated with a list view item.
     /// </summary>
-    class ListItemInfo
+    class ListViewItemTag
     {
         /// <summary>
         /// The resource entry associated with the list item.
