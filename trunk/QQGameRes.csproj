@@ -68,8 +68,8 @@
     </Compile>
     <Compile Include="FileEntry.cs" />
     <Compile Include="FileGroup.cs" />
-    <Compile Include="ListItemInfo.cs" />
     <Compile Include="ListViewItemDrawer.cs" />
+    <Compile Include="ListViewItemTag.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -128,7 +128,6 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <None Include="images\Image-Icon-32.png" />
     <None Include="images\Image-Icon-16.png" />
     <None Include="images\Page-Icon-64.png" />
     <None Include="images\Play-Icon-48.png" />
