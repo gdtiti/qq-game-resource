@@ -58,7 +58,6 @@
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.txtImageSize = new System.Windows.Forms.ToolStripStatusLabel();
             this.txtFrames = new System.Windows.Forms.ToolStripStatusLabel();
-            this.thumbnailWorker = new System.ComponentModel.BackgroundWorker();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -331,7 +330,6 @@
         private System.Windows.Forms.ToolStripStatusLabel txtFrames;
         private System.Windows.Forms.ToolStripStatusLabel txtImageSize;
         private System.Windows.Forms.ImageList imageListTree;
-        private System.ComponentModel.BackgroundWorker thumbnailWorker;
     }
 }
 
