@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
@@ -255,8 +256,6 @@ namespace QQGameRes
                 lvEntries.RedrawItems(0, lvEntries.Items.Count - 1, true);
         }
 
-        private static Bitmap LoadingImageIcon = Properties.Resources.Image_Icon_16;
-
         private void lvEntries_DrawItem(object sender, DrawListViewItemEventArgs e)
         {
             // Sometimes, this handler gets called after some of the 
@@ -285,7 +284,7 @@ namespace QQGameRes
 
             // If the thumbnail is still being loaded, display a waiting image.
             if (img == null)
-                img = LoadingImageIcon;
+                img = ThumbnailLoader.LoadingIcon;
 
             // Create a custom-drawing helper object.
             ListViewItemDrawer drawer = 
@@ -319,6 +318,15 @@ namespace QQGameRes
             }
         }
 
+        private static string GetNumberedFileName(
+            string filename, int number, int max)
+        {
+            string numberFormat = "0000000000".Substring(0, max.ToString().Length);
+            string ext = Path.GetExtension(filename);
+            return filename.Substring(0, filename.Length - ext.Length) +
+                "-" + number.ToString(numberFormat) + ext;
+        }
+
         private void btnExport_Click(object sender, EventArgs e)
         {
             if (lvEntries.SelectedIndices.Count == 0)
@@ -326,25 +334,109 @@ namespace QQGameRes
 
             ListViewItem item = lvEntries.SelectedItems[0];
             ListViewItemTag tag = item.Tag as ListViewItemTag;
+            string ext = Path.GetExtension(tag.ResourceEntry.Name).ToLowerInvariant();
 
-            saveFileDialog1.FileName = Path.GetFileName(item.Text);
+            // If the selected item is an image, display additional format
+            // conversion options in the save dialog.
+            string filter = "原始格式|*" + ext;
+            if (tag.Thumbnail != null && tag.Thumbnail != ThumbnailLoader.DefaultIcon)
+            {
+                filter += "|PNG 图片|*.png";
+                filter += "|BMP 图片|*.bmp";
+                filter += "|JPEG 图片|*.jpg";
+                filter += "|TIFF 图片|*.tif";
+            }
+            saveFileDialog1.Filter = filter;
+            saveFileDialog1.FilterIndex = 1;
+            if (ext == ".mif")
+            {
+                saveFileDialog1.FilterIndex = 2;
+            }
+            saveFileDialog1.FileName = Path.GetFileNameWithoutExtension(
+                tag.ResourceEntry.Name);
+
+            // Show the dialog.
             if (saveFileDialog1.ShowDialog(this) != DialogResult.OK)
                 return;
 
             string filename = saveFileDialog1.FileName;
-            using (Stream stream = tag.ResourceEntry.Open())
+
+            // If the filter index is 1 (save as is), just copy the stream.
+            if (saveFileDialog1.FilterIndex == 1)
             {
-                byte[] buffer = new byte[65536];
-                using (FileStream output = new FileStream(
-                    filename, FileMode.Create, FileAccess.Write))
+                using (Stream stream = tag.ResourceEntry.Open(),
+                       output = new FileStream(filename, FileMode.Create, FileAccess.Write))
                 {
-                    int n;
-                    while ((n = stream.Read(buffer, 0, buffer.Length)) > 0)
-                        output.Write(buffer, 0, n);
+                    stream.CopyTo(output, 65536);
+                }
+                txtStatus.Text = "保存成功";
+                return;
+            }
+
+            // Get the requested image format.
+            int filterIndex = saveFileDialog1.FilterIndex;
+            ImageFormat desiredFormat =
+                (filterIndex == 2) ? ImageFormat.Png :
+                (filterIndex == 3) ? ImageFormat.Bmp :
+                (filterIndex == 4) ? ImageFormat.Jpeg :
+                (filterIndex == 5) ? ImageFormat.Tiff : ImageFormat.Bmp;
+
+            // If this is a single-frame image, convert and save it.
+            if (tag.FrameCount <= 1)
+            {
+                tag.Thumbnail.Save(filename, desiredFormat);
+                txtStatus.Text = "保存成功";
+                return;
+            }
+
+            // Now for a multi-frame image, ask the user how they want to save it.
+            DialogResult result = MessageBox.Show(this,
+                "选中的图片包含 " + tag.FrameCount + " 帧。" +
+                "是否将每一帧单独存为一个文件？\r\n" +
+                "如果选择是，则各帧将分别保存为\r\n    " +
+                GetNumberedFileName(Path.GetFileName(filename),
+                                    1, tag.FrameCount) + "\r\n" +
+                "    ......\r\n    " +
+                GetNumberedFileName(Path.GetFileName(filename),
+                                    tag.FrameCount, tag.FrameCount) + "\r\n" +
+                "如果选择否，则只保存第一帧到 " + Path.GetFileName(filename) +
+                "。", this.Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            // Do nothing if the user is confused and canceled the action.
+            if (result == DialogResult.Cancel)
+                return;
+
+            // If the user clicked "No", then we only save the first frame,
+            // which is just the thumbnail.
+            if (result == DialogResult.No)
+            {
+                tag.Thumbnail.Save(filename, desiredFormat);
+                txtStatus.Text = "保存成功";
+                return;
+            }
+
+            // Now the user clicked "Yes", so we need to save each frame
+            // in an individual file.
+            using (MifImage img = new MifImage(tag.ResourceEntry.Open()))
+            {
+                for (int i = 1; i <= tag.FrameCount; i++)
+                {
+                    if (!img.GetNextFrame())
+                        break;
+                    FileInfo file = new FileInfo(
+                        GetNumberedFileName(filename, i, tag.FrameCount));
+                    if (file.Exists)
+                    {
+                        if (MessageBox.Show(this, "文件 " + file.FullName +
+                            " 已经存在。是否要覆盖？", "保存素材",
+                            MessageBoxButtons.YesNoCancel,
+                            MessageBoxIcon.Exclamation) != DialogResult.Yes)
+                            return;
+                    }
+                    img.CurrentFrame.Image.Save(file.FullName);
                 }
             }
-            MessageBox.Show(this, "成功导出到 " + filename,
-                "QQ游戏资源浏览器", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            txtStatus.Text = "保存成功";
         }
 
         private void btnAbout_Click(object sender, EventArgs e)
