@@ -76,7 +76,7 @@ namespace QQGameRes
             this.Graphics.DrawImage(img, bounds);
         }
 
-        public void DrawText()
+        public void DrawText(string text)
         {
             Rectangle bounds = this.Bounds;
 
@@ -90,7 +90,7 @@ namespace QQGameRes
             bounds.Height -= h;
 
             // Now draw the text single-line and centered.
-            TextRenderer.DrawText(this.Graphics, this.Item.Text, 
+            TextRenderer.DrawText(this.Graphics, text,
                 this.Item.Font, bounds, SystemColors.WindowText,
                 TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis);
