@@ -7,6 +7,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace QQGameRes
 {
@@ -140,13 +141,31 @@ namespace QQGameRes
             // Create a child node for each image folder in the repository.
             foreach (FileGroup group in rep.ImageFolders)
             {
-                root.Nodes.Add(group.Name.Substring(path.Length + 1)).Tag = group;
+                string name = group.Name;
+                if (name.Length <= path.Length + 1)
+                    name = "(root)";
+                else
+                    name = name.Substring(path.Length + 1);
+
+                TreeNode node = new TreeNode();
+                node.Text = name;
+                node.ImageIndex = 2;
+                node.SelectedImageIndex = 2;
+                node.Tag = group;
+                root.Nodes.Add(node);
             }
 
             // Create a root-level node for each .PKG package.
             foreach (FileInfo file in rep.PackageFiles)
             {
-                tvFolders.Nodes.Add(Path.GetFileName(file.Name)).Tag = null;
+                Package pkg = new Package(file.FullName);
+                string name = Path.GetFileName(file.Name);
+                TreeNode node = new TreeNode();
+                node.Text = name;
+                node.ImageIndex = 1;
+                node.SelectedImageIndex = 1;
+                node.Tag = pkg;
+                tvFolders.Nodes.Add(node);
             }
 
             // Expand the first root node and show the tree view.
@@ -158,6 +177,9 @@ namespace QQGameRes
         {
             btnAnimate.Visible = false;
             toolStripSeparator3.Visible = false;
+
+            SetWindowTheme(tvFolders.Handle, "EXPLORER", null);
+            SetWindowTheme(lvEntries.Handle, "EXPLORER", null);
 
             // Load the root path of QQ Game.
             string rootPath = Repository.GetInstallationPath();
@@ -215,7 +237,10 @@ namespace QQGameRes
             lvEntries.Visible = false;
             foreach (ResourceEntry entry in group.Entries)
             {
-                ListViewItem item = new ListViewItem(entry.Name);
+                // We create the item with empty text. Otherwise if the actual
+                // text is too long, the OwnerDraw bounds for a focused item
+                // will be too big.
+                ListViewItem item = new ListViewItem("");
                 item.SubItems.Add(entry.Size.ToString("#,#"));
                 ListItemInfo tag = new ListItemInfo();
                 tag.ResourceEntry = entry;
@@ -262,8 +287,12 @@ namespace QQGameRes
             }
 
             // If a thumbnail image cannot be loaded, we use a default one.
-            // ...
+            tag.Thumbnail = UnknownTypeIcon;
+            tag.FrameCount = 1;
         }
+
+        private static Bitmap UnknownTypeIcon = Properties.Resources.Page_Icon_64;
+        private static Bitmap LoadingImageIcon = Properties.Resources.Image_Icon_16;
 
         private void lvEntries_DrawItem(object sender, DrawListViewItemEventArgs e)
         {
@@ -291,14 +320,22 @@ namespace QQGameRes
             // Otherwise, draw the thumbnail image.
             Image img = animating ? animatedImage.CurrentFrame.Image : tag.Thumbnail;
 
+            // If the thumbnail is still being loaded, display a waiting image.
+            if (img == null)
+                img = LoadingImageIcon;
+
             // Create a custom-drawing helper object.
             ListViewItemDrawer drawer = 
                 new ListViewItemDrawer(e.Item, e.Bounds, e.Graphics);
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("ListViewItem Bounds: " +
+                e.Bounds.Width + " x " + e.Bounds.Height);
+#endif
 
             // Draw a focus rectangle if the item is selected.
             if (e.Item.Selected)
-                drawer.DrawBorder();
-            
+                drawer.DrawBorder(); // e.DrawFocusRectangle();
+
             // Draw the thumbnail or current frame.
             drawer.DrawImage(img);
 
@@ -308,7 +345,7 @@ namespace QQGameRes
                 drawer.DrawPlayIcon();
             
             // Draw the file name text.
-            drawer.DrawText();
+            drawer.DrawText(tag.ResourceEntry.Name);
         }
 
         private void btnOpenPackage_Click(object sender, EventArgs e)
@@ -356,5 +393,9 @@ namespace QQGameRes
                 "版本 " + ver.ProductVersion, 
                 "版本信息", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        public static extern int SetWindowTheme(IntPtr hWnd, String pszSubAppName, String pszSubIdList);
     }
+
 }
