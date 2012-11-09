@@ -14,8 +14,6 @@ namespace QQGameRes
 {
     public partial class MainForm : Form
     {
-        private Package pkg;
-        
         public MainForm()
         {
             InitializeComponent();
@@ -23,15 +21,13 @@ namespace QQGameRes
         
         private void LoadPackage(string filename)
         {
-            pkg = new Package(filename);
-            lvEntries.Items.Clear();
-            foreach (PackageEntry entry in pkg.Entries)
-            {
-                ListViewItem item = new ListViewItem(entry.EntryPath);
-                item.SubItems.Add(entry.Size.ToString("#,#"));
-                lvEntries.Items.Add(item);
-            }
-            this.Text = "QQ游戏资源浏览器 - " + Path.GetFileName(filename);
+            Package pkg = new Package(filename);
+            TreeNode node = new TreeNode();
+            node.Text = Path.GetFileName(filename);
+            node.ImageIndex = 1;
+            node.SelectedImageIndex = 1;
+            node.Tag = pkg;
+            tvFolders.Nodes.Add(node);
         }
 
         private ListViewItem animatedItem;
@@ -99,6 +95,9 @@ namespace QQGameRes
             // Stop the current animation if any.
             StopAnimation();
 
+            // Update button state.
+            btnExport.Enabled = (lvEntries.SelectedIndices.Count > 0);
+
             // Do nothing if no item is selected.
             if (lvEntries.SelectedIndices.Count == 0)
                 return;
@@ -159,14 +158,7 @@ namespace QQGameRes
             // Create a root-level node for each .PKG package.
             foreach (FileInfo file in rep.PackageFiles)
             {
-                Package pkg = new Package(file.FullName);
-                string name = Path.GetFileName(file.Name);
-                TreeNode node = new TreeNode();
-                node.Text = name;
-                node.ImageIndex = 1;
-                node.SelectedImageIndex = 1;
-                node.Tag = pkg;
-                tvFolders.Nodes.Add(node);
+                LoadPackage(file.FullName);
             }
 
             // Expand the first root node and show the tree view.
@@ -176,9 +168,6 @@ namespace QQGameRes
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-            btnAnimate.Visible = false;
-            toolStripSeparator3.Visible = false;
-
             SetWindowTheme(tvFolders.Handle, "EXPLORER", null);
             SetWindowTheme(lvEntries.Handle, "EXPLORER", null);
 
@@ -307,14 +296,19 @@ namespace QQGameRes
                 drawer.DrawPlayIcon();
             
             // Draw the file name text.
-            drawer.DrawText(tag.ResourceEntry.Name);
+            drawer.DrawText(Path.GetFileName(tag.ResourceEntry.Name));
         }
 
         private void btnOpenPackage_Click(object sender, EventArgs e)
         {
             if (openFileDialog1.ShowDialog(this) == DialogResult.OK)
             {
+                StopAnimation();
+                thumbnailLoader.CancelPendingTasks();
+                lvEntries.Items.Clear();
+                tvFolders.Nodes.Clear();
                 LoadPackage(openFileDialog1.FileName);
+                tvFolders.SelectedNode = tvFolders.Nodes[0];
             }
         }
 
@@ -466,6 +460,18 @@ namespace QQGameRes
 
             // Create a task for the thumbnailWorker.
             thumbnailLoader.AddTask(item);
+        }
+
+        private void btnOpenFolder_Click(object sender, EventArgs e)
+        {
+            if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
+            {
+                StopAnimation();
+                thumbnailLoader.CancelPendingTasks();
+                lvEntries.Items.Clear();
+                tvFolders.Nodes.Clear();
+                LoadRepository(folderBrowserDialog1.SelectedPath);
+            }
         }
     }
 }
