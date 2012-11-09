@@ -232,8 +232,11 @@ namespace QQGameRes
         /// <param name="group"></param>
         private void PopulateListView(ResourceGroup group)
         {
+            StopAnimation();
+            thumbnailLoader.CancelPendingTasks();
             lvEntries.Items.Clear();
             lvEntries.SelectedIndices.Clear();
+
             lvEntries.Visible = false;
             foreach (ResourceEntry entry in group.Entries)
             {
@@ -252,7 +255,6 @@ namespace QQGameRes
                 lvEntries.RedrawItems(0, lvEntries.Items.Count - 1, true);
         }
 
-        private static Bitmap UnknownTypeIcon = Properties.Resources.Page_Icon_64;
         private static Bitmap LoadingImageIcon = Properties.Resources.Image_Icon_16;
 
         private void lvEntries_DrawItem(object sender, DrawListViewItemEventArgs e)
@@ -272,7 +274,7 @@ namespace QQGameRes
             ListViewItemTag tag = e.Item.Tag as ListViewItemTag;
 
             // Load the thumbnail image if not already loaded.
-            LoadThumbnail(e.Item);
+            LoadThumbnailAsync(e.Item);
 
             // Check if we're currently animating this item.
             bool animating = (animatedItem == e.Item);
@@ -358,146 +360,20 @@ namespace QQGameRes
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
         public static extern int SetWindowTheme(IntPtr hWnd, String pszSubAppName, String pszSubIdList);
 
-        LinkedList<ThumbnailTask> thumbnailTasks = new LinkedList<ThumbnailTask>();
-        BackgroundWorker currentWorker;
+        ThumbnailLoader thumbnailLoader = new ThumbnailLoader();
 
         /// <summary>
-        /// Loads the thumbnail image for the given list view item 
-        /// if not already loaded.
+        /// Loads the thumbnail image for the given ListViewItem in the 
+        /// background if not already loaded.
         /// </summary>
-        /// <param name="tag"></param>
-        private void LoadThumbnail(ListViewItem item)
+        private void LoadThumbnailAsync(ListViewItem item)
         {
              ListViewItemTag tag = item.Tag as ListViewItemTag;
             if (tag.Thumbnail != null) // already loaded
                 return;
 
             // Create a task for the thumbnailWorker.
-            ThumbnailTask task = new ThumbnailTask();
-            task.Tag = item.Tag as ListViewItemTag;
-            task.ItemIndex = item.Index;
-            lock (thumbnailTasks)
-            {
-                if (thumbnailTasks.Count == 0)
-                {
-                    currentWorker = new BackgroundWorker();
-                    currentWorker.WorkerReportsProgress = true;
-                    currentWorker.DoWork += currentWorker_DoWork;
-                    currentWorker.ProgressChanged += currentWorker_ProgressChanged;
-                    currentWorker.RunWorkerAsync(thumbnailTasks);
-                }
-                thumbnailTasks.AddFirst(task);
-            }
-
-#if false
-            // Check if the resource format is supported.
-            string name = tag.ResourceEntry.Name.ToLowerInvariant();
-            if (name.EndsWith(".mif"))
-            {
-                using (MifImage mif = new MifImage(tag.ResourceEntry.Open()))
-                {
-                    if (mif.GetNextFrame())
-                    {
-                        tag.Thumbnail = mif.CurrentFrame.Image;
-                        tag.FrameCount = mif.FrameCount;
-                        return;
-                    }
-                }
-            }
-            else if (name.EndsWith(".bmp"))
-            {
-                using (Stream stream = tag.ResourceEntry.Open())
-                {
-                    tag.Thumbnail = new Bitmap(stream);
-                    tag.FrameCount = 1;
-                    return;
-                }
-            }
-
-            // If a thumbnail image cannot be loaded, we use a default one.
-            tag.Thumbnail = UnknownTypeIcon;
-            tag.FrameCount = 1;
-#endif
+            thumbnailLoader.AddTask(item);
         }
-
-        void currentWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            ThumbnailTask task = e.UserState as ThumbnailTask;
-            int index = task.ItemIndex;
-            if (index >= 0 && index < lvEntries.Items.Count &&
-                task.Tag == lvEntries.Items[index].Tag)
-            {
-                lvEntries.RedrawItems(index, index, true);
-            }
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine("ProgressChanged(" + index + ")");
-#endif
-        }
-
-        private void currentWorker_DoWork(object sender, DoWorkEventArgs e)
-        {
-            LinkedList<ThumbnailTask> tasks = e.Argument as LinkedList<ThumbnailTask>;
-            while (true)
-            {
-                // Retrieve the first undone task in the task queue.
-                ThumbnailTask task = null;
-                lock (tasks)
-                {
-                    while (tasks.Count > 0)
-                    {
-                        task = tasks.First.Value as ThumbnailTask;
-                        if (task.Tag.ResourceEntry != null && task.Tag.Thumbnail == null)
-                            break;
-                        tasks.RemoveFirst();
-                    }
-                    if (tasks.Count == 0)
-                        return;
-                }
-
-                // Perform this task.
-                ListViewItemTag tag = task.Tag;
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("Starting task for item " + task.ItemIndex);
-#endif
-
-                // Check if the resource format is supported.
-                string name = tag.ResourceEntry.Name.ToLowerInvariant();
-                if (name.EndsWith(".mif"))
-                {
-                    using (MifImage mif = new MifImage(tag.ResourceEntry.Open()))
-                    {
-                        if (mif.GetNextFrame())
-                        {
-                            tag.Thumbnail = mif.CurrentFrame.Image;
-                            tag.FrameCount = mif.FrameCount;
-                        }
-                    }
-                }
-                else if (name.EndsWith(".bmp"))
-                {
-                    using (Stream stream = tag.ResourceEntry.Open())
-                    {
-                        tag.Thumbnail = new Bitmap(stream);
-                        tag.FrameCount = 1;
-                    }
-                }
-
-                // If a thumbnail image cannot be loaded, we use a default one.
-                if (tag.Thumbnail == null)
-                {
-                    tag.Thumbnail = UnknownTypeIcon;
-                    tag.FrameCount = 1;
-                }
-
-                // Report progress.
-                currentWorker.ReportProgress(0, task);
-            }
-        }
-    }
-
-    class ThumbnailTask
-    {
-        public int ItemIndex;
-        public ListViewItemTag Tag;
     }
 }
