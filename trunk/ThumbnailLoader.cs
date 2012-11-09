@@ -14,22 +14,28 @@ namespace QQGameRes
     class ThumbnailLoader
     {
         /// <summary>
-        /// Default image for a resource entry whose thumbnail cannot be 
-        /// loaded.
+        /// The icon used for a resource entry whose thumbnail cannot be 
+        /// extracted because its format is not supported.
         /// </summary>
-        static Bitmap UnknownTypeIcon = Properties.Resources.Page_Icon_64;
+        public static Bitmap DefaultIcon = Properties.Resources.Page_Icon_64;
+
+        /// <summary>
+        /// The icon used to indicate that the thumbnail of a resource entry
+        /// is being loaded.
+        /// </summary>
+        public static Bitmap LoadingIcon = Properties.Resources.Image_Icon_16;
 
         /// <summary>
         /// A LIFO queue (stack) of thumbnail extraction tasks. This object is
         /// shared by the UI thread and the worker thread, and therefore must 
         /// be locked each time it is accessed.
         /// </summary>
-        Stack<ThumbnailTask> taskQueue = new Stack<ThumbnailTask>();
+        private Stack<ThumbnailTask> taskQueue = new Stack<ThumbnailTask>();
 
         /// <summary>
         /// The worker thread.
         /// </summary>
-        BackgroundWorker worker;
+        private BackgroundWorker worker;
 
         /// <summary>
         /// Cancels all pending tasks. Tasks that have already started or
@@ -147,7 +153,7 @@ namespace QQGameRes
                 // If a thumbnail image cannot be loaded, we use a default one.
                 if (tag.Thumbnail == null)
                 {
-                    tag.Thumbnail = UnknownTypeIcon;
+                    tag.Thumbnail = DefaultIcon;
                     tag.FrameCount = 1;
                 }
 

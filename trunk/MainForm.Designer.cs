@@ -29,12 +29,12 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Folder");
-            System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Repository", new System.Windows.Forms.TreeNode[] {
-            treeNode1});
-            System.Windows.Forms.TreeNode treeNode3 = new System.Windows.Forms.TreeNode("Folder");
-            System.Windows.Forms.TreeNode treeNode4 = new System.Windows.Forms.TreeNode("Package", new System.Windows.Forms.TreeNode[] {
-            treeNode3});
+            System.Windows.Forms.TreeNode treeNode5 = new System.Windows.Forms.TreeNode("Folder");
+            System.Windows.Forms.TreeNode treeNode6 = new System.Windows.Forms.TreeNode("Repository", new System.Windows.Forms.TreeNode[] {
+            treeNode5});
+            System.Windows.Forms.TreeNode treeNode7 = new System.Windows.Forms.TreeNode("Folder");
+            System.Windows.Forms.TreeNode treeNode8 = new System.Windows.Forms.TreeNode("Package", new System.Windows.Forms.TreeNode[] {
+            treeNode7});
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.imageListPreview = new System.Windows.Forms.ImageList(this.components);
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
@@ -43,9 +43,6 @@
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.tvFolders = new System.Windows.Forms.TreeView();
             this.imageListTree = new System.Windows.Forms.ImageList(this.components);
-            this.lvEntries = new QQGameRes.DoubleBufferedListView();
-            this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
             this.btnOpenFolder = new System.Windows.Forms.ToolStripButton();
             this.btnOpenPackage = new System.Windows.Forms.ToolStripButton();
@@ -58,6 +55,10 @@
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.txtImageSize = new System.Windows.Forms.ToolStripStatusLabel();
             this.txtFrames = new System.Windows.Forms.ToolStripStatusLabel();
+            this.lvEntries = new QQGameRes.DoubleBufferedListView();
+            this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.txtStatus = new System.Windows.Forms.ToolStripStatusLabel();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -84,7 +85,7 @@
             // saveFileDialog1
             // 
             this.saveFileDialog1.Filter = "所有文件 (*.*)|*.*";
-            this.saveFileDialog1.Title = "导出资源";
+            this.saveFileDialog1.Title = "保存素材";
             // 
             // splitContainer1
             // 
@@ -112,21 +113,21 @@
             this.tvFolders.Indent = 21;
             this.tvFolders.Location = new System.Drawing.Point(0, 0);
             this.tvFolders.Name = "tvFolders";
-            treeNode1.ImageIndex = 2;
-            treeNode1.Name = "Node2";
-            treeNode1.Text = "Folder";
-            treeNode2.ImageIndex = 0;
-            treeNode2.Name = "Node0";
-            treeNode2.Text = "Repository";
-            treeNode3.ImageIndex = 2;
-            treeNode3.Name = "Node4";
-            treeNode3.Text = "Folder";
-            treeNode4.ImageIndex = 1;
-            treeNode4.Name = "Node3";
-            treeNode4.Text = "Package";
+            treeNode5.ImageIndex = 2;
+            treeNode5.Name = "Node2";
+            treeNode5.Text = "Folder";
+            treeNode6.ImageIndex = 0;
+            treeNode6.Name = "Node0";
+            treeNode6.Text = "Repository";
+            treeNode7.ImageIndex = 2;
+            treeNode7.Name = "Node4";
+            treeNode7.Text = "Folder";
+            treeNode8.ImageIndex = 1;
+            treeNode8.Name = "Node3";
+            treeNode8.Text = "Package";
             this.tvFolders.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
-            treeNode2,
-            treeNode4});
+            treeNode6,
+            treeNode8});
             this.tvFolders.SelectedImageIndex = 0;
             this.tvFolders.ShowLines = false;
             this.tvFolders.Size = new System.Drawing.Size(284, 366);
@@ -140,39 +141,6 @@
             this.imageListTree.Images.SetKeyName(0, "Folder-Icon-16.png");
             this.imageListTree.Images.SetKeyName(1, "Package-Icon-16.png");
             this.imageListTree.Images.SetKeyName(2, "Images-Icon-16.png");
-            // 
-            // lvEntries
-            // 
-            this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnPath,
-            this.columnSize});
-            this.lvEntries.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvEntries.FullRowSelect = true;
-            this.lvEntries.GridLines = true;
-            this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
-            this.lvEntries.HideSelection = false;
-            this.lvEntries.LargeImageList = this.imageListPreview;
-            this.lvEntries.Location = new System.Drawing.Point(0, 0);
-            this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
-            this.lvEntries.MultiSelect = false;
-            this.lvEntries.Name = "lvEntries";
-            this.lvEntries.OwnerDraw = true;
-            this.lvEntries.Size = new System.Drawing.Size(568, 366);
-            this.lvEntries.TabIndex = 5;
-            this.lvEntries.UseCompatibleStateImageBehavior = false;
-            this.lvEntries.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.lvEntries_DrawItem);
-            this.lvEntries.SelectedIndexChanged += new System.EventHandler(this.lvEntries_SelectedIndexChanged);
-            // 
-            // columnPath
-            // 
-            this.columnPath.Text = "文件名";
-            this.columnPath.Width = 180;
-            // 
-            // columnSize
-            // 
-            this.columnSize.Text = "大小";
-            this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            this.columnSize.Width = 80;
             // 
             // toolStrip3
             // 
@@ -220,7 +188,7 @@
             this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnExport.Name = "btnExport";
             this.btnExport.Size = new System.Drawing.Size(93, 28);
-            this.btnExport.Text = "导出资源";
+            this.btnExport.Text = "保存素材";
             this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
             // 
             // toolStripSeparator2
@@ -253,6 +221,7 @@
             // statusStrip1
             // 
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.txtStatus,
             this.txtImageSize,
             this.txtFrames});
             this.statusStrip1.Location = new System.Drawing.Point(0, 397);
@@ -275,6 +244,45 @@
             this.txtFrames.Name = "txtFrames";
             this.txtFrames.Size = new System.Drawing.Size(47, 23);
             this.txtFrames.Text = "共?帧";
+            // 
+            // lvEntries
+            // 
+            this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnPath,
+            this.columnSize});
+            this.lvEntries.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lvEntries.FullRowSelect = true;
+            this.lvEntries.GridLines = true;
+            this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+            this.lvEntries.HideSelection = false;
+            this.lvEntries.LargeImageList = this.imageListPreview;
+            this.lvEntries.Location = new System.Drawing.Point(0, 0);
+            this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
+            this.lvEntries.MultiSelect = false;
+            this.lvEntries.Name = "lvEntries";
+            this.lvEntries.OwnerDraw = true;
+            this.lvEntries.Size = new System.Drawing.Size(568, 366);
+            this.lvEntries.TabIndex = 5;
+            this.lvEntries.UseCompatibleStateImageBehavior = false;
+            this.lvEntries.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.lvEntries_DrawItem);
+            this.lvEntries.SelectedIndexChanged += new System.EventHandler(this.lvEntries_SelectedIndexChanged);
+            // 
+            // columnPath
+            // 
+            this.columnPath.Text = "文件名";
+            this.columnPath.Width = 180;
+            // 
+            // columnSize
+            // 
+            this.columnSize.Text = "大小";
+            this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.columnSize.Width = 80;
+            // 
+            // txtStatus
+            // 
+            this.txtStatus.Name = "txtStatus";
+            this.txtStatus.Size = new System.Drawing.Size(47, 23);
+            this.txtStatus.Text = "Status";
             // 
             // MainForm
             // 
@@ -330,6 +338,7 @@
         private System.Windows.Forms.ToolStripStatusLabel txtFrames;
         private System.Windows.Forms.ToolStripStatusLabel txtImageSize;
         private System.Windows.Forms.ImageList imageListTree;
+        private System.Windows.Forms.ToolStripStatusLabel txtStatus;
     }
 }
 
