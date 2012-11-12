@@ -106,7 +106,7 @@ WHITE (with R,G,B=255). The closest it can go is (248, 252, 248).
 Alpha Encoding
 --------------
 
-One byte is used to encode the opaqueness of each pixel. Let a[7..0] be an
+One byte is used to encode the opacity of each pixel. Let a[7..0] be an
 8-bit integer containing the encoded value. The actual alpha value is found
 as follows:
  
@@ -120,7 +120,7 @@ then alpha = 255 (i.e. completely opaque), and Value is ignored; if F is
 not set (F = 0), then alpha = Value << 3, i.e. Value is left-aligned in the
 alpha component, and the lowest 3 bits of alpha is set to zero.
 
-Such encoding allows complete opaqueness to be encoded, which is essential in
+Such encoding allows complete opacity to be encoded, which is essential in
 practice. However, the alpha values between 249 and 254 (inclusive) are not
 encodable. While this is not much of a concern visually, it wastes three bits
 without any benefit.
