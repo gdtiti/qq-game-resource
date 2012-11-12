@@ -321,6 +321,65 @@ namespace QQGameRes
                 "-" + number.ToString(numberFormat) + ext;
         }
 
+        private void SaveSvgFile(MifImage img, string filename)
+        {
+            using (StreamWriter writer = new StreamWriter(
+                new FileStream(filename, FileMode.Create, FileAccess.Write)))
+            {
+                // Write SVG header.
+                writer.WriteLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+                writer.WriteLine("<svg xmlns=\"http://www.w3.org/2000/svg\"" +
+                                 " xmlns:xlink=\"http://www.w3.org/1999/xlink\">");
+
+                // Write each image in PNG format.
+                int timing = 0;
+                for (int i = 1; i <= img.FrameCount; i++)
+                {
+                    if (!img.GetNextFrame())
+                        break;
+
+                    // The frame is initially set to invisible.
+                    writer.WriteLine("  <g visibility=\"{0}\">",
+                                     i == 1 ? "visible" : "hidden");
+
+                    // SMIL animation to display the image.
+                    if (i > 1)
+                    {
+                        writer.WriteLine(
+                            "    <animate attributeName=\"visibility\"" +
+                            " attributeType=\"XML\" calcMode=\"discrete\"" +
+                            " begin=\"" + timing + "ms\" to=\"visible\"/>");
+                    }
+
+                    // SMIL animation to hide the image.
+                    timing += img.CurrentFrame.Delay;
+                    if (i < img.FrameCount)
+                    {
+                        writer.WriteLine(
+                            "    <animate attributeName=\"visibility\"" +
+                            " attributeType=\"XML\" calcMode=\"discrete\"" +
+                            " begin=\"" + timing + "ms\" to=\"hidden\"/>");
+                    }
+
+                    // Write embedded PNG file.
+                    writer.Write("    <image width=\"" + img.Width + "\" height=\"" +
+                        img.Height + "\" xlink:href=\"data:image/png;base64,");
+
+                    using (MemoryStream mem = new MemoryStream())
+                    {
+                        img.CurrentFrame.Image.Save(mem, ImageFormat.Png);
+                        writer.Write(Convert.ToBase64String(mem.GetBuffer(), 0, (int)mem.Length));
+                    }
+                    writer.WriteLine("\"/>");
+                    writer.WriteLine("  </g>");
+
+                }
+
+                // Finish SVG file.
+                writer.WriteLine("</svg>");
+            }
+        }
+
         private void btnExport_Click(object sender, EventArgs e)
         {
             if (lvEntries.SelectedIndices.Count == 0)
@@ -329,10 +388,16 @@ namespace QQGameRes
             ListViewItem item = lvEntries.SelectedItems[0];
             ListViewItemTag tag = item.Tag as ListViewItemTag;
             string ext = Path.GetExtension(tag.ResourceEntry.Name).ToLowerInvariant();
+            string filter = "原始格式|*" + ext;
+
+            // If the selected item is a multi-frame image, export as SVG.
+            if (tag.FrameCount > 1)
+            {
+                filter += "|SVG 动画|*.svg";
+            }
 
             // If the selected item is an image, display additional format
             // conversion options in the save dialog.
-            string filter = "原始格式|*" + ext;
             if (tag.Thumbnail != null && tag.Thumbnail != ThumbnailLoader.DefaultIcon)
             {
                 filter += "|PNG 图片|*.png";
@@ -342,7 +407,7 @@ namespace QQGameRes
             }
             saveFileDialog1.Filter = filter;
             saveFileDialog1.FilterIndex = 1;
-            if (ext == ".mif")
+            if (tag.FrameCount > 1)
             {
                 saveFileDialog1.FilterIndex = 2;
             }
@@ -369,16 +434,30 @@ namespace QQGameRes
 
             // Get the requested image format.
             int filterIndex = saveFileDialog1.FilterIndex;
+            if (tag.FrameCount > 1)
+                filterIndex--;
             ImageFormat desiredFormat =
                 (filterIndex == 2) ? ImageFormat.Png :
                 (filterIndex == 3) ? ImageFormat.Bmp :
                 (filterIndex == 4) ? ImageFormat.Jpeg :
-                (filterIndex == 5) ? ImageFormat.Tiff : ImageFormat.Bmp;
+                (filterIndex == 5) ? ImageFormat.Tiff : ImageFormat.Emf;
 
             // If this is a single-frame image, convert and save it.
             if (tag.FrameCount <= 1)
             {
                 tag.Thumbnail.Save(filename, desiredFormat);
+                txtStatus.Text = "保存成功";
+                return;
+            }
+
+            // If this is a multi-frame image and user chooses to save as
+            // SVG, do that.
+            if (filterIndex == 1)
+            {
+                using (MifImage img = new MifImage(tag.ResourceEntry.Open()))
+                {
+                    SaveSvgFile(img, filename);
+                }
                 txtStatus.Text = "保存成功";
                 return;
             }
