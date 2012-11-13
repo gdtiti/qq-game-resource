@@ -32,7 +32,11 @@ namespace QQGameRes
 
         private ListViewItem animatedItem;
         private MifImage animatedImage;
-        private bool animationEnded;
+
+        /// <summary>
+        /// Specifies the extra delay, in milliseconds, of the last frame in
+        /// an animation before resetting to the first frame of the image.
+        /// </summary>
         private const int AnimationEndDelay = 500;
 
         /// <summary>
@@ -67,26 +71,23 @@ namespace QQGameRes
             }
 
             // Try load the next frame in the image being animated. If there
-            // are no more frames, wait for 500 milliseconds and then reset
-            // the timer and display the thumbnail image.
+            // are no more frames, stop the animation.
             if (!animatedImage.GetNextFrame())
             {
-                if (animationEnded)
-                {
-                    StopAnimation();
-                }
-                else
-                {
-                    animationEnded = true;
-                    timerAnimation.Interval = AnimationEndDelay;
-                    timerAnimation.Start();
-                }
+                StopAnimation();
                 return;
             }
 
-            // Redraw the frame and set the next timer interval.
+            // Redraw the frame.
             lvEntries.RedrawItems(animatedItem.Index, animatedItem.Index, true);
-            timerAnimation.Interval = Math.Max(animatedImage.CurrentFrame.Delay, 25);
+
+            // Schedule the timer for the next frame. If this is the last
+            // frame, delay an extra 500 milliseconds before resetting to the
+            // thumbnail image.
+            int delay = Math.Max(animatedImage.CurrentFrame.Delay, 25);
+            if (animatedImage.FrameIndex == animatedImage.FrameCount - 1)
+                delay += AnimationEndDelay;
+            timerAnimation.Interval = delay;
             timerAnimation.Start();
         }
 
@@ -120,7 +121,6 @@ namespace QQGameRes
                 ResourceEntry entry = tag.ResourceEntry;
                 animatedItem = item;
                 animatedImage = new MifImage(entry.Open());
-                animationEnded = false;
                 PlayNextFrame();
             }
         }
@@ -321,65 +321,6 @@ namespace QQGameRes
                 "-" + number.ToString(numberFormat) + ext;
         }
 
-        private void SaveSvgFile(MifImage img, string filename)
-        {
-            using (StreamWriter writer = new StreamWriter(
-                new FileStream(filename, FileMode.Create, FileAccess.Write)))
-            {
-                // Write SVG header.
-                writer.WriteLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-                writer.WriteLine("<svg xmlns=\"http://www.w3.org/2000/svg\"" +
-                                 " xmlns:xlink=\"http://www.w3.org/1999/xlink\">");
-
-                // Write each image in PNG format.
-                int timing = 0;
-                for (int i = 1; i <= img.FrameCount; i++)
-                {
-                    if (!img.GetNextFrame())
-                        break;
-
-                    // The frame is initially set to invisible.
-                    writer.WriteLine("  <g visibility=\"{0}\">",
-                                     i == 1 ? "visible" : "hidden");
-
-                    // SMIL animation to display the image.
-                    if (i > 1)
-                    {
-                        writer.WriteLine(
-                            "    <animate attributeName=\"visibility\"" +
-                            " attributeType=\"XML\" calcMode=\"discrete\"" +
-                            " begin=\"" + timing + "ms\" to=\"visible\"/>");
-                    }
-
-                    // SMIL animation to hide the image.
-                    timing += img.CurrentFrame.Delay;
-                    if (i < img.FrameCount)
-                    {
-                        writer.WriteLine(
-                            "    <animate attributeName=\"visibility\"" +
-                            " attributeType=\"XML\" calcMode=\"discrete\"" +
-                            " begin=\"" + timing + "ms\" to=\"hidden\"/>");
-                    }
-
-                    // Write embedded PNG file.
-                    writer.Write("    <image width=\"" + img.Width + "\" height=\"" +
-                        img.Height + "\" xlink:href=\"data:image/png;base64,");
-
-                    using (MemoryStream mem = new MemoryStream())
-                    {
-                        img.CurrentFrame.Image.Save(mem, ImageFormat.Png);
-                        writer.Write(Convert.ToBase64String(mem.GetBuffer(), 0, (int)mem.Length));
-                    }
-                    writer.WriteLine("\"/>");
-                    writer.WriteLine("  </g>");
-
-                }
-
-                // Finish SVG file.
-                writer.WriteLine("</svg>");
-            }
-        }
-
         private void btnExport_Click(object sender, EventArgs e)
         {
             if (lvEntries.SelectedIndices.Count == 0)
@@ -456,7 +397,7 @@ namespace QQGameRes
             {
                 using (MifImage img = new MifImage(tag.ResourceEntry.Open()))
                 {
-                    SaveSvgFile(img, filename);
+                    SvgHelper.SaveAnimation(img, filename);
                 }
                 txtStatus.Text = "保存成功";
                 return;

@@ -63,6 +63,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnimationFrame.cs" />
+    <Compile Include="AnimationImage.cs" />
+    <Compile Include="AnimationPlayer.cs" />
     <Compile Include="DoubleBufferedListView.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -90,6 +93,7 @@
     <Compile Include="ResourceEntry.cs" />
     <Compile Include="ResourceGroup.cs" />
     <Compile Include="ThumbnailLoader.cs" />
+    <Compile Include="SvgHelper.cs" />
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
