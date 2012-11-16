@@ -16,7 +16,7 @@ namespace QQGameRes
         public uint OriginalSize;
     }
 
-    public class Package : ResourceGroup
+    public class Package : ResourceFolder
     {
         private string filename;
         private PackageEntry[] entries;

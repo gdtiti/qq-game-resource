@@ -10,7 +10,7 @@ namespace QQGameRes
     /// <summary>
     /// Represents a collection of physical files in the same directory.
     /// </summary>
-    public class FileGroup : ResourceGroup
+    public class FileGroup : ResourceFolder
     {
         DirectoryInfo dir;
         FileEntry[] files;

@@ -36,7 +36,6 @@
             System.Windows.Forms.TreeNode treeNode4 = new System.Windows.Forms.TreeNode("Package", new System.Windows.Forms.TreeNode[] {
             treeNode3});
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            this.imageListPreview = new System.Windows.Forms.ImageList(this.components);
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
@@ -55,9 +54,9 @@
             this.txtImageSize = new System.Windows.Forms.ToolStripStatusLabel();
             this.txtFrames = new System.Windows.Forms.ToolStripStatusLabel();
             this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
-            this.lvEntries = new QQGameRes.DoubleBufferedListView();
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.viewList = new QQGameRes.ResourceListView();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -66,20 +65,10 @@
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
-            // imageListPreview
-            // 
-            this.imageListPreview.ColorDepth = System.Windows.Forms.ColorDepth.Depth32Bit;
-            this.imageListPreview.ImageSize = new System.Drawing.Size(130, 175);
-            this.imageListPreview.TransparentColor = System.Drawing.Color.Transparent;
-            // 
             // openFileDialog1
             // 
             this.openFileDialog1.Filter = "QQ游戏资源包 (*.pkg)|*.pkg|所有文件 (*.*)|*.*";
             this.openFileDialog1.Title = "打开QQ游戏资源包";
-            // 
-            // timerAnimation
-            // 
-            this.timerAnimation.Tick += new System.EventHandler(this.timerAnimation_Tick);
             // 
             // saveFileDialog1
             // 
@@ -98,7 +87,7 @@
             // 
             // splitContainer1.Panel2
             // 
-            this.splitContainer1.Panel2.Controls.Add(this.lvEntries);
+            this.splitContainer1.Panel2.Controls.Add(this.viewList);
             this.splitContainer1.Size = new System.Drawing.Size(856, 366);
             this.splitContainer1.SplitterDistance = 284;
             this.splitContainer1.TabIndex = 8;
@@ -241,28 +230,6 @@
             // 
             this.folderBrowserDialog1.ShowNewFolderButton = false;
             // 
-            // lvEntries
-            // 
-            this.lvEntries.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnPath,
-            this.columnSize});
-            this.lvEntries.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvEntries.FullRowSelect = true;
-            this.lvEntries.GridLines = true;
-            this.lvEntries.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
-            this.lvEntries.HideSelection = false;
-            this.lvEntries.LargeImageList = this.imageListPreview;
-            this.lvEntries.Location = new System.Drawing.Point(0, 0);
-            this.lvEntries.Margin = new System.Windows.Forms.Padding(4);
-            this.lvEntries.MultiSelect = false;
-            this.lvEntries.Name = "lvEntries";
-            this.lvEntries.OwnerDraw = true;
-            this.lvEntries.Size = new System.Drawing.Size(568, 366);
-            this.lvEntries.TabIndex = 5;
-            this.lvEntries.UseCompatibleStateImageBehavior = false;
-            this.lvEntries.DrawItem += new System.Windows.Forms.DrawListViewItemEventHandler(this.lvEntries_DrawItem);
-            this.lvEntries.SelectedIndexChanged += new System.EventHandler(this.lvEntries_SelectedIndexChanged);
-            // 
             // columnPath
             // 
             this.columnPath.Text = "文件名";
@@ -273,6 +240,17 @@
             this.columnSize.Text = "大小";
             this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.columnSize.Width = 80;
+            // 
+            // viewList
+            // 
+            this.viewList.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.viewList.Location = new System.Drawing.Point(0, 0);
+            this.viewList.Margin = new System.Windows.Forms.Padding(4);
+            this.viewList.Name = "viewList";
+            this.viewList.ResourceFolder = null;
+            this.viewList.Size = new System.Drawing.Size(568, 366);
+            this.viewList.TabIndex = 0;
+            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
             // MainForm
             // 
@@ -305,7 +283,6 @@
 
         #endregion
 
-        private DoubleBufferedListView lvEntries;
         private System.Windows.Forms.ColumnHeader columnPath;
         private System.Windows.Forms.ColumnHeader columnSize;
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
@@ -313,7 +290,6 @@
         private System.Windows.Forms.SaveFileDialog saveFileDialog1;
         private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.TreeView tvFolders;
-        private System.Windows.Forms.ImageList imageListPreview;
         private System.Windows.Forms.ToolStrip toolStrip3;
         private System.Windows.Forms.ToolStripButton btnOpenFolder;
         private System.Windows.Forms.ToolStripButton btnOpenPackage;
@@ -327,6 +303,7 @@
         private System.Windows.Forms.ImageList imageListTree;
         private System.Windows.Forms.ToolStripStatusLabel txtStatus;
         private System.Windows.Forms.FolderBrowserDialog folderBrowserDialog1;
+        private ResourceListView viewList;
     }
 }
 

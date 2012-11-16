@@ -61,7 +61,7 @@ namespace QQGameRes
             // Create a task for the thumbnailWorker.
             ThumbnailTask task = new ThumbnailTask();
             task.Item = item;
-            task.Tag = item.Tag as ListViewItemTag;
+            task.Tag = item.Tag as ResourceListViewEntry;
 
             // Insert the task to the beginning of the task queue.
             lock (taskQueue)
@@ -123,7 +123,7 @@ namespace QQGameRes
                 }
 
                 // Perform this task.
-                ListViewItemTag tag = task.Tag;
+                ResourceListViewEntry tag = task.Tag;
 #if DEBUG && false
                 System.Diagnostics.Debug.WriteLine("Starting task for item " + task.ItemIndex);
 #endif
@@ -179,6 +179,6 @@ namespace QQGameRes
         /// Contains information about the resource whose thumbnail is to be
         /// extracted.
         /// </summary>
-        public ListViewItemTag Tag;
+        public ResourceListViewEntry Tag;
     }
 }

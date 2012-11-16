@@ -18,7 +18,41 @@ namespace QQGameRes
         {
             InitializeComponent();
         }
-        
+
+#if false
+        private ResourceFolder _activeFolder;
+
+        /// <summary>
+        /// Gets or sets the active resource folder being shown in this 
+        /// window. This should be the folder that is selected in the 
+        /// TreeView, and the contents of this folder should be populated
+        /// in the ListView.
+        /// </summary>
+        public ResourceFolder ActiveFolder
+        {
+            get { return _activeFolder; }
+            set
+            {
+                if (_activeFolder != value)
+                {
+                    _activeFolder = value;
+                    if (ActiveFolderChanged != null)
+                        ActiveFolderChanged(this, null);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Indicates that the ActiveFolder property has changed.
+        /// </summary>
+        public event EventHandler ActiveFolderChanged;
+#endif
+
+        /// <summary>
+        /// Loads a QQ game resource package (.PKG file) and appends it to the
+        /// tree view on the left of the main window.
+        /// </summary>
+        /// <param name="filename"></param>
         private void LoadPackage(string filename)
         {
             Package pkg = new Package(filename);
@@ -28,101 +62,6 @@ namespace QQGameRes
             node.SelectedImageIndex = 1;
             node.Tag = pkg;
             tvFolders.Nodes.Add(node);
-        }
-
-        private ListViewItem animatedItem;
-        private MifImage animatedImage;
-
-        /// <summary>
-        /// Specifies the extra delay, in milliseconds, of the last frame in
-        /// an animation before resetting to the first frame of the image.
-        /// </summary>
-        private const int AnimationEndDelay = 500;
-
-        /// <summary>
-        /// Stops the current animation (if any) and schedules the ListView
-        /// item being animated for redrawal by invalidating it.
-        /// </summary>
-        private void StopAnimation()
-        {
-            timerAnimation.Stop();
-            if (animatedItem != null)
-            {
-                if (animatedItem.Index >= 0) // still in use
-                    lvEntries.RedrawItems(animatedItem.Index, animatedItem.Index, true);
-                animatedItem = null;
-            }
-            if (animatedImage != null)
-            {
-                animatedImage.Dispose();
-                animatedImage = null;
-            }
-        }
-
-        private void PlayNextFrame()
-        {
-            // If the currently selected list item is not being animated,
-            // reset the timer and exit.
-            if (animatedItem == null || animatedImage == null ||
-                !animatedItem.Selected || animatedItem.Index == -1)
-            {
-                StopAnimation();
-                return;
-            }
-
-            // Try load the next frame in the image being animated. If there
-            // are no more frames, stop the animation.
-            if (!animatedImage.GetNextFrame())
-            {
-                StopAnimation();
-                return;
-            }
-
-            // Redraw the frame.
-            lvEntries.RedrawItems(animatedItem.Index, animatedItem.Index, true);
-
-            // Schedule the timer for the next frame. If this is the last
-            // frame, delay an extra 500 milliseconds before resetting to the
-            // thumbnail image.
-            int delay = Math.Max(animatedImage.CurrentFrame.Delay, 25);
-            if (animatedImage.FrameIndex == animatedImage.FrameCount - 1)
-                delay += AnimationEndDelay;
-            timerAnimation.Interval = delay;
-            timerAnimation.Start();
-        }
-
-        private void lvEntries_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            // Stop the current animation if any.
-            StopAnimation();
-
-            // Update button state.
-            btnExport.Enabled = (lvEntries.SelectedIndices.Count > 0);
-
-            // Do nothing if no item is selected.
-            if (lvEntries.SelectedIndices.Count == 0)
-                return;
-
-            // Get the item selected.
-            ListViewItem item = lvEntries.SelectedItems[0];
-            string filename = item.Text;
-            ListViewItemTag tag = item.Tag as ListViewItemTag;
-
-            // Update status message of the image size.
-            if (tag.Thumbnail != null)
-            {
-                txtImageSize.Text = tag.Thumbnail.Width + " x " + tag.Thumbnail.Height;
-                txtFrames.Text = tag.FrameCount + " Frames";
-            }
-
-            // Start animation if this item is a multi-frame image.
-            if (tag.FrameCount > 1)
-            {
-                ResourceEntry entry = tag.ResourceEntry;
-                animatedItem = item;
-                animatedImage = new MifImage(entry.Open());
-                PlayNextFrame();
-            }
         }
 
         private void LoadRepository(string path)
@@ -169,7 +108,7 @@ namespace QQGameRes
         private void MainForm_Load(object sender, EventArgs e)
         {
             SetWindowTheme(tvFolders.Handle, "EXPLORER", null);
-            SetWindowTheme(lvEntries.Handle, "EXPLORER", null);
+            //SetWindowTheme(lvEntries.Handle, "EXPLORER", null);
 
             // Load the root path of QQ Game.
             string rootPath = Repository.GetInstallationPath();
@@ -180,11 +119,6 @@ namespace QQGameRes
                 return;
             }
             LoadRepository(rootPath);
-        }
-
-        private void timerAnimation_Tick(object sender, EventArgs e)
-        {
-            PlayNextFrame();
         }
 
         private void MainForm_DragOver(object sender, DragEventArgs e)
@@ -207,106 +141,20 @@ namespace QQGameRes
 
         private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            if (e.Node.Tag is ResourceGroup)
+            if (e.Node.Tag is ResourceFolder)
             {
-                StopAnimation();
-                PopulateListView(e.Node.Tag as ResourceGroup);
+                viewList.ResourceFolder = e.Node.Tag as ResourceFolder;
             }
-        }
-
-        /// <summary>
-        /// Populates the list view with entries from the given collection.
-        /// After the function returns, the list view will be scrolled to
-        /// the top, and no item will be selected.
-        /// </summary>
-        /// <param name="group"></param>
-        private void PopulateListView(ResourceGroup group)
-        {
-            StopAnimation();
-            thumbnailLoader.CancelPendingTasks();
-            lvEntries.Items.Clear();
-            lvEntries.SelectedIndices.Clear();
-
-            lvEntries.Visible = false;
-            foreach (ResourceEntry entry in group.Entries)
-            {
-                // We create the item with empty text. Otherwise if the actual
-                // text is too long, the OwnerDraw bounds for a focused item
-                // will be too big.
-                ListViewItem item = new ListViewItem("");
-                item.SubItems.Add(entry.Size.ToString("#,#"));
-                ListViewItemTag tag = new ListViewItemTag();
-                tag.ResourceEntry = entry;
-                item.Tag = tag;
-                lvEntries.Items.Add(item);
-            }
-            lvEntries.Visible = true;
-            if (lvEntries.Items.Count > 0)
-                lvEntries.RedrawItems(0, lvEntries.Items.Count - 1, true);
-        }
-
-        private void lvEntries_DrawItem(object sender, DrawListViewItemEventArgs e)
-        {
-            // Sometimes, this handler gets called after some of the 
-            // components (in particular, imageListPreview) have been 
-            // disposed. This can cause a runtime error as the drawing
-            // routine attempts to access the image list.
-            if (e.Item.ImageList == null)
-                return;
-
-            if (!(e.Item.Tag is ListViewItemTag))
-            {
-                e.DrawDefault = true;
-                return;
-            }
-            ListViewItemTag tag = e.Item.Tag as ListViewItemTag;
-
-            // Load the thumbnail image if not already loaded.
-            LoadThumbnailAsync(e.Item);
-
-            // Check if we're currently animating this item.
-            bool animating = (animatedItem == e.Item);
-
-            // If we are in the process of animation, draw the current frame.
-            // Otherwise, draw the thumbnail image.
-            Image img = animating ? animatedImage.CurrentFrame.Image : tag.Thumbnail;
-
-            // If the thumbnail is still being loaded, display a waiting image.
-            if (img == null)
-                img = ThumbnailLoader.LoadingIcon;
-
-            // Create a custom-drawing helper object.
-            ListViewItemDrawer drawer = 
-                new ListViewItemDrawer(e.Item, e.Bounds, e.Graphics);
-#if DEBUG && false
-            System.Diagnostics.Debug.WriteLine("ListViewItem Bounds: " +
-                e.Bounds.Width + " x " + e.Bounds.Height);
-#endif
-
-            // Draw a focus rectangle if the item is selected.
-            if (e.Item.Selected)
-                drawer.DrawBorder(); // e.DrawFocusRectangle();
-
-            // Draw the thumbnail or current frame.
-            drawer.DrawImage(img);
-
-            // If this is a multi-frame image, draw a Play icon to indicate
-            // that, unless we are currently playing it.
-            if (tag.FrameCount > 1 && !animating)
-                drawer.DrawPlayIcon();
-            
-            // Draw the file name text.
-            drawer.DrawText(Path.GetFileName(tag.ResourceEntry.Name));
         }
 
         private void btnOpenPackage_Click(object sender, EventArgs e)
         {
             if (openFileDialog1.ShowDialog(this) == DialogResult.OK)
             {
-                StopAnimation();
-                thumbnailLoader.CancelPendingTasks();
-                lvEntries.Items.Clear();
-                tvFolders.Nodes.Clear();
+                //StopAnimation();
+                //thumbnailLoader.CancelPendingTasks();
+                //lvEntries.Items.Clear();
+                //tvFolders.Nodes.Clear();
                 LoadPackage(openFileDialog1.FileName);
                 tvFolders.SelectedNode = tvFolders.Nodes[0];
             }
@@ -323,23 +171,25 @@ namespace QQGameRes
 
         private void btnExport_Click(object sender, EventArgs e)
         {
-            if (lvEntries.SelectedIndices.Count == 0)
+            if (viewList.ActiveEntry == null)
+            {
+                MessageBox.Show("No entry selected.");
                 return;
+            }
 
-            ListViewItem item = lvEntries.SelectedItems[0];
-            ListViewItemTag tag = item.Tag as ListViewItemTag;
-            string ext = Path.GetExtension(tag.ResourceEntry.Name).ToLowerInvariant();
+            ResourceListViewEntry ent = viewList.ActiveEntry;
+            string ext = Path.GetExtension(ent.ResourceEntry.Name).ToLowerInvariant();
             string filter = "原始格式|*" + ext;
 
             // If the selected item is a multi-frame image, export as SVG.
-            if (tag.FrameCount > 1)
+            if (ent.FrameCount > 1)
             {
                 filter += "|SVG 动画|*.svg";
             }
 
             // If the selected item is an image, display additional format
             // conversion options in the save dialog.
-            if (tag.Thumbnail != null && tag.Thumbnail != ThumbnailLoader.DefaultIcon)
+            if (ent.Thumbnail != null && ent.Thumbnail != ThumbnailLoader.DefaultIcon)
             {
                 filter += "|PNG 图片|*.png";
                 filter += "|BMP 图片|*.bmp";
@@ -348,12 +198,12 @@ namespace QQGameRes
             }
             saveFileDialog1.Filter = filter;
             saveFileDialog1.FilterIndex = 1;
-            if (tag.FrameCount > 1)
+            if (ent.FrameCount > 1)
             {
                 saveFileDialog1.FilterIndex = 2;
             }
             saveFileDialog1.FileName = Path.GetFileNameWithoutExtension(
-                tag.ResourceEntry.Name);
+                ent.ResourceEntry.Name);
 
             // Show the dialog.
             if (saveFileDialog1.ShowDialog(this) != DialogResult.OK)
@@ -364,7 +214,7 @@ namespace QQGameRes
             // If the filter index is 1 (save as is), just copy the stream.
             if (saveFileDialog1.FilterIndex == 1)
             {
-                using (Stream stream = tag.ResourceEntry.Open(),
+                using (Stream stream = ent.ResourceEntry.Open(),
                        output = new FileStream(filename, FileMode.Create, FileAccess.Write))
                 {
                     stream.CopyTo(output, 65536);
@@ -375,7 +225,7 @@ namespace QQGameRes
 
             // Get the requested image format.
             int filterIndex = saveFileDialog1.FilterIndex;
-            if (tag.FrameCount > 1)
+            if (ent.FrameCount > 1)
                 filterIndex--;
             ImageFormat desiredFormat =
                 (filterIndex == 2) ? ImageFormat.Png :
@@ -384,9 +234,9 @@ namespace QQGameRes
                 (filterIndex == 5) ? ImageFormat.Tiff : ImageFormat.Emf;
 
             // If this is a single-frame image, convert and save it.
-            if (tag.FrameCount <= 1)
+            if (ent.FrameCount <= 1)
             {
-                tag.Thumbnail.Save(filename, desiredFormat);
+                ent.Thumbnail.Save(filename, desiredFormat);
                 txtStatus.Text = "保存成功";
                 return;
             }
@@ -395,7 +245,7 @@ namespace QQGameRes
             // SVG, do that.
             if (filterIndex == 1)
             {
-                using (MifImage img = new MifImage(tag.ResourceEntry.Open()))
+                using (MifImage img = new MifImage(ent.ResourceEntry.Open()))
                 {
                     SvgHelper.SaveAnimation(img, filename);
                 }
@@ -405,14 +255,14 @@ namespace QQGameRes
 
             // Now for a multi-frame image, ask the user how they want to save it.
             DialogResult result = MessageBox.Show(this,
-                "选中的图片包含 " + tag.FrameCount + " 帧。" +
+                "选中的图片包含 " + ent.FrameCount + " 帧。" +
                 "是否将每一帧单独存为一个文件？\r\n" +
                 "如果选择是，则各帧将分别保存为\r\n    " +
                 GetNumberedFileName(Path.GetFileName(filename),
-                                    1, tag.FrameCount) + "\r\n" +
+                                    1, ent.FrameCount) + "\r\n" +
                 "    ......\r\n    " +
                 GetNumberedFileName(Path.GetFileName(filename),
-                                    tag.FrameCount, tag.FrameCount) + "\r\n" +
+                                    ent.FrameCount, ent.FrameCount) + "\r\n" +
                 "如果选择否，则只保存第一帧到 " + Path.GetFileName(filename) +
                 "。", this.Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
 
@@ -424,21 +274,21 @@ namespace QQGameRes
             // which is just the thumbnail.
             if (result == DialogResult.No)
             {
-                tag.Thumbnail.Save(filename, desiredFormat);
+                ent.Thumbnail.Save(filename, desiredFormat);
                 txtStatus.Text = "保存成功";
                 return;
             }
 
             // Now the user clicked "Yes", so we need to save each frame
             // in an individual file.
-            using (MifImage img = new MifImage(tag.ResourceEntry.Open()))
+            using (MifImage img = new MifImage(ent.ResourceEntry.Open()))
             {
-                for (int i = 1; i <= tag.FrameCount; i++)
+                for (int i = 1; i <= ent.FrameCount; i++)
                 {
                     if (!img.GetNextFrame())
                         break;
                     FileInfo file = new FileInfo(
-                        GetNumberedFileName(filename, i, tag.FrameCount));
+                        GetNumberedFileName(filename, i, ent.FrameCount));
                     if (file.Exists)
                     {
                         if (MessageBox.Show(this, "文件 " + file.FullName +
@@ -466,31 +316,35 @@ namespace QQGameRes
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
         public static extern int SetWindowTheme(IntPtr hWnd, String pszSubAppName, String pszSubIdList);
 
-        ThumbnailLoader thumbnailLoader = new ThumbnailLoader();
-
-        /// <summary>
-        /// Loads the thumbnail image for the given ListViewItem in the 
-        /// background if not already loaded.
-        /// </summary>
-        private void LoadThumbnailAsync(ListViewItem item)
-        {
-             ListViewItemTag tag = item.Tag as ListViewItemTag;
-            if (tag.Thumbnail != null) // already loaded
-                return;
-
-            // Create a task for the thumbnailWorker.
-            thumbnailLoader.AddTask(item);
-        }
-
         private void btnOpenFolder_Click(object sender, EventArgs e)
         {
             if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
             {
-                StopAnimation();
-                thumbnailLoader.CancelPendingTasks();
-                lvEntries.Items.Clear();
+                //StopAnimation();
+                //thumbnailLoader.CancelPendingTasks();
+                //lvEntries.Items.Clear();
                 tvFolders.Nodes.Clear();
                 LoadRepository(folderBrowserDialog1.SelectedPath);
+            }
+        }
+
+        private void viewList_ActiveEntryChanged(object sender, EventArgs e)
+        {
+            // Update button state.
+            btnExport.Enabled = (viewList.ActiveEntry != null);
+
+            // Update status message of the image size.
+            ResourceListViewEntry ent = viewList.ActiveEntry;
+            if (ent == null) // no item selected
+            {
+            }
+            else
+            {
+                if (ent.Thumbnail != null)
+                {
+                    txtImageSize.Text = ent.Thumbnail.Width + " x " + ent.Thumbnail.Height;
+                    txtFrames.Text = ent.FrameCount + " Frames";
+                }
             }
         }
     }
