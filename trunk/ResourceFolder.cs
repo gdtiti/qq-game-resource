@@ -3,17 +3,17 @@
 namespace QQGameRes
 {
     /// <summary>
-    /// Represents a collection of resource items.
+    /// Represents a collection of resource entries in the same location.
     /// </summary>
-    public interface ResourceGroup
+    public interface ResourceFolder
     {
         /// <summary>
-        /// Gets the name of the resource group.
+        /// Gets the name of the resource folder.
         /// </summary>
         string Name { get; }
 
         /// <summary>
-        /// Gets the resource items in this group.
+        /// Gets the resource entries in this folder.
         /// </summary>
         ResourceEntry[] Entries { get; }
     }
