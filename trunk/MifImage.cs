@@ -137,7 +137,7 @@ namespace QQGameRes
             // Return null if there are no more frames left.
             if (frameIndex + 1 >= header.FrameCount)
             {
-                reader.Dispose();
+                reader.Close();
                 reader = null;
                 return false;
             }
@@ -236,7 +236,7 @@ namespace QQGameRes
             if (reader == null)
                 return;
             if (disposing)
-                reader.Dispose();
+                reader.Close();
             reader = null;
         }
     }

@@ -217,7 +217,10 @@ namespace QQGameRes
                 using (Stream stream = ent.ResourceEntry.Open(),
                        output = new FileStream(filename, FileMode.Create, FileAccess.Write))
                 {
-                    stream.CopyTo(output, 65536);
+                    byte[] buffer = new byte[65536];
+                    int n;
+                    while ((n = stream.Read(buffer, 0, buffer.Length)) > 0)
+                        output.Write(buffer, 0, n);
                 }
                 txtStatus.Text = "保存成功";
                 return;
