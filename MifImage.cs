@@ -148,7 +148,7 @@ namespace QQGameRes
             int bytesPerImage = width * height * 3;
             byte[] buffer = new byte[bytesPerImage];
 
-            // Read frame interval if Type is 7.
+            // Read frame delay if Type is 7.
             AnimationFrame frame = new AnimationFrame();
             if (header.Type == 7)
                 frame.Delay = reader.ReadInt32();
@@ -163,33 +163,6 @@ namespace QQGameRes
             // Load image into memory buffer.
             if (reader.Read(buffer, 0, bytesPerImage) != bytesPerImage)
                 throw new IOException("Premature end of file.");
-
-#if false
-            // Count the number of colors and green bits in the bitmap.
-            bool[] colorPresent = new bool[65536];
-            int greenBit = 0;
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    byte b1 = buffer[2 * (y * width + x)];
-                    byte b2 = buffer[2 * (y * width + x) + 1];
-                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
-                    colorPresent[(b2 << 8) | b1] = true;
-                    if ((green & 4) != 0)
-                        greenBit++;
-                }
-            }
-
-            int colorCount = 0;
-            for (int i = 0; i < 65536; i++)
-            {
-                if (colorPresent[i])
-                    ++colorCount;
-            }
-            System.Diagnostics.Debug.WriteLine("Number of colors: " + colorCount);
-            System.Diagnostics.Debug.WriteLine("Green bit set in " + greenBit + " pixels.");
-#endif
 
             // Create a bitmap by setting its data directly.
             byte[] bmpData = new byte[4 * width * height];
@@ -226,6 +199,74 @@ namespace QQGameRes
             return true;
         }
 
+#if false
+        public IEnumerable<AnimationFrame> GetFrames()
+        {
+            if (reader == null)
+                throw new ObjectDisposedException("MifImage");
+
+            // Create a buffer to read the frame and another buffer to process
+            // bitmap data.
+            int width = header.ImageWidth;
+            int height = header.ImageHeight;
+            byte[] buffer = new byte[3*width*height];
+            byte[] bmpData = new byte[4 * width * height];
+
+            // Read each frame in turn.
+            for (int i = 0; i < header.FrameCount; i++)
+            {
+                // Read frame delay if Type is 7.
+                AnimationFrame frame = new AnimationFrame();
+                if (header.Type == 7)
+                    frame.Delay = reader.ReadInt32();
+                else
+                    frame.Delay = 0;
+
+                // Load frame into memory.
+                if (reader.Read(buffer, 0, buffer.Length) != buffer.Length)
+                    throw new IOException("Premature end of file.");
+
+                // Convert each pixel of the frame. Note that we assume that
+                // Stride is equal to 4 * Width, i.e. there's no padding.
+                // If we choose to loose this assumption, we will need to 
+                // convert the image scan line by scan line.
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        byte a = buffer[2 * width * height + y * width + x];
+                        byte b1 = buffer[2 * (y * width + x)];
+                        byte b2 = buffer[2 * (y * width + x) + 1];
+                        byte alpha = (byte)((a >= 32) ? 255 : (a << 3));
+                        byte red = (byte)(b2 & 0xF8);
+                        byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
+                        byte blue = (byte)((b1 & 0x1F) << 3);
+
+                        bmpData[4 * (y * width + x) + 0] = blue;
+                        bmpData[4 * (y * width + x) + 1] = green;
+                        bmpData[4 * (y * width + x) + 2] = red;
+                        bmpData[4 * (y * width + x) + 3] = alpha;
+                    }
+                }
+
+                // Create a bitmap from the converted pixel data.
+                Bitmap bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+                BitmapData data = bmp.LockBits(new Rectangle(0, 0, width, height),
+                    ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+                Marshal.Copy(bmpData, 0, data.Scan0, 4 * width * height);
+                bmp.UnlockBits(data);
+
+                // Return this frame.
+                frame.Image = bmp;
+                yield return frame;
+            }
+
+            // After we finish, close the stream.
+            reader.Close();
+            reader = null;
+        }
+#endif
+
         public void Dispose()
         {
             Dispose(true);
@@ -239,5 +280,32 @@ namespace QQGameRes
                 reader.Close();
             reader = null;
         }
+
+#if false
+            // Count the number of colors and green bits in the bitmap.
+            bool[] colorPresent = new bool[65536];
+            int greenBit = 0;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    byte b1 = buffer[2 * (y * width + x)];
+                    byte b2 = buffer[2 * (y * width + x) + 1];
+                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
+                    colorPresent[(b2 << 8) | b1] = true;
+                    if ((green & 4) != 0)
+                        greenBit++;
+                }
+            }
+
+            int colorCount = 0;
+            for (int i = 0; i < 65536; i++)
+            {
+                if (colorPresent[i])
+                    ++colorCount;
+            }
+            System.Diagnostics.Debug.WriteLine("Number of colors: " + colorCount);
+            System.Diagnostics.Debug.WriteLine("Green bit set in " + greenBit + " pixels.");
+#endif
     }
 }

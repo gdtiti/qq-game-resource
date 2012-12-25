@@ -41,5 +41,7 @@ namespace QQGameRes
         /// <returns><code>true</code> if the next frame is successfully read;
         /// <code>false</code> if there are no more frames left.</returns>
         bool GetNextFrame();
+
+        // IEnumerable<AnimationFrame> GetFrames();
     }
 }

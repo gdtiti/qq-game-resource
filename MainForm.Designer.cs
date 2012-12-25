@@ -87,8 +87,8 @@
             // splitContainer1.Panel2
             // 
             this.splitContainer1.Panel2.Controls.Add(this.viewList);
-            this.splitContainer1.Size = new System.Drawing.Size(856, 366);
-            this.splitContainer1.SplitterDistance = 284;
+            this.splitContainer1.Size = new System.Drawing.Size(788, 403);
+            this.splitContainer1.SplitterDistance = 211;
             this.splitContainer1.TabIndex = 8;
             // 
             // tvFolders
@@ -117,7 +117,7 @@
             treeNode4});
             this.tvFolders.SelectedImageIndex = 0;
             this.tvFolders.ShowLines = false;
-            this.tvFolders.Size = new System.Drawing.Size(284, 366);
+            this.tvFolders.Size = new System.Drawing.Size(211, 403);
             this.tvFolders.TabIndex = 10;
             this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
             // 
@@ -141,7 +141,7 @@
             this.btnAbout});
             this.toolStrip3.Location = new System.Drawing.Point(0, 0);
             this.toolStrip3.Name = "toolStrip3";
-            this.toolStrip3.Size = new System.Drawing.Size(856, 31);
+            this.toolStrip3.Size = new System.Drawing.Size(788, 31);
             this.toolStrip3.TabIndex = 11;
             this.toolStrip3.Text = "toolStrip3";
             // 
@@ -198,9 +198,9 @@
             this.txtStatus,
             this.txtImageSize,
             this.txtFrames});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 397);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 434);
             this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Size = new System.Drawing.Size(856, 28);
+            this.statusStrip1.Size = new System.Drawing.Size(788, 28);
             this.statusStrip1.TabIndex = 10;
             this.statusStrip1.Text = "statusStrip1";
             // 
@@ -248,7 +248,7 @@
             this.viewList.Margin = new System.Windows.Forms.Padding(4);
             this.viewList.Name = "viewList";
             this.viewList.ResourceFolder = null;
-            this.viewList.Size = new System.Drawing.Size(568, 366);
+            this.viewList.Size = new System.Drawing.Size(573, 403);
             this.viewList.TabIndex = 0;
             this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
@@ -256,7 +256,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(856, 425);
+            this.ClientSize = new System.Drawing.Size(788, 462);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.toolStrip3);
             this.Controls.Add(this.statusStrip1);
