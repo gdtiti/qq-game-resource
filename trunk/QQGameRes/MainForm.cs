@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using ControlExtensions;
 
 namespace QQGameRes
 {
@@ -107,7 +108,7 @@ namespace QQGameRes
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-            SetWindowTheme(tvFolders.Handle, "EXPLORER", null);
+            tvFolders.SetWindowTheme("explorer");
             //SetWindowTheme(lvEntries.Handle, "EXPLORER", null);
 
             // Load the root path of QQ Game.
@@ -315,9 +316,6 @@ namespace QQGameRes
                 "版本 " + ver.ProductVersion, 
                 "版本信息", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-
-        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
-        public static extern int SetWindowTheme(IntPtr hWnd, String pszSubAppName, String pszSubIdList);
 
         private void btnOpenFolder_Click(object sender, EventArgs e)
         {
