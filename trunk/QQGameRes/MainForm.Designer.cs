@@ -29,12 +29,12 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Folder");
-            System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Repository", new System.Windows.Forms.TreeNode[] {
-            treeNode1});
-            System.Windows.Forms.TreeNode treeNode3 = new System.Windows.Forms.TreeNode("Folder");
-            System.Windows.Forms.TreeNode treeNode4 = new System.Windows.Forms.TreeNode("Package", new System.Windows.Forms.TreeNode[] {
-            treeNode3});
+            System.Windows.Forms.TreeNode treeNode5 = new System.Windows.Forms.TreeNode("Folder");
+            System.Windows.Forms.TreeNode treeNode6 = new System.Windows.Forms.TreeNode("Repository", new System.Windows.Forms.TreeNode[] {
+            treeNode5});
+            System.Windows.Forms.TreeNode treeNode7 = new System.Windows.Forms.TreeNode("Folder");
+            System.Windows.Forms.TreeNode treeNode8 = new System.Windows.Forms.TreeNode("Package", new System.Windows.Forms.TreeNode[] {
+            treeNode7});
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
@@ -42,6 +42,7 @@
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.tvFolders = new System.Windows.Forms.TreeView();
             this.imageListTree = new System.Windows.Forms.ImageList(this.components);
+            this.viewList = new QQGameRes.ResourceListView();
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
             this.btnOpenFolder = new System.Windows.Forms.ToolStripButton();
             this.btnOpenPackage = new System.Windows.Forms.ToolStripButton();
@@ -56,7 +57,6 @@
             this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.viewList = new QQGameRes.ResourceListView();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
@@ -100,21 +100,21 @@
             this.tvFolders.Indent = 21;
             this.tvFolders.Location = new System.Drawing.Point(0, 0);
             this.tvFolders.Name = "tvFolders";
-            treeNode1.ImageIndex = 2;
-            treeNode1.Name = "Node2";
-            treeNode1.Text = "Folder";
-            treeNode2.ImageIndex = 0;
-            treeNode2.Name = "Node0";
-            treeNode2.Text = "Repository";
-            treeNode3.ImageIndex = 2;
-            treeNode3.Name = "Node4";
-            treeNode3.Text = "Folder";
-            treeNode4.ImageIndex = 1;
-            treeNode4.Name = "Node3";
-            treeNode4.Text = "Package";
+            treeNode5.ImageIndex = 2;
+            treeNode5.Name = "Node2";
+            treeNode5.Text = "Folder";
+            treeNode6.ImageIndex = 0;
+            treeNode6.Name = "Node0";
+            treeNode6.Text = "Repository";
+            treeNode7.ImageIndex = 2;
+            treeNode7.Name = "Node4";
+            treeNode7.Text = "Folder";
+            treeNode8.ImageIndex = 1;
+            treeNode8.Name = "Node3";
+            treeNode8.Text = "Package";
             this.tvFolders.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
-            treeNode2,
-            treeNode4});
+            treeNode6,
+            treeNode8});
             this.tvFolders.SelectedImageIndex = 0;
             this.tvFolders.ShowLines = false;
             this.tvFolders.Size = new System.Drawing.Size(211, 403);
@@ -128,6 +128,17 @@
             this.imageListTree.Images.SetKeyName(0, "Folder-Icon-16.png");
             this.imageListTree.Images.SetKeyName(1, "Package-Icon-16.png");
             this.imageListTree.Images.SetKeyName(2, "Images-Icon-16.png");
+            // 
+            // viewList
+            // 
+            this.viewList.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.viewList.Location = new System.Drawing.Point(0, 0);
+            this.viewList.Margin = new System.Windows.Forms.Padding(4);
+            this.viewList.Name = "viewList";
+            this.viewList.ResourceFolder = null;
+            this.viewList.Size = new System.Drawing.Size(573, 403);
+            this.viewList.TabIndex = 0;
+            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
             // toolStrip3
             // 
@@ -240,17 +251,6 @@
             this.columnSize.Text = "大小";
             this.columnSize.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.columnSize.Width = 80;
-            // 
-            // viewList
-            // 
-            this.viewList.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.viewList.Location = new System.Drawing.Point(0, 0);
-            this.viewList.Margin = new System.Windows.Forms.Padding(4);
-            this.viewList.Name = "viewList";
-            this.viewList.ResourceFolder = null;
-            this.viewList.Size = new System.Drawing.Size(573, 403);
-            this.viewList.TabIndex = 0;
-            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
             // MainForm
             // 
