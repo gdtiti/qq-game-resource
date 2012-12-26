@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>QQGameRes</RootNamespace>
     <AssemblyName>QQGameRes</AssemblyName>
-    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <PublishUrl>publish\</PublishUrl>
@@ -64,9 +64,6 @@
     <Compile Include="AnimationFrame.cs" />
     <Compile Include="AnimationImage.cs" />
     <Compile Include="AnimationPlayer.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="DoubleBufferedListView.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="FileEntry.cs" />
@@ -147,6 +144,12 @@
     <None Include="images\Play-Icon-48.png" />
     <Content Include="MifFormat.txt" />
     <Content Include="PkgFormat.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ControlExtensions\ControlExtensions.csproj">
+      <Project>{071c7648-eab0-44a9-87d0-28191e06c1ef}</Project>
+      <Name>ControlExtensions</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
