@@ -75,7 +75,9 @@
     <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="MifImage.cs" />
+    <Compile Include="MifImage.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Package.cs" />
     <Compile Include="PackageEntry.cs" />
     <Compile Include="Program.cs" />
@@ -142,13 +144,16 @@
     <None Include="images\Image-Icon-16.png" />
     <None Include="images\Page-Icon-64.png" />
     <None Include="images\Play-Icon-48.png" />
-    <Content Include="MifFormat.txt" />
     <Content Include="PkgFormat.txt" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ControlExtensions\ControlExtensions.csproj">
       <Project>{071c7648-eab0-44a9-87d0-28191e06c1ef}</Project>
       <Name>ControlExtensions</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\QQGame\QQGame.csproj">
+      <Project>{e497c6df-8e6f-4b70-b349-3bf03d4847e6}</Project>
+      <Name>QQGame</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
