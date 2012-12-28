@@ -97,8 +97,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Package.cs" />
-    <Compile Include="PackageEntry.cs" />
-    <Compile Include="PerFrameAnimator.cs" />
+    <Compile Include="PerFrameAnimator.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">

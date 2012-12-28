@@ -42,7 +42,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MifCodec.cs" />
+    <Compile Include="PkgArchive.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StreamView.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="MifFormat.txt" />
