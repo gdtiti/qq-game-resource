@@ -32,7 +32,7 @@ namespace QQGameRes
             if (SearchPath == null)
                 throw new InvalidOperationException("SearchPath must be set before showing the dialog.");
 
-            this.labelProgress.Text = "正在搜索 " + SearchPath;
+            this.labelProgress.Text = SearchPath;
             this.Repository = new Repository();
             progress = new DirectorySearcherProgress();
             Task t = Repository.LoadDirectoryAsync(SearchPath, progress, cts.Token);
@@ -56,7 +56,7 @@ namespace QQGameRes
 
         private void timerProgress_Tick(object sender, EventArgs e)
         {
-            labelProgress.Text = "正在搜索 " + progress.CurrentDirectory.FullName;
+            labelProgress.Text =  progress.CurrentDirectory.FullName;
         }
     }
 }

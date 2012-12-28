@@ -83,29 +83,38 @@ namespace QQGameRes
             DirectoryInfo dir, DirectorySearcherProgress progress, CancellationToken ct)
         {
             progress.CurrentDirectory = dir;
-            List<FileInfo> selected = new List<FileInfo>();
-            foreach (FileInfo f in dir.GetFiles())
+            try
             {
-                string ext = f.Extension.ToLowerInvariant();
-                if (ext == ".mif")
-                    selected.Add(f);
-                //else if (ext == ".bmp") // too many trivial clip arts
-                //    selected.Add(f);
-                else if (ext == ".pkg")
-                    packageFiles.Add(f);
-            }
-            if (selected.Count > 0)
-            {
-                imageFolders.Add(new FileGroup(dir, selected.ToArray()));
-            }
-            if (ct.IsCancellationRequested)
-                return;
-
-            foreach (DirectoryInfo d in dir.GetDirectories())
-            {
+                List<FileInfo> selected = new List<FileInfo>();
+                foreach (FileInfo f in dir.EnumerateFiles())
+                {
+                    string ext = f.Extension.ToLowerInvariant();
+                    if (ext == ".mif")
+                        selected.Add(f);
+                    //else if (ext == ".bmp") // too many trivial clip arts
+                    //    selected.Add(f);
+                    else if (ext == ".pkg")
+                        packageFiles.Add(f);
+                }
+                if (selected.Count > 0)
+                {
+                    imageFolders.Add(new FileGroup(dir, selected.ToArray()));
+                }
                 if (ct.IsCancellationRequested)
                     return;
-                SearchForSupportedFiles(d, progress, ct);
+
+                foreach (DirectoryInfo d in dir.EnumerateDirectories())
+                {
+                    if (ct.IsCancellationRequested)
+                        return;
+                    SearchForSupportedFiles(d, progress, ct);
+                }
+            }
+            catch (DirectoryNotFoundException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
             }
         }
 

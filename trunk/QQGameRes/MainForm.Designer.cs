@@ -40,7 +40,7 @@
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.tvFolders = new System.Windows.Forms.TreeView();
+            this.tvFolders = new ControlExtensions.DoubleBufferedTreeView();
             this.imageListTree = new System.Windows.Forms.ImageList(this.components);
             this.viewList = new QQGameRes.ResourceListView();
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
@@ -288,7 +288,7 @@
         private System.Windows.Forms.Timer timerAnimation;
         private System.Windows.Forms.SaveFileDialog saveFileDialog1;
         private System.Windows.Forms.SplitContainer splitContainer1;
-        private System.Windows.Forms.TreeView tvFolders;
+        private ControlExtensions.DoubleBufferedTreeView tvFolders;
         private System.Windows.Forms.ToolStrip toolStrip3;
         private System.Windows.Forms.ToolStripButton btnOpenFolder;
         private System.Windows.Forms.ToolStripButton btnOpenPackage;
