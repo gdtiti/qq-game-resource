@@ -69,7 +69,13 @@ namespace QQGameRes
         {
             if (path.EndsWith("/") || path.EndsWith("\\"))
                 path = path.Substring(0, path.Length - 1);
-            Repository rep = new Repository(path);
+
+            LoadDirectoryForm f = new LoadDirectoryForm();
+            f.SearchPath = path;
+            if (f.ShowDialog(this) != System.Windows.Forms.DialogResult.OK)
+                return;
+            Repository rep = f.Repository;
+            //Repository rep = new Repository(path);
 
             // Hide and clear the tree view to reduce UI glitter.
             tvFolders.Visible = false;
