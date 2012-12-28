@@ -247,6 +247,4 @@ namespace QQGame
         /// </summary>
         public int FrameCount;
     }
-
-
 }
