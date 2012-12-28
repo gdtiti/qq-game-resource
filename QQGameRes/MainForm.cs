@@ -10,6 +10,8 @@ using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using ControlExtensions;
+using System.Reactive;
+using System.Reactive.Linq;
 
 namespace QQGameRes
 {
@@ -65,6 +67,16 @@ namespace QQGameRes
             tvFolders.Nodes.Add(node);
         }
 
+        private void NewLoadRepository(string path)
+        {
+            var root = new DirectoryInfo(path);
+            var dirs = root.EnumerateDirectories("*", SearchOption.AllDirectories);
+            dirs.ToObservable().Do((DirectoryInfo di) =>
+            {
+                System.Diagnostics.Debug.WriteLine(di.FullName);
+            }).Subscribe();
+        }
+
         private void LoadRepository(string path)
         {
             if (path.EndsWith("/") || path.EndsWith("\\"))
@@ -72,6 +84,7 @@ namespace QQGameRes
 
             LoadDirectoryForm f = new LoadDirectoryForm();
             f.SearchPath = path;
+            //f.SearchPath = "D:";
             if (f.ShowDialog(this) != System.Windows.Forms.DialogResult.OK)
                 return;
             Repository rep = f.Repository;
@@ -315,6 +328,8 @@ namespace QQGameRes
 
         private void btnAbout_Click(object sender, EventArgs e)
         {
+            //NewLoadRepository("D:");
+            //return;
             FileVersionInfo ver = FileVersionInfo.GetVersionInfo(
                 System.Reflection.Assembly.GetExecutingAssembly().Location);
 
@@ -325,6 +340,12 @@ namespace QQGameRes
 
         private void btnOpenFolder_Click(object sender, EventArgs e)
         {
+            string path = Repository.GetInstallationPath();
+            if (path != null)
+            {
+                folderBrowserDialog1.SelectedPath = path;
+                //folderBrowserDialog1.
+            }
             if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
             {
                 //StopAnimation();
