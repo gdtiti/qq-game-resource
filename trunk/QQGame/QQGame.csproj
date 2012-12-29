@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="MifFormat.txt" />
+    <Content Include="PkgFormat.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

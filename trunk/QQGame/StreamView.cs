@@ -99,7 +99,7 @@ namespace Util.IO
             throw new NotImplementedException();
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             // do nothing
         }

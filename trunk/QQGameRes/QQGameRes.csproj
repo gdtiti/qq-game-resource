@@ -168,7 +168,6 @@
     <None Include="images\Image-Icon-16.png" />
     <None Include="images\Page-Icon-64.png" />
     <None Include="images\Play-Icon-48.png" />
-    <Content Include="PkgFormat.txt" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ControlExtensions\ControlExtensions.csproj">
