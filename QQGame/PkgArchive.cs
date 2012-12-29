@@ -12,17 +12,34 @@ namespace QQGame
     /// </summary>
     public class PkgArchive : IDisposable
     {
-        private string filename;
         private BinaryReader reader;
         private List<PkgArchiveEntry> entries;
 
-        // TODO: dispose reader on exception.
+        /// <summary>
+        /// Opens the specified archive for reading.
+        /// </summary>
+        /// <param name="filename">Path of the file to read.</param>
+        /// <exception cref="InvalidDataException">The file format is not 
+        /// supported.</exception>
+        /// <exception cref="IOException">An IO error occurred.</exception>
         public PkgArchive(string filename)
         {
-            this.filename = filename;
             this.reader = new BinaryReader(
                 new FileStream(filename, FileMode.Open, FileAccess.Read));
-            
+
+            try
+            {
+                ReadHeaderAndIndexSection();
+            }
+            catch (Exception ex)
+            {
+                reader.Dispose();
+                throw ex;
+            }
+        }
+
+        private void ReadHeaderAndIndexSection()
+        {
             // Read file header (16 bytes):
             // 0-3: file signature (0x64)
             // 4-7: number of files
@@ -59,7 +76,7 @@ namespace QQGame
                 {
                     // Encoded in GBK
                     info.FileName = Encoding.GetEncoding("GBK").GetString(buffer, 0, length);
-                    info.IsFileNameInUnicode=false;
+                    info.IsFileNameInUnicode = false;
                 }
                 else
                 {
@@ -67,13 +84,13 @@ namespace QQGame
                     if (reader.Read(buffer, length + 4, length) != length)
                         throw new InvalidDataException("Premature end of file.");
                     info.FileName = Encoding.Unicode.GetString(buffer, 0, length * 2);
-                    info.IsFileNameInUnicode=true;
+                    info.IsFileNameInUnicode = true;
                 }
 
-                info.IndexSize=(int)reader.BaseStream.Position-info.IndexOffset;
-                info.ContentOffset= reader.ReadInt32();
+                info.IndexSize = (int)reader.BaseStream.Position - info.IndexOffset;
+                info.ContentOffset = reader.ReadInt32();
                 info.OriginalSize = reader.ReadInt32();
-                info.ContentSize= reader.ReadInt32();
+                info.ContentSize = reader.ReadInt32();
                 entries.Add(new PkgArchiveEntry(this, info));
             }
         }
@@ -86,12 +103,18 @@ namespace QQGame
             get { return new ReadOnlyCollection<PkgArchiveEntry>(entries); }
         }
 
-        internal Stream Stream { get { return reader.BaseStream; } }
-
+        /// <summary>
+        /// Disposes the archive object and closes the underlying stream.
+        /// </summary>
         public void Dispose()
         {
             this.reader.Dispose();
         }
+
+        /// <summary>
+        /// Gets the underlying stream of the archive.
+        /// </summary>
+        internal Stream Stream { get { return reader.BaseStream; } }
     }
 
     /// <summary>
@@ -197,6 +220,14 @@ namespace QQGame
         /// Opens the entry from the archive.
         /// </summary>
         /// <returns>A stream to read the contents of the entry from.</returns>
+        
+        /// <remarks>The <code>PkgArchive</code> object must not be disposed
+        /// in order to access this stream.</remarks>
+        /// <exception cref="InvalidDataException">The file format is not 
+        /// supported.</exception>
+        /// <exception cref="IOException">An IO error occurred.</exception>
+        /// <exception cref="ObjectDisposedException">The containing archive 
+        /// is disposed.</exception>
         public Stream Open()
         {
             // Obtain the underlying stream of the archive.
@@ -220,7 +251,7 @@ namespace QQGame
             // In addition, to restrict the stream to the range specified
             // in the index entry, we create a StreamView object.
             Util.IO.StreamView streamView = new Util.IO.StreamView(
-                stream, info.ContentOffset+2, info.ContentSize - 6);
+                stream, info.ContentOffset + 2, info.ContentSize - 6);
 
             // Create and return a DeflateStream from here.
             return new DeflateStream(stream, CompressionMode.Decompress, true);

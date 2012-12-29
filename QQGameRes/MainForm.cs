@@ -58,6 +58,9 @@ namespace QQGameRes
         /// <param name="filename"></param>
         private void LoadPackage(string filename)
         {
+            // TODO: dispose the PkgArchive objects when they are removed from
+            // the treeview.
+            // TODO: Only create a PkgArchive object when the node is selected.
             Package pkg = new Package(filename);
             TreeNode node = new TreeNode();
             node.Text = Path.GetFileName(filename);

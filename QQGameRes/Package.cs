@@ -29,14 +29,7 @@ namespace QQGameRes
             this.filename = filename;
             this.ar = new QQGame.PkgArchive(filename);
             this.entries = (from ent in ar.Entries
-                            select new PackageEntry(ent)
-                            {
-                                PackagePath = filename,
-                                EntryPath = ent.FullName,
-                                EntrySize = ent.CompressedLength,
-                                EntryOffset = 0,
-                                OriginalSize = ent.Length
-                            }).ToArray();
+                            select new PackageEntry(ent)).ToArray();
         }
 
         public string Name
@@ -50,6 +43,10 @@ namespace QQGameRes
         }
     }
 
+    /// <summary>
+    /// Wraps a <code>PkgArchiveEntry</code> object in a ResourceEntry 
+    /// interface.
+    /// </summary>
     public class PackageEntry : ResourceEntry
     {
         private QQGame.PkgArchiveEntry entry;
@@ -59,25 +56,10 @@ namespace QQGameRes
             entry = ent;
         }
 
-        public string PackagePath;
-        public string EntryPath;
-        public int EntryOffset;
-        public int EntrySize;
-        public int OriginalSize;
+        public string Name { get { return entry.FullName; } }
 
-        public string Name
-        {
-            get { return PackagePath + "\\" + EntryPath; }
-        }
+        public int Size { get { return entry.Length; } }
 
-        public int Size
-        {
-            get { return (int)OriginalSize; }
-        }
-
-        public Stream Open()
-        {
-            return entry.Open();
-        }
+        public Stream Open() { return entry.Open(); }
     }
 }
