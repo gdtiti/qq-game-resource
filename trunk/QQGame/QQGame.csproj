@@ -41,7 +41,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IMultiFrameImage.cs" />
     <Compile Include="MifCodec.cs" />
     <Compile Include="PkgArchive.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -52,7 +51,7 @@
     <Content Include="PkgFormat.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\DotNetShared\Util.Media\Util.Media.csproj">
+    <ProjectReference Include="..\Util.Media\Util.Media.csproj">
       <Project>{75a3b432-de47-4e01-9655-22275c400bad}</Project>
       <Name>Util.Media</Name>
     </ProjectReference>
