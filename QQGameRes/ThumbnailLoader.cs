@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using System.ComponentModel;
 using System.IO;
 using System.Drawing;
+using Util.Media;
 
 namespace QQGameRes
 {
@@ -132,13 +133,11 @@ namespace QQGameRes
                 string name = tag.ResourceEntry.Name.ToLowerInvariant();
                 if (name.EndsWith(".mif"))
                 {
-                    using (MifImage mif = new MifImage(tag.ResourceEntry.Open()))
+                    using (Stream stream = tag.ResourceEntry.Open())
+                    using (ImageDecoder mif = new QQGame.MifImageDecoder(stream))
                     {
-                        if (mif.GetNextFrame())
-                        {
-                            tag.Thumbnail = mif.CurrentFrame.Image;
-                            tag.FrameCount = mif.FrameCount;
-                        }
+                        tag.Thumbnail = mif.DecodeFrame().Image;
+                        tag.FrameCount = mif.FrameCount;
                     }
                 }
                 else if (name.EndsWith(".bmp"))

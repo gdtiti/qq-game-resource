@@ -6,6 +6,7 @@ using System.Data;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using Util.Media;
 
 namespace QQGameRes
 {
@@ -152,8 +153,8 @@ namespace QQGameRes
             // Starts animation if this item is a multi-frame image.
             if (ent.FrameCount > 1)
             {
-                Util.Media.ImageDecoder image = new MifImage(ent.ResourceEntry.Open());
-                animator.StartAnimation(image, item);
+                ImageDecoder mif = new QQGame.MifImageDecoder(ent.ResourceEntry.Open());
+                animator.StartAnimation(mif, item);
             }
         }
 
@@ -183,7 +184,7 @@ namespace QQGameRes
             }
 
             // Dispose the MifImage object used in the animation.
-            (animator.Image as MifImage).Dispose();
+            animator.Image.Dispose();
         }
 
         private void lvEntries_SelectedIndexChanged(object sender, EventArgs e)

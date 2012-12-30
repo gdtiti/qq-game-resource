@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using ControlExtensions;
 using System.Reactive;
 using System.Reactive.Linq;
+using Util.Media;
 
 namespace QQGameRes
 {
@@ -271,16 +272,17 @@ namespace QQGameRes
             // SVG, do that.
             if (filterIndex == 1)
             {
-                using (MifImage img = new MifImage(ent.ResourceEntry.Open()))
-                using (Stream stream = new FileStream(filename, FileMode.Create, FileAccess.Write))
-                using (Util.Media.ImageEncoder svgEncoder = new Util.Media.SvgImageEncoder(stream, img.FrameCount))
+                using (Stream input = ent.ResourceEntry.Open())
+                using (ImageDecoder decoder = new QQGame.MifImageDecoder(input))
+                using (Stream output = new FileStream(filename, FileMode.Create, FileAccess.Write))
+                using (ImageEncoder encoder = new SvgImageEncoder(output, decoder.FrameCount))
                 {
-                    for (int i = 0; i < img.FrameCount; i++)
+                    for (int i = 0; i < decoder.FrameCount; i++)
                     {
-                        Util.Media.ImageFrame frame = img.DecodeFrame();
+                        Util.Media.ImageFrame frame = decoder.DecodeFrame();
                         using (frame.Image)
                         {
-                            svgEncoder.EncodeFrame(frame);
+                            encoder.EncodeFrame(frame);
                         }
                     }
                 }
@@ -316,14 +318,14 @@ namespace QQGameRes
 
             // Now the user clicked "Yes", so we need to save each frame
             // in an individual file.
-            using (MifImage img = new MifImage(ent.ResourceEntry.Open()))
+            using (Stream stream = ent.ResourceEntry.Open())
+            using (ImageDecoder img = new QQGame.MifImageDecoder(stream))
             {
-                for (int i = 1; i <= ent.FrameCount; i++)
+                for (int i = 1; i <= img.FrameCount; i++)
                 {
-                    if (!img.GetNextFrame())
-                        break;
+                    ImageFrame frame = img.DecodeFrame(); // TODO: using
                     FileInfo file = new FileInfo(
-                        GetNumberedFileName(filename, i, ent.FrameCount));
+                        GetNumberedFileName(filename, i, img.FrameCount));
                     if (file.Exists)
                     {
                         if (MessageBox.Show(this, "文件 " + file.FullName +
@@ -332,7 +334,7 @@ namespace QQGameRes
                             MessageBoxIcon.Exclamation) != DialogResult.Yes)
                             return;
                     }
-                    img.CurrentFrame.Image.Save(file.FullName);
+                    frame.Image.Save(file.FullName);
                 }
             }
             txtStatus.Text = "保存成功";
