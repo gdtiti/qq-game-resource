@@ -1,5 +1,6 @@
 ﻿using System;
 
+#if false
 namespace QQGameRes
 {
     /// <summary>
@@ -19,3 +20,4 @@ namespace QQGameRes
         public System.Drawing.Image Image { get; set; }
     }
 }
+#endif
