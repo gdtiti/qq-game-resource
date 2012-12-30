@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Drawing.Imaging;
 
-namespace QQGameRes
+namespace Util.Media
 {
     public class SvgHelper
     {
@@ -12,7 +12,7 @@ namespace QQGameRes
         /// </summary>
         /// <param name="img">The image to save.</param>
         /// <param name="filename">The file to save.</param>
-        public static void SaveAnimation(AnimationImage img, string filename)
+        public static void SaveAnimation(ImageDecoder img, string filename)
         {
             using (StreamWriter writer = new StreamWriter(
                 new FileStream(filename, FileMode.Create, FileAccess.Write)))
@@ -26,8 +26,7 @@ namespace QQGameRes
                 int timing = 0;
                 for (int i = 1; i <= img.FrameCount; i++)
                 {
-                    if (!img.GetNextFrame())
-                        break;
+                    ImageFrame frame = img.DecodeFrame();
 
                     // The frame is initially set to invisible.
                     writer.WriteLine("  <g visibility=\"{0}\">",
@@ -43,7 +42,7 @@ namespace QQGameRes
                     }
 
                     // SMIL animation to hide the image.
-                    timing += img.CurrentFrame.Delay;
+                    timing += frame.Delay;
                     if (i < img.FrameCount)
                     {
                         writer.WriteLine(
@@ -53,16 +52,17 @@ namespace QQGameRes
                     }
 
                     // Write embedded PNG file.
-                    writer.Write("    <image width=\"" + img.Width + "\" height=\"" +
-                        img.Height + "\" xlink:href=\"data:image/png;base64,");
+                    writer.Write("    <image width=\"" + frame.Image.Width + "\" height=\"" +
+                        frame.Image.Height + "\" xlink:href=\"data:image/png;base64,");
 
                     using (MemoryStream mem = new MemoryStream())
                     {
-                        img.CurrentFrame.Image.Save(mem, ImageFormat.Png);
+                        frame.Image.Save(mem, ImageFormat.Png);
                         writer.Write(Convert.ToBase64String(mem.GetBuffer(), 0, (int)mem.Length));
                     }
                     writer.WriteLine("\"/>");
                     writer.WriteLine("  </g>");
+                    frame.Image.Dispose();
                 }
 
                 // Finish SVG file.

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace QQGameRes
 {
-#if true
+#if false
     /// <summary>
     /// Represents a multi-frame image which can be animated.
     /// </summary>
