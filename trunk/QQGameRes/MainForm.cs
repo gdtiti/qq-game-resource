@@ -273,7 +273,7 @@ namespace QQGameRes
             {
                 using (MifImage img = new MifImage(ent.ResourceEntry.Open()))
                 {
-                    SvgHelper.SaveAnimation(img, filename);
+                    Util.Media.SvgHelper.SaveAnimation(img, filename);
                 }
                 txtStatus.Text = "保存成功";
                 return;

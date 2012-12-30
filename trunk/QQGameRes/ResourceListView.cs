@@ -152,7 +152,7 @@ namespace QQGameRes
             // Starts animation if this item is a multi-frame image.
             if (ent.FrameCount > 1)
             {
-                AnimationImage image = new MifImage(ent.ResourceEntry.Open());
+                Util.Media.ImageDecoder image = new MifImage(ent.ResourceEntry.Open());
                 animator.StartAnimation(image, item);
             }
         }

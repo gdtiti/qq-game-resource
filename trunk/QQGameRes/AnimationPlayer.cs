@@ -10,7 +10,9 @@ namespace QQGameRes
     {
         private int minDelay;
         private int endDelay;
-        private AnimationImage image;
+        private Util.Media.ImageDecoder image;
+        private Util.Media.ImageFrame currentFrame;
+        private int currentIndex;
         private object tag;
         private System.Windows.Forms.Timer timer;
 
@@ -66,7 +68,7 @@ namespace QQGameRes
         /// returns <code>null</code>.
         /// </summary>
         [Browsable(false)]
-        public AnimationImage Image
+        public Util.Media.ImageDecoder Image
         {
             get { return image; }
         }
@@ -91,7 +93,7 @@ namespace QQGameRes
             get
             {
                 if (image != null)
-                    return image.CurrentFrame;
+                    return this.currentFrame;
                 else
                     return null;
             }
@@ -119,7 +121,7 @@ namespace QQGameRes
         /// <param name="tag">User-defined data to associate with this
         /// animation.</param>
         /// </summary>
-        public void StartAnimation(AnimationImage image, object tag)
+        public void StartAnimation(Util.Media.ImageDecoder image, object tag)
         {
             if (image == null)
                 throw new ArgumentNullException("image");
@@ -136,6 +138,7 @@ namespace QQGameRes
             this.tag = tag;
             this.timer = new System.Windows.Forms.Timer();
             this.timer.Tick += new EventHandler(this.timer_Tick);
+            this.currentIndex = -1;
             PlayNextFrame();
         }
 
@@ -176,18 +179,20 @@ namespace QQGameRes
         {
             // Try load the next frame in the image being animated. If there
             // are no more frames, stop the animation.
-            if (!image.GetNextFrame())
+            if (currentIndex == image.FrameCount - 1)
             {
                 StopAnimation();
                 return;
             }
+            currentFrame = image.DecodeFrame();
+            currentIndex++;
 
             // Schedule the timer for the next frame. If this is the last
             // frame, delay an extra 500 milliseconds before ending the
             // animation.
-            int delay = Math.Max(image.CurrentFrame.Delay,
+            int delay = Math.Max(currentFrame.Delay,
                                  Math.Max(1, this.MinDelay));
-            if (image.FrameIndex == image.FrameCount - 1)
+            if (currentIndex == image.FrameCount - 1)
                 delay += this.EndDelay;
             this.timer.Interval = delay;
             this.timer.Start();
@@ -222,7 +227,7 @@ namespace QQGameRes
         /// <summary>
         /// Gets or sets the image being animated.
         /// </summary>
-        public AnimationImage Image;
+        public Util.Media.ImageDecoder Image;
 
         /// <summary>
         /// Gets or sets the current frame being animated.

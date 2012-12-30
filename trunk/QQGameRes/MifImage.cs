@@ -11,7 +11,7 @@ namespace QQGameRes
     /// <summary>
     /// Represents a multi-frame MIF image.
     /// </summary>
-    public class MifImage : AnimationImage, IDisposable
+    public class MifImage : Util.Media.ImageDecoder, IDisposable
     {
         private QQGame.MifImageDecoder decoder;
         private int frameIndex;
@@ -31,7 +31,7 @@ namespace QQGameRes
         /// <summary>
         /// Gets the number of frames in this image.
         /// </summary>
-        public int FrameCount
+        public override int FrameCount
         {
             get { return decoder.FrameCount; }
         }
@@ -91,6 +91,11 @@ namespace QQGameRes
             currentFrame = decoder.DecodeFrame();
             frameIndex++;
             return true;
+        }
+
+        public override Util.Media.ImageFrame DecodeFrame()
+        {
+            return decoder.DecodeFrame();
         }
 
         public void Dispose()
