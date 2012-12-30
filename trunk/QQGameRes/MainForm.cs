@@ -9,9 +9,9 @@ using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using ControlExtensions;
 using System.Reactive;
 using System.Reactive.Linq;
+using Util.Forms;
 using Util.Media;
 
 namespace QQGameRes
