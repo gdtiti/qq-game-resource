@@ -272,8 +272,17 @@ namespace QQGameRes
             if (filterIndex == 1)
             {
                 using (MifImage img = new MifImage(ent.ResourceEntry.Open()))
+                using (Stream stream = new FileStream(filename, FileMode.Create, FileAccess.Write))
+                using (Util.Media.ImageEncoder svgEncoder = new Util.Media.SvgImageEncoder(stream, img.FrameCount))
                 {
-                    Util.Media.SvgHelper.SaveAnimation(img, filename);
+                    for (int i = 0; i < img.FrameCount; i++)
+                    {
+                        Util.Media.ImageFrame frame = img.DecodeFrame();
+                        using (frame.Image)
+                        {
+                            svgEncoder.EncodeFrame(frame);
+                        }
+                    }
                 }
                 txtStatus.Text = "保存成功";
                 return;

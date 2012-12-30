@@ -73,7 +73,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AnimationImage.cs" />
     <Compile Include="AnimationPlayer.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -115,7 +114,6 @@
     </Compile>
     <Compile Include="ResourceListViewEntry.cs" />
     <Compile Include="ThumbnailLoader.cs" />
-    <Compile Include="SvgHelper.cs" />
     <EmbeddedResource Include="LoadDirectoryForm.resx">
       <DependentUpon>LoadDirectoryForm.cs</DependentUpon>
     </EmbeddedResource>

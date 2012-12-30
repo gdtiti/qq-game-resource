@@ -98,7 +98,7 @@ namespace QQGameRes
             return decoder.DecodeFrame();
         }
 
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
             decoder.Dispose();
         }

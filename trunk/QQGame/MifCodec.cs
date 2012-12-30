@@ -249,12 +249,7 @@ namespace QQGame
         /// <summary>
         /// Disposes the image and closes the underlying stream.
         /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             reader.Dispose();
         }
