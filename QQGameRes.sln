@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Express 2012 for Windows Desktop
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ControlExtensions", "ControlExtensions\ControlExtensions.csproj", "{071C7648-EAB0-44A9-87D0-28191E06C1EF}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualExplorer", "VirtualExplorer\VirtualExplorer.csproj", "{F079CD9A-6CF7-4931-B845-F6E6C946E904}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QQGameRes", "QQGameRes\QQGameRes.csproj", "{B4CA398F-573A-473A-AFD0-071498DC045E}"
@@ -11,16 +9,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QQGame", "QQGame\QQGame.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util.Media", "Util.Media\Util.Media.csproj", "{75A3B432-DE47-4E01-9655-22275C400BAD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util.Forms", "Util.Forms\Util.Forms.csproj", "{071C7648-EAB0-44A9-87D0-28191E06C1EF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util.IO", "Util.IO\Util.IO.csproj", "{17AFCA9B-525E-446E-8431-218D7804569C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F079CD9A-6CF7-4931-B845-F6E6C946E904}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F079CD9A-6CF7-4931-B845-F6E6C946E904}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F079CD9A-6CF7-4931-B845-F6E6C946E904}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -37,6 +35,14 @@ Global
 		{75A3B432-DE47-4E01-9655-22275C400BAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{75A3B432-DE47-4E01-9655-22275C400BAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{75A3B432-DE47-4E01-9655-22275C400BAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{071C7648-EAB0-44A9-87D0-28191E06C1EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17AFCA9B-525E-446E-8431-218D7804569C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17AFCA9B-525E-446E-8431-218D7804569C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17AFCA9B-525E-446E-8431-218D7804569C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17AFCA9B-525E-446E-8431-218D7804569C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

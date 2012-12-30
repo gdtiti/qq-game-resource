@@ -30,7 +30,7 @@
         {
             this.components = new System.ComponentModel.Container();
             this.imageListPreview = new System.Windows.Forms.ImageList(this.components);
-            this.lvEntries = new ControlExtensions.DoubleBufferedListView();
+            this.lvEntries = new Util.Forms.DoubleBufferedListView();
             this.animator = new QQGameRes.AnimationPlayer(this.components);
             this.SuspendLayout();
             // 
@@ -74,7 +74,7 @@
 
         #endregion
 
-        private ControlExtensions.DoubleBufferedListView lvEntries;
+        private Util.Forms.DoubleBufferedListView lvEntries;
         private System.Windows.Forms.ImageList imageListPreview;
         private AnimationPlayer animator;
     }
