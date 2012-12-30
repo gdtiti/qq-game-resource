@@ -86,7 +86,7 @@ namespace QQGameRes
         /// is in progress, returns <code>null</code>.
         /// </summary>
         [Browsable(false)]
-        public AnimationFrame CurrentFrame
+        public Util.Media.ImageFrame CurrentFrame
         {
             get
             {
@@ -227,6 +227,6 @@ namespace QQGameRes
         /// <summary>
         /// Gets or sets the current frame being animated.
         /// </summary>
-        public AnimationFrame CurrentFrame;
+        public Util.Media.ImageFrame CurrentFrame;
     }
 }

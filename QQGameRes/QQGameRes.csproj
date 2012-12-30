@@ -73,7 +73,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AnimationFrame.cs" />
     <Compile Include="AnimationImage.cs" />
     <Compile Include="AnimationPlayer.cs">
       <SubType>Component</SubType>
@@ -170,6 +169,10 @@
     <None Include="images\Play-Icon-48.png" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\DotNetShared\Util.Media\Util.Media.csproj">
+      <Project>{75a3b432-de47-4e01-9655-22275c400bad}</Project>
+      <Name>Util.Media</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ControlExtensions\ControlExtensions.csproj">
       <Project>{071c7648-eab0-44a9-87d0-28191e06c1ef}</Project>
       <Name>ControlExtensions</Name>

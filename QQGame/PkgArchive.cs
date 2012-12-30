@@ -31,10 +31,10 @@ namespace QQGame
             {
                 ReadHeaderAndIndexSection();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 reader.Dispose();
-                throw ex;
+                throw;
             }
         }
 

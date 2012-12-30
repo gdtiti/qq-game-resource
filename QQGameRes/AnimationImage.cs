@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace QQGameRes
 {
+#if true
     /// <summary>
     /// Represents a multi-frame image which can be animated.
     /// </summary>
@@ -33,7 +34,7 @@ namespace QQGameRes
         /// Gets the current frame, or <code>null</code> if 
         /// <code>GetNextFrame()</code> has never been called.
         /// </summary>
-        AnimationFrame CurrentFrame { get; }
+        Util.Media.ImageFrame CurrentFrame { get; }
 
         /// <summary>
         /// Reads the next frame from the underlying stream.
@@ -44,4 +45,5 @@ namespace QQGameRes
 
         // IEnumerable<AnimationFrame> GetFrames();
     }
+#endif
 }

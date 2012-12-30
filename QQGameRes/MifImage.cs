@@ -13,9 +13,9 @@ namespace QQGameRes
     /// </summary>
     public class MifImage : AnimationImage, IDisposable
     {
-        private QQGame.MifDecoder decoder;
+        private QQGame.MifImageDecoder decoder;
         private int frameIndex;
-        private AnimationFrame currentFrame;
+        private Util.Media.ImageFrame currentFrame;
 
         /// <summary>
         /// Loads a MIF image from a stream.
@@ -23,7 +23,7 @@ namespace QQGameRes
         /// <param name="stream">The stream from which the image is loaded.</param>
         public MifImage(Stream stream)
         {
-            this.decoder = new QQGame.MifDecoder(stream);
+            this.decoder = new QQGame.MifImageDecoder(stream);
             this.frameIndex = -1;
             this.currentFrame = null;
         }
@@ -49,7 +49,7 @@ namespace QQGameRes
         /// Gets the current frame, or <code>null</code> if 
         /// <code>GetNextFrame()</code> has never been called.
         /// </summary>
-        public AnimationFrame CurrentFrame
+        public Util.Media.ImageFrame CurrentFrame
         {
             get { return currentFrame; }
         }
@@ -59,7 +59,7 @@ namespace QQGameRes
         /// </summary>
         public int Width
         {
-            get { return decoder.ImageWidth; }
+            get { return decoder.Width; }
         }
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace QQGameRes
         /// </summary>
         public int Height
         {
-            get { return decoder.ImageHeight; }
+            get { return decoder.Height; }
         }
 
         /// <summary>
@@ -88,12 +88,7 @@ namespace QQGameRes
                 return false;
             }
 
-            QQGame.MifFrame frame=decoder.DecodeFrame();
-            currentFrame=new AnimationFrame
-            {
-                 Image=frame.Image,
-                 Delay=frame.Delay
-            };
+            currentFrame = decoder.DecodeFrame();
             frameIndex++;
             return true;
         }
