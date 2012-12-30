@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QQGameRes", "QQGameRes\QQGa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QQGame", "QQGame\QQGame.csproj", "{E497C6DF-8E6F-4B70-B349-3BF03D4847E6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util.Media", "..\DotNetShared\Util.Media\Util.Media.csproj", "{75A3B432-DE47-4E01-9655-22275C400BAD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util.Media", "Util.Media\Util.Media.csproj", "{75A3B432-DE47-4E01-9655-22275C400BAD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
