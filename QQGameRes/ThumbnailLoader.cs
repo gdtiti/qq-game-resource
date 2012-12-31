@@ -129,24 +129,32 @@ namespace QQGameRes
                 System.Diagnostics.Debug.WriteLine("Starting task for item " + task.ItemIndex);
 #endif
 
-                // Check if the resource format is supported.
+                // Load the resource if its format is supported.
                 string name = tag.ResourceEntry.Name.ToLowerInvariant();
-                if (name.EndsWith(".mif"))
+                try
                 {
-                    using (Stream stream = tag.ResourceEntry.Open())
-                    using (ImageDecoder mif = new QQGame.MifImageDecoder(stream))
+                    if (name.EndsWith(".mif"))
                     {
-                        tag.Thumbnail = mif.DecodeFrame().Image;
-                        tag.FrameCount = mif.FrameCount;
+                        using (Stream stream = tag.ResourceEntry.Open())
+                        using (ImageDecoder mif = new QQGame.MifImageDecoder(stream))
+                        {
+                            tag.Thumbnail = mif.DecodeFrame().Image;
+                            tag.FrameCount = mif.FrameCount;
+                        }
+                    }
+                    else if (name.EndsWith(".bmp"))
+                    {
+                        using (Stream stream = tag.ResourceEntry.Open())
+                        {
+                            tag.Thumbnail = new Bitmap(stream);
+                            tag.FrameCount = 1;
+                        }
                     }
                 }
-                else if (name.EndsWith(".bmp"))
+                catch (Exception ex)
                 {
-                    using (Stream stream = tag.ResourceEntry.Open())
-                    {
-                        tag.Thumbnail = new Bitmap(stream);
-                        tag.FrameCount = 1;
-                    }
+                    System.Diagnostics.Debug.WriteLine(
+                        "Error loading " + name + ": " + ex.Message);
                 }
 
                 // If a thumbnail image cannot be loaded, we use a default one.
