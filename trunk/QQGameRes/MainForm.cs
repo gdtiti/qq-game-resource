@@ -238,13 +238,24 @@ namespace QQGameRes
             // If the filter index is 1 (save as is), just copy the stream.
             if (saveFileDialog1.FilterIndex == 1)
             {
-                using (Stream stream = ent.ResourceEntry.Open(),
-                       output = new FileStream(filename, FileMode.Create, FileAccess.Write))
+                using (Stream input = ent.ResourceEntry.Open())
+                using (Stream output = new FileStream(filename, FileMode.Create, FileAccess.Write))
                 {
-                    byte[] buffer = new byte[65536];
-                    int n;
-                    while ((n = stream.Read(buffer, 0, buffer.Length)) > 0)
-                        output.Write(buffer, 0, n);
+                    //This is .NET 2.0.
+                    //byte[] buffer = new byte[65536];
+                    //int n;
+                    //while ((n = input.Read(buffer, 0, buffer.Length)) > 0)
+                    //    output.Write(buffer, 0, n);
+                    try
+                    {
+                        input.CopyTo(output);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(this, "导出素材时遇到以下错误:\r\n" +
+                            ex.Message + "\r\n保存的文件可能不完整。",
+                            this.Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 txtStatus.Text = "保存成功";
                 return;

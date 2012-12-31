@@ -243,18 +243,13 @@ namespace QQGame
             if (info.ContentSize > stream.Length - info.ContentOffset)
                 throw new InvalidDataException("ContentSize must not exceed the remaining stream length.");
 
-            // In the range specified by [ContentOffset, ContentSize], the
-            // first two bytes is a ZLIB header and the last four bytes is
-            // a ZLIB checksum. These 6 bytes are not recognized by .NET's
-            // DeflateStream implementation and therefore must be skipped.
-
-            // In addition, to restrict the stream to the range specified
-            // in the index entry, we create a StreamView object.
+            // Create a stream view to restrict stream access to the range 
+            // specified in the index entry.
             Util.IO.StreamView streamView = new Util.IO.StreamView(
-                stream, info.ContentOffset + 2, info.ContentSize - 6);
+                stream, info.ContentOffset, info.ContentSize);
 
-            // Create and return a DeflateStream from here.
-            return new DeflateStream(stream, CompressionMode.Decompress, true);
+            // Create and return a ZLibStream from here.
+            return new Util.IO.ZLibStream(streamView, CompressionMode.Decompress);
         }
 
         /// <summary>
