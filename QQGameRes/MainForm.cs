@@ -9,10 +9,10 @@ using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Reactive;
-using System.Reactive.Linq;
 using Util.Forms;
 using Util.Media;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace QQGameRes
 {
@@ -53,86 +53,134 @@ namespace QQGameRes
 #endif
 
         /// <summary>
-        /// Loads a QQ game resource package (.PKG file) and appends it to the
-        /// tree view on the left of the main window.
+        /// Loads a QQ game resource package (.PKG file) and adds a root-level
+        /// node into the tree view on the left of the main window.
         /// </summary>
         /// <param name="filename"></param>
         private void LoadPackage(string filename)
         {
+            //return;
+
             // TODO: dispose the PkgArchive objects when they are removed from
             // the treeview.
             // TODO: Only create a PkgArchive object when the node is selected.
-            Package pkg = new Package(filename);
-            TreeNode node = new TreeNode();
-            node.Text = Path.GetFileName(filename);
-            node.ImageIndex = 1;
-            node.SelectedImageIndex = 1;
-            node.Tag = pkg;
-            tvFolders.Nodes.Add(node);
-        }
-
-        private void NewLoadRepository(string path)
-        {
-            var root = new DirectoryInfo(path);
-            var dirs = root.EnumerateDirectories("*", SearchOption.AllDirectories);
-            dirs.ToObservable().Do((DirectoryInfo di) =>
+            try
             {
-                System.Diagnostics.Debug.WriteLine(di.FullName);
-            }).Subscribe();
+                Package pkg = new Package(filename);
+                TreeNode node = new TreeNode();
+                node.Text = Path.GetFileName(filename);
+                node.ImageIndex = 1;
+                node.SelectedImageIndex = 1;
+                node.Tag = pkg;
+                tvFolders.Nodes.Add(node);
+            }
+            catch (InvalidDataException) // unsupported format
+            {
+            }
         }
 
-        private void LoadRepository(string path)
+        Repository currentRepository;
+
+        private void StopLoadingRepository()
         {
-            if (path.EndsWith("/") || path.EndsWith("\\"))
-                path = path.Substring(0, path.Length - 1);
+            currentRepository = null;
+            timerLoadProgress.Stop();
+            progLoadDirectory.Visible = false;
+            txtStatus.Text = "";
+        }
 
-            LoadDirectoryForm f = new LoadDirectoryForm();
-            f.SearchPath = path;
-            //f.SearchPath = "D:";
-            if (f.ShowDialog(this) != System.Windows.Forms.DialogResult.OK)
-                return;
-            Repository rep = f.Repository;
-            //Repository rep = new Repository(path);
+        private CancellationTokenSource ctsLoadRepository;
 
-            // Hide and clear the tree view to reduce UI glitter.
-            tvFolders.Visible = false;
-            tvFolders.Nodes.Clear();
+        private void LoadRepository(string rootPath)
+        {
+            DirectoryInfo rootDir = new DirectoryInfo(rootPath);
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("LoadRepository(" + rootDir.FullName + ")");
+#endif
+
+            // Beautify the directory name. This must be done after we create
+            // the DirectoryInfo object, because otherwise "D:\" will become
+            // "D:" and point to the current directory on that drive.
+            if (rootPath.EndsWith("/") || rootPath.EndsWith("\\"))
+                rootPath = rootPath.Substring(0, rootPath.Length - 1);
+
+            // Stop any existing LoadRepository operation.
+            if (ctsLoadRepository != null)
+            {
+                ctsLoadRepository.Cancel();
+                ctsLoadRepository = null;
+            }
+            StopLoadingRepository();
 
             // Create a root-level node for the repository.
-            TreeNode root = tvFolders.Nodes.Add(path);
+            tvFolders.Nodes.Clear();
+            TreeNode rootNode = tvFolders.Nodes.Add(rootPath);
 
-            // Create a child node for each image folder in the repository.
-            foreach (FileGroup group in rep.ImageFolders)
+            // Create a new repository search object.
+            Repository rep = new Repository();
+            rep.SynchronizingObject = this;
+            rep.PackageDiscovered += delegate(object sender, ResourceDiscoveredEventArgs e)
             {
+                foreach (FileInfo file in e.Files)
+                    LoadPackage(file.FullName);
+            };
+            rep.ImagesDiscovered += delegate(object sender, ResourceDiscoveredEventArgs e)
+            {
+                // Create a child node for each image folder in the repository.
+                FileGroup group = new FileGroup(e.Directory, e.Files);
                 string name = group.Name;
-                if (name.Length <= path.Length + 1)
+                if (name.Length <= rootPath.Length + 1)
                     name = "(root)";
                 else
-                    name = name.Substring(path.Length + 1);
+                    name = name.Substring(rootPath.Length + 1);
 
                 TreeNode node = new TreeNode();
                 node.Text = name;
                 node.ImageIndex = 2;
                 node.SelectedImageIndex = 2;
                 node.Tag = group;
-                root.Nodes.Add(node);
-            }
+                rootNode.Nodes.Add(node);
+            };
 
-            // Create a root-level node for each .PKG package.
-            foreach (FileInfo file in rep.PackageFiles)
+            // Scan the given directory.
+            CancellationTokenSource cts = new CancellationTokenSource();
+            rep.SearchDirectory(rootDir, cts.Token).ContinueWith((Task t) =>
             {
-                LoadPackage(file.FullName);
-            }
+                if (cts.IsCancellationRequested)
+                {
+#if DEBUG
+                    System.Diagnostics.Debug.WriteLine("Cancelled: " +
+                        rootPath);
+#endif
+                }
+                else
+                {
+                    // Expand the first root node and show the tree view.
+                    // root.Expand();
+                    StopLoadingRepository();
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+            ctsLoadRepository = cts;
 
-            // Expand the first root node and show the tree view.
-            root.Expand();
-            tvFolders.Visible = true;
+            // Start a timer to show the progress every 100 milliseconds.
+            currentRepository = rep;
+            progLoadDirectory.Visible = true;
+            timerLoadProgress.Start();
+        }
+
+        private void timerLoadProgress_Tick(object sender, EventArgs e)
+        {
+            if (currentRepository == null)
+                return;
+            progLoadDirectory.Value = (int)(currentRepository.CurrentProgress * 100);
+            txtStatus.Text = "正在搜索 " + currentRepository.CurrentDirectory.FullName;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
         {
             tvFolders.SetWindowTheme("explorer");
             //SetWindowTheme(lvEntries.Handle, "EXPLORER", null);
+            StopLoadingRepository();
 
             // Load the root path of QQ Game.
             string rootPath = Repository.GetInstallationPath();
@@ -351,10 +399,18 @@ namespace QQGameRes
             txtStatus.Text = "保存成功";
         }
 
+        private bool loadD = true;
         private void btnAbout_Click(object sender, EventArgs e)
         {
-            //NewLoadRepository("D:");
-            //return;
+#if DEBUG
+            if (loadD)
+                LoadRepository("D:/");
+            else
+                LoadRepository("E:/");
+            loadD = !loadD;
+            return;
+#endif
+
             FileVersionInfo ver = FileVersionInfo.GetVersionInfo(
                 System.Reflection.Assembly.GetExecutingAssembly().Location);
 
@@ -376,7 +432,7 @@ namespace QQGameRes
                 //StopAnimation();
                 //thumbnailLoader.CancelPendingTasks();
                 //lvEntries.Items.Clear();
-                tvFolders.Nodes.Clear();
+                //tvFolders.Nodes.Clear();
                 LoadRepository(folderBrowserDialog1.SelectedPath);
             }
         }
