@@ -152,9 +152,9 @@ namespace QQGameRes
         public event EventHandler<ResourceDiscoveredEventArgs> ImagesDiscovered;
 
         /// <summary>
-        /// Occurs when one or more package files (.PKG) are discovered.
+        /// Occurs when a QQ Game package file (.PKG) is discovered.
         /// </summary>
-        public event EventHandler<ResourceDiscoveredEventArgs> PackageDiscovered;
+        public event EventHandler<PackageDiscoveredEventArgs> PackageDiscovered;
 
         /// <summary>
         /// Gets or sets the synchronizing object used to marshal event calls.
@@ -185,49 +185,66 @@ namespace QQGameRes
         {
             return Task.Factory.StartNew(() =>
             {
-                DirectoryScanner scanner = new DirectoryScanner();
-                scanner.ScanProgress += scanner_ScanProgress;
-                scanner.Scan(dir, ct);
+                DoSearchDirectory(dir, ct);
             }, ct);
         }
 
-        private void scanner_ScanProgress(object sender, DirectoryScannerEventArgs e)
+        private void DoSearchDirectory(DirectoryInfo dir, CancellationToken ct)
         {
-            this.CurrentDirectory = e.Directory;
-            this.CurrentProgress = e.Progress;
-
-            // Search the directory for supported files.
-            List<FileInfo> imgs = new List<FileInfo>();
-            List<FileInfo> pkgs = new List<FileInfo>();
-            foreach (FileInfo f in e.Directory.EnumerateFiles())
+            foreach (ScanDirectoryInfo e in dir.ScanDirectories())
             {
-                string ext = f.Extension.ToLowerInvariant();
-                switch (ext)
+                if (ct.IsCancellationRequested)
+                    return;
+                if (e.Exception != null)
+                    continue;
+
+                this.CurrentDirectory = e.Directory;
+                this.CurrentProgress = e.ProgressBefore;
+
+                // Search the directory for supported files.
+                List<FileInfo> imgs = new List<FileInfo>();
+                foreach (FileInfo f in e.Directory.EnumerateFiles())
                 {
-                    case ".pkg":
-                        pkgs.Add(f);
-                        break;
-                    case ".mif":
-                        // case ".bmp": // too many trivial clip arts
+                    string ext = f.Extension.ToLowerInvariant();
+                    if (ext == ".pkg")
+                    {
+                        try
+                        {
+                            var pkg = new QQGame.PkgArchive(f.FullName);
+                            var arg = new PackageDiscoveredEventArgs(e.Directory, pkg);
+                            PackageDiscovered.RaiseMarshalled(this, arg, this.SynchronizingObject);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                    else if (ext == ".mif")
+                    {
+                        // ".bmp": // too many trivial clip arts
                         imgs.Add(f);
-                        break;
+                    }
+                }
+
+                // If supported images are found, raise the ImagesDiscovered event.
+                if (imgs.Count > 0)
+                {
+                    ImagesDiscovered.RaiseMarshalled(this,
+                        new ResourceDiscoveredEventArgs(e.Directory, imgs.ToArray()),
+                        this.SynchronizingObject);
                 }
             }
-
-            // If supported files are found, raise the events.
-            if (pkgs.Count > 0)
-            {
-                PackageDiscovered.RaiseMarshalled(this,
-                    new ResourceDiscoveredEventArgs(e.Directory, pkgs.ToArray()),
-                    this.SynchronizingObject);
-            }
-            if (imgs.Count > 0)
-            {
-                ImagesDiscovered.RaiseMarshalled(this,
-                    new ResourceDiscoveredEventArgs(e.Directory, imgs.ToArray()),
-                    this.SynchronizingObject);
-            }
         }
+    }
+
+    public class PackageDiscoveredEventArgs : EventArgs
+    {
+        public PackageDiscoveredEventArgs(DirectoryInfo directory, QQGame.PkgArchive package)
+        {
+            this.Directory = directory;
+            this.Package = package;
+        }
+        public DirectoryInfo Directory { get; private set; }
+        public QQGame.PkgArchive Package { get; private set; }
     }
 
     public class ResourceDiscoveredEventArgs : EventArgs

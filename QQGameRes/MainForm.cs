@@ -52,31 +52,27 @@ namespace QQGameRes
         public event EventHandler ActiveFolderChanged;
 #endif
 
+        private void LoadPackage(string filename)
+        {
+            LoadPackage(new QQGame.PkgArchive(filename));
+        }
+
         /// <summary>
         /// Loads a QQ game resource package (.PKG file) and adds a root-level
         /// node into the tree view on the left of the main window.
         /// </summary>
-        /// <param name="filename"></param>
-        private void LoadPackage(string filename)
+        /// <param name="pkg"></param>
+        private void LoadPackage(QQGame.PkgArchive ar)
         {
-            //return;
-
             // TODO: dispose the PkgArchive objects when they are removed from
             // the treeview.
             // TODO: Only create a PkgArchive object when the node is selected.
-            try
-            {
-                Package pkg = new Package(filename);
-                TreeNode node = new TreeNode();
-                node.Text = Path.GetFileName(filename);
-                node.ImageIndex = 1;
-                node.SelectedImageIndex = 1;
-                node.Tag = pkg;
-                tvFolders.Nodes.Add(node);
-            }
-            catch (InvalidDataException) // unsupported format
-            {
-            }
+            TreeNode node = new TreeNode();
+            node.Text = Path.GetFileName(ar.FileName);
+            node.ImageIndex = 1;
+            node.SelectedImageIndex = 1;
+            node.Tag = new Package(ar);
+            tvFolders.Nodes.Add(node);
         }
 
         Repository currentRepository;
@@ -119,10 +115,9 @@ namespace QQGameRes
             // Create a new repository search object.
             Repository rep = new Repository();
             rep.SynchronizingObject = this;
-            rep.PackageDiscovered += delegate(object sender, ResourceDiscoveredEventArgs e)
+            rep.PackageDiscovered += delegate(object sender, PackageDiscoveredEventArgs e)
             {
-                foreach (FileInfo file in e.Files)
-                    LoadPackage(file.FullName);
+                LoadPackage(e.Package);
             };
             rep.ImagesDiscovered += delegate(object sender, ResourceDiscoveredEventArgs e)
             {

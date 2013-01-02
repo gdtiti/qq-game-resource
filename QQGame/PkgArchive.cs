@@ -14,6 +14,7 @@ namespace QQGame
     {
         private BinaryReader reader;
         private List<PkgArchiveEntry> entries;
+        private string filename;
 
         /// <summary>
         /// Opens the specified archive for reading.
@@ -24,6 +25,7 @@ namespace QQGame
         /// <exception cref="IOException">An IO error occurred.</exception>
         public PkgArchive(string filename)
         {
+            this.filename = filename;
             this.reader = new BinaryReader(
                 new FileStream(filename, FileMode.Open, FileAccess.Read));
 
@@ -110,6 +112,12 @@ namespace QQGame
         {
             this.reader.Dispose();
         }
+
+        /// <summary>
+        /// Gets the file name of this archive, or <code>null</code> if this
+        /// archive is not opened from a disk file.
+        /// </summary>
+        public string FileName { get { return filename; } }
 
         /// <summary>
         /// Gets the underlying stream of the archive.
