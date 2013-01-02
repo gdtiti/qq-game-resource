@@ -75,7 +75,8 @@ namespace QQGameRes
             tvFolders.Nodes.Add(node);
         }
 
-        Repository currentRepository;
+        private CancellationTokenSource ctsLoadRepository;
+        private Repository currentRepository;
 
         private void StopLoadingRepository()
         {
@@ -84,8 +85,6 @@ namespace QQGameRes
             progLoadDirectory.Visible = false;
             txtStatus.Text = "";
         }
-
-        private CancellationTokenSource ctsLoadRepository;
 
         private void LoadRepository(string rootPath)
         {
@@ -211,6 +210,7 @@ namespace QQGameRes
             if (e.Node.Tag is ResourceFolder)
             {
                 viewList.ResourceFolder = e.Node.Tag as ResourceFolder;
+                txtStatus.Text = viewList.ResourceFolder.Name;
             }
         }
 
@@ -394,18 +394,19 @@ namespace QQGameRes
             txtStatus.Text = "保存成功";
         }
 
+#if false
         private bool loadD = true;
         private void btnAbout_Click(object sender, EventArgs e)
         {
-#if DEBUG
             if (loadD)
                 LoadRepository("D:/");
             else
                 LoadRepository("E:/");
             loadD = !loadD;
-            return;
-#endif
-
+        }
+#else
+        private void btnAbout_Click(object sender, EventArgs e)
+        {
             FileVersionInfo ver = FileVersionInfo.GetVersionInfo(
                 System.Reflection.Assembly.GetExecutingAssembly().Location);
 
@@ -413,6 +414,7 @@ namespace QQGameRes
                 "版本 " + ver.ProductVersion, 
                 "版本信息", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+#endif
 
         private void btnOpenFolder_Click(object sender, EventArgs e)
         {
