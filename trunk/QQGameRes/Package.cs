@@ -32,6 +32,14 @@ namespace QQGameRes
                             select new PackageEntry(ent)).ToArray();
         }
 
+        public Package(QQGame.PkgArchive archive)
+        {
+            this.filename = archive.FileName;
+            this.ar = archive;
+            this.entries = (from ent in ar.Entries
+                            select new PackageEntry(ent)).ToArray();
+        }
+
         public string Name
         {
             get { return this.filename; }
