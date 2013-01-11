@@ -63,9 +63,29 @@ namespace QQGameRes.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap Folder_Icon_16 {
+            get {
+                object obj = ResourceManager.GetObject("Folder_Icon_16", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap Image_Icon_16 {
             get {
                 object obj = ResourceManager.GetObject("Image_Icon_16", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap Images_Icon_16 {
+            get {
+                object obj = ResourceManager.GetObject("Images_Icon_16", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

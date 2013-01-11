@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Express 2012 for Windows Desktop
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualExplorer", "VirtualExplorer\VirtualExplorer.csproj", "{F079CD9A-6CF7-4931-B845-F6E6C946E904}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QQGameRes", "QQGameRes\QQGameRes.csproj", "{B4CA398F-573A-473A-AFD0-071498DC045E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QQGame", "QQGame\QQGame.csproj", "{E497C6DF-8E6F-4B70-B349-3BF03D4847E6}"
@@ -19,10 +17,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F079CD9A-6CF7-4931-B845-F6E6C946E904}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F079CD9A-6CF7-4931-B845-F6E6C946E904}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F079CD9A-6CF7-4931-B845-F6E6C946E904}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F079CD9A-6CF7-4931-B845-F6E6C946E904}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B4CA398F-573A-473A-AFD0-071498DC045E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B4CA398F-573A-473A-AFD0-071498DC045E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4CA398F-573A-473A-AFD0-071498DC045E}.Release|Any CPU.ActiveCfg = Release|Any CPU

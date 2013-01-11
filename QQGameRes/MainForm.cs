@@ -115,6 +115,10 @@ namespace QQGameRes
             tvFolders.Nodes.Clear();
             TreeNode rootNode = tvFolders.Nodes.Add(rootPath);
 
+            // Also for our new framework...
+            RepositoryFolder reposFolder = new RepositoryFolder(rootDir);
+            vFolderTreeView.AddRootFolder(reposFolder);
+
             // Create a new repository search object.
             Repository rep = new Repository();
             rep.SynchronizingObject = this;
@@ -138,6 +142,9 @@ namespace QQGameRes
                 node.SelectedImageIndex = 2;
                 node.Tag = group;
                 rootNode.Nodes.Add(node);
+
+                // New stuff...
+                reposFolder.AddImageDirectory(e.Directory);
             };
 
             // Scan the given directory.
@@ -461,9 +468,21 @@ namespace QQGameRes
         private void vFolderTreeView_ActiveFolderChanged(object sender, EventArgs e)
         {
             IVirtualFolder vFolder = vFolderTreeView.ActiveFolder;
-            if (vFolder is PackageFolder)
+            if (vFolder == null)
+            {
+                return;
+            }
+            else if (vFolder is PackageFolder)
             {
                 txtStatus.Text = (vFolder as PackageFolder).Archive.FileName;
+            }
+            else if (vFolder is RepositoryFolder)
+            {
+                txtStatus.Text = (vFolder as IVirtualItem).DisplayName;
+            }
+            else if (vFolder is ImageFolder)
+            {
+                txtStatus.Text = (vFolder as ImageFolder).Directory.FullName.TrimEnd('\\');
             }
         }
     }
