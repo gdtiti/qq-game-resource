@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Data;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
@@ -73,17 +72,21 @@ namespace QQGameRes
             lvEntries.Items.Clear();
 
             lvEntries.Visible = false;
-            foreach (IVirtualItem entry in _folder.EnumerateItems(VirtualItemType.File))
+            IEnumerable<IVirtualItem> children = _folder.EnumerateItems(VirtualItemType.NonFolder);
+            if (children != null)
             {
-                // We create each ListViewItem with empty text. Otherwise if 
-                // the actual text is too long, the OwnerDraw bounds for a
-                // focused item will be too big.
-                ListViewItem item = new ListViewItem("");
-                //item.SubItems.Add(entry.Size.ToString("#,#"));
-                ResourceListViewEntry tag = new ResourceListViewEntry();
-                tag.ResourceEntry = entry;
-                item.Tag = tag;
-                lvEntries.Items.Add(item);
+                foreach (IVirtualItem entry in children)
+                {
+                    // We create each ListViewItem with empty text. Otherwise if 
+                    // the actual text is too long, the OwnerDraw bounds for a
+                    // focused item will be too big.
+                    ListViewItem item = new ListViewItem("");
+                    //item.SubItems.Add(entry.Size.ToString("#,#"));
+                    ResourceListViewEntry tag = new ResourceListViewEntry();
+                    tag.ResourceEntry = entry;
+                    item.Tag = tag;
+                    lvEntries.Items.Add(item);
+                }
             }
             lvEntries.Visible = true;
             if (lvEntries.Items.Count > 0)
