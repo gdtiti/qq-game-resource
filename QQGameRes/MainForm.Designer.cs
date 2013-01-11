@@ -29,27 +29,15 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Folder");
-            System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Repository", new System.Windows.Forms.TreeNode[] {
-            treeNode1});
-            System.Windows.Forms.TreeNode treeNode3 = new System.Windows.Forms.TreeNode("Folder");
-            System.Windows.Forms.TreeNode treeNode4 = new System.Windows.Forms.TreeNode("Package", new System.Windows.Forms.TreeNode[] {
-            treeNode3});
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.vFolderTreeView = new Util.Forms.VirtualFolderTreeView();
-            this.tvFolders = new Util.Forms.DoubleBufferedTreeView();
             this.imageListTree = new System.Windows.Forms.ImageList(this.components);
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
-            this.btnOpenFolder = new System.Windows.Forms.ToolStripButton();
-            this.btnOpenPackage = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-            this.btnExport = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.btnAbout = new System.Windows.Forms.ToolStripButton();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.progLoadDirectory = new System.Windows.Forms.ToolStripProgressBar();
             this.txtStatus = new System.Windows.Forms.ToolStripStatusLabel();
@@ -59,6 +47,11 @@
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.timerLoadProgress = new System.Windows.Forms.Timer(this.components);
+            this.btnOpenFolder = new System.Windows.Forms.ToolStripButton();
+            this.btnOpenPackage = new System.Windows.Forms.ToolStripButton();
+            this.btnExport = new System.Windows.Forms.ToolStripButton();
+            this.btnAbout = new System.Windows.Forms.ToolStripButton();
+            this.vFolderTreeView = new Util.Forms.VirtualFolderTreeView();
             this.viewList = new QQGameRes.ResourceListView();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -87,7 +80,6 @@
             // splitContainer1.Panel1
             // 
             this.splitContainer1.Panel1.Controls.Add(this.vFolderTreeView);
-            this.splitContainer1.Panel1.Controls.Add(this.tvFolders);
             // 
             // splitContainer1.Panel2
             // 
@@ -95,44 +87,6 @@
             this.splitContainer1.Size = new System.Drawing.Size(788, 403);
             this.splitContainer1.SplitterDistance = 211;
             this.splitContainer1.TabIndex = 8;
-            // 
-            // vFolderTreeView
-            // 
-            this.vFolderTreeView.Location = new System.Drawing.Point(4, 186);
-            this.vFolderTreeView.Margin = new System.Windows.Forms.Padding(4);
-            this.vFolderTreeView.Name = "vFolderTreeView";
-            this.vFolderTreeView.Size = new System.Drawing.Size(203, 213);
-            this.vFolderTreeView.TabIndex = 11;
-            this.vFolderTreeView.ActiveFolderChanged += new System.EventHandler(this.vFolderTreeView_ActiveFolderChanged);
-            // 
-            // tvFolders
-            // 
-            this.tvFolders.HideSelection = false;
-            this.tvFolders.ImageIndex = 0;
-            this.tvFolders.ImageList = this.imageListTree;
-            this.tvFolders.Indent = 21;
-            this.tvFolders.Location = new System.Drawing.Point(0, 0);
-            this.tvFolders.Name = "tvFolders";
-            treeNode1.ImageIndex = 2;
-            treeNode1.Name = "Node2";
-            treeNode1.Text = "Folder";
-            treeNode2.ImageIndex = 0;
-            treeNode2.Name = "Node0";
-            treeNode2.Text = "Repository";
-            treeNode3.ImageIndex = 2;
-            treeNode3.Name = "Node4";
-            treeNode3.Text = "Folder";
-            treeNode4.ImageIndex = 1;
-            treeNode4.Name = "Node3";
-            treeNode4.Text = "Package";
-            this.tvFolders.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
-            treeNode2,
-            treeNode4});
-            this.tvFolders.SelectedImageIndex = 0;
-            this.tvFolders.ShowLines = false;
-            this.tvFolders.Size = new System.Drawing.Size(211, 179);
-            this.tvFolders.TabIndex = 10;
-            this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
             // 
             // imageListTree
             // 
@@ -158,52 +112,15 @@
             this.toolStrip3.TabIndex = 11;
             this.toolStrip3.Text = "toolStrip3";
             // 
-            // btnOpenFolder
-            // 
-            this.btnOpenFolder.Image = ((System.Drawing.Image)(resources.GetObject("btnOpenFolder.Image")));
-            this.btnOpenFolder.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnOpenFolder.Name = "btnOpenFolder";
-            this.btnOpenFolder.Size = new System.Drawing.Size(93, 28);
-            this.btnOpenFolder.Text = "打开目录";
-            this.btnOpenFolder.Click += new System.EventHandler(this.btnOpenFolder_Click);
-            // 
-            // btnOpenPackage
-            // 
-            this.btnOpenPackage.Image = ((System.Drawing.Image)(resources.GetObject("btnOpenPackage.Image")));
-            this.btnOpenPackage.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnOpenPackage.Name = "btnOpenPackage";
-            this.btnOpenPackage.Size = new System.Drawing.Size(93, 28);
-            this.btnOpenPackage.Text = "打开资源";
-            this.btnOpenPackage.Click += new System.EventHandler(this.btnOpenPackage_Click);
-            // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
             this.toolStripSeparator1.Size = new System.Drawing.Size(6, 31);
             // 
-            // btnExport
-            // 
-            this.btnExport.Enabled = false;
-            this.btnExport.Image = ((System.Drawing.Image)(resources.GetObject("btnExport.Image")));
-            this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnExport.Name = "btnExport";
-            this.btnExport.Size = new System.Drawing.Size(93, 28);
-            this.btnExport.Text = "保存素材";
-            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
-            // 
             // toolStripSeparator2
             // 
             this.toolStripSeparator2.Name = "toolStripSeparator2";
             this.toolStripSeparator2.Size = new System.Drawing.Size(6, 31);
-            // 
-            // btnAbout
-            // 
-            this.btnAbout.Image = ((System.Drawing.Image)(resources.GetObject("btnAbout.Image")));
-            this.btnAbout.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnAbout.Name = "btnAbout";
-            this.btnAbout.Size = new System.Drawing.Size(93, 28);
-            this.btnAbout.Text = "版本信息";
-            this.btnAbout.Click += new System.EventHandler(this.btnAbout_Click);
             // 
             // statusStrip1
             // 
@@ -266,6 +183,53 @@
             // 
             this.timerLoadProgress.Tick += new System.EventHandler(this.timerLoadProgress_Tick);
             // 
+            // btnOpenFolder
+            // 
+            this.btnOpenFolder.Image = ((System.Drawing.Image)(resources.GetObject("btnOpenFolder.Image")));
+            this.btnOpenFolder.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnOpenFolder.Name = "btnOpenFolder";
+            this.btnOpenFolder.Size = new System.Drawing.Size(93, 28);
+            this.btnOpenFolder.Text = "打开目录";
+            this.btnOpenFolder.Click += new System.EventHandler(this.btnOpenFolder_Click);
+            // 
+            // btnOpenPackage
+            // 
+            this.btnOpenPackage.Image = ((System.Drawing.Image)(resources.GetObject("btnOpenPackage.Image")));
+            this.btnOpenPackage.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnOpenPackage.Name = "btnOpenPackage";
+            this.btnOpenPackage.Size = new System.Drawing.Size(93, 28);
+            this.btnOpenPackage.Text = "打开资源";
+            this.btnOpenPackage.Click += new System.EventHandler(this.btnOpenPackage_Click);
+            // 
+            // btnExport
+            // 
+            this.btnExport.Enabled = false;
+            this.btnExport.Image = ((System.Drawing.Image)(resources.GetObject("btnExport.Image")));
+            this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnExport.Name = "btnExport";
+            this.btnExport.Size = new System.Drawing.Size(93, 28);
+            this.btnExport.Text = "保存素材";
+            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
+            // 
+            // btnAbout
+            // 
+            this.btnAbout.Image = ((System.Drawing.Image)(resources.GetObject("btnAbout.Image")));
+            this.btnAbout.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnAbout.Name = "btnAbout";
+            this.btnAbout.Size = new System.Drawing.Size(93, 28);
+            this.btnAbout.Text = "版本信息";
+            this.btnAbout.Click += new System.EventHandler(this.btnAbout_Click);
+            // 
+            // vFolderTreeView
+            // 
+            this.vFolderTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.vFolderTreeView.Location = new System.Drawing.Point(0, 0);
+            this.vFolderTreeView.Margin = new System.Windows.Forms.Padding(4);
+            this.vFolderTreeView.Name = "vFolderTreeView";
+            this.vFolderTreeView.Size = new System.Drawing.Size(211, 403);
+            this.vFolderTreeView.TabIndex = 11;
+            this.vFolderTreeView.ActiveFolderChanged += new System.EventHandler(this.vFolderTreeView_ActiveFolderChanged);
+            // 
             // viewList
             // 
             this.viewList.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -314,7 +278,6 @@
         private System.Windows.Forms.Timer timerAnimation;
         private System.Windows.Forms.SaveFileDialog saveFileDialog1;
         private System.Windows.Forms.SplitContainer splitContainer1;
-        private Util.Forms.DoubleBufferedTreeView tvFolders;
         private System.Windows.Forms.ToolStrip toolStrip3;
         private System.Windows.Forms.ToolStripButton btnOpenFolder;
         private System.Windows.Forms.ToolStripButton btnOpenPackage;

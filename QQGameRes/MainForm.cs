@@ -67,14 +67,6 @@ namespace QQGameRes
             // TODO: dispose the PkgArchive objects when they are removed from
             // the treeview.
             // TODO: Only create a PkgArchive object when the node is selected.
-            TreeNode node = new TreeNode();
-            node.Text = Path.GetFileName(ar.FileName);
-            node.ImageIndex = 1;
-            node.SelectedImageIndex = 1;
-            node.Tag = new Package(ar);
-            tvFolders.Nodes.Add(node);
-
-            // Adds the package to a root level node.
             PackageFolder f = new PackageFolder(ar);
             vFolderTreeView.AddRootFolder(f);
         }
@@ -111,12 +103,9 @@ namespace QQGameRes
             }
             StopLoadingRepository();
 
-            // Create a root-level node for the repository.
-            tvFolders.Nodes.Clear();
-            TreeNode rootNode = tvFolders.Nodes.Add(rootPath);
-
-            // Also for our new framework...
+            // Reset the tree view and add the repository as a root folder.
             RepositoryFolder reposFolder = new RepositoryFolder(rootDir);
+            vFolderTreeView.Clear();
             vFolderTreeView.AddRootFolder(reposFolder);
 
             // Create a new repository search object.
@@ -128,23 +117,10 @@ namespace QQGameRes
             };
             rep.ImagesDiscovered += delegate(object sender, ResourceDiscoveredEventArgs e)
             {
-                // Create a child node for each image folder in the repository.
-                FileGroup group = new FileGroup(e.Directory, e.Files);
-                string name = group.Name;
-                if (name.Length <= rootPath.Length + 1)
-                    name = "(root)";
-                else
-                    name = name.Substring(rootPath.Length + 1);
-
-                TreeNode node = new TreeNode();
-                node.Text = name;
-                node.ImageIndex = 2;
-                node.SelectedImageIndex = 2;
-                node.Tag = group;
-                rootNode.Nodes.Add(node);
-
-                // New stuff...
-                reposFolder.AddImageDirectory(e.Directory);
+                // Append the image folder as a child of the repository.
+                // The repository folder implementation will automatically
+                // notify the tree view of the change and get the UI udpated.
+                reposFolder.AddImageDirectory(e.Directory, e.Files);
             };
 
             // Scan the given directory.
@@ -183,8 +159,6 @@ namespace QQGameRes
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-            tvFolders.SetWindowTheme("explorer");
-            //SetWindowTheme(lvEntries.Handle, "EXPLORER", null);
             StopLoadingRepository();
 
             // Load the root path of QQ Game.
@@ -218,11 +192,13 @@ namespace QQGameRes
 
         private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
         {
+#if false
             if (e.Node.Tag is ResourceFolder)
             {
                 viewList.ResourceFolder = e.Node.Tag as ResourceFolder;
                 txtStatus.Text = viewList.ResourceFolder.Name;
             }
+#endif
         }
 
         private void btnOpenPackage_Click(object sender, EventArgs e)
@@ -234,7 +210,7 @@ namespace QQGameRes
                 //lvEntries.Items.Clear();
                 //tvFolders.Nodes.Clear();
                 LoadPackage(openFileDialog1.FileName);
-                tvFolders.SelectedNode = tvFolders.Nodes[0];
+                //tvFolders.SelectedNode = tvFolders.Nodes[0];
             }
         }
 
@@ -292,7 +268,7 @@ namespace QQGameRes
             // If the filter index is 1 (save as is), just copy the stream.
             if (saveFileDialog1.FilterIndex == 1)
             {
-                using (Stream input = ent.ResourceEntry.Open())
+                using (Stream input = (ent.ResourceEntry as IVirtualFile).Open())
                 using (Stream output = new FileStream(filename, FileMode.Create, FileAccess.Write))
                 {
                     //This is .NET 2.0.
@@ -337,7 +313,7 @@ namespace QQGameRes
             // SVG, do that.
             if (filterIndex == 1)
             {
-                using (Stream input = ent.ResourceEntry.Open())
+                using (Stream input = (ent.ResourceEntry as IVirtualFile).Open())
                 using (ImageDecoder decoder = new QQGame.MifImageDecoder(input))
                 using (Stream output = new FileStream(filename, FileMode.Create, FileAccess.Write))
                 using (ImageEncoder encoder = new SvgImageEncoder(output, decoder.FrameCount))
@@ -383,7 +359,7 @@ namespace QQGameRes
 
             // Now the user clicked "Yes", so we need to save each frame
             // in an individual file.
-            using (Stream stream = ent.ResourceEntry.Open())
+            using (Stream stream = (ent.ResourceEntry as IVirtualFile).Open())
             using (ImageDecoder img = new QQGame.MifImageDecoder(stream))
             {
                 for (int i = 1; i <= img.FrameCount; i++)
@@ -484,6 +460,7 @@ namespace QQGameRes
             {
                 txtStatus.Text = (vFolder as ImageFolder).Directory.FullName.TrimEnd('\\');
             }
+            viewList.ResourceFolder = vFolder;
         }
     }
 }
