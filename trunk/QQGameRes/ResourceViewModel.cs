@@ -127,7 +127,10 @@ namespace QQGameRes
 
         IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
         {
-            return imageFolders;
+            if ((type & VirtualItemType.Folder) != 0)
+                return imageFolders;
+            else
+                return null;
         }
 
         string IVirtualItem.Name
