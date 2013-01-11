@@ -40,6 +40,7 @@
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.vFolderTreeView = new Util.Forms.VirtualFolderTreeView();
             this.tvFolders = new Util.Forms.DoubleBufferedTreeView();
             this.imageListTree = new System.Windows.Forms.ImageList(this.components);
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
@@ -85,6 +86,7 @@
             // 
             // splitContainer1.Panel1
             // 
+            this.splitContainer1.Panel1.Controls.Add(this.vFolderTreeView);
             this.splitContainer1.Panel1.Controls.Add(this.tvFolders);
             // 
             // splitContainer1.Panel2
@@ -94,9 +96,17 @@
             this.splitContainer1.SplitterDistance = 211;
             this.splitContainer1.TabIndex = 8;
             // 
+            // vFolderTreeView
+            // 
+            this.vFolderTreeView.Location = new System.Drawing.Point(4, 186);
+            this.vFolderTreeView.Margin = new System.Windows.Forms.Padding(4);
+            this.vFolderTreeView.Name = "vFolderTreeView";
+            this.vFolderTreeView.Size = new System.Drawing.Size(203, 213);
+            this.vFolderTreeView.TabIndex = 11;
+            this.vFolderTreeView.ActiveFolderChanged += new System.EventHandler(this.vFolderTreeView_ActiveFolderChanged);
+            // 
             // tvFolders
             // 
-            this.tvFolders.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tvFolders.HideSelection = false;
             this.tvFolders.ImageIndex = 0;
             this.tvFolders.ImageList = this.imageListTree;
@@ -120,7 +130,7 @@
             treeNode4});
             this.tvFolders.SelectedImageIndex = 0;
             this.tvFolders.ShowLines = false;
-            this.tvFolders.Size = new System.Drawing.Size(211, 403);
+            this.tvFolders.Size = new System.Drawing.Size(211, 179);
             this.tvFolders.TabIndex = 10;
             this.tvFolders.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.tvFolders_AfterSelect);
             // 
@@ -321,6 +331,7 @@
         private ResourceListView viewList;
         private System.Windows.Forms.ToolStripProgressBar progLoadDirectory;
         private System.Windows.Forms.Timer timerLoadProgress;
+        private Util.Forms.VirtualFolderTreeView vFolderTreeView;
     }
 }
 

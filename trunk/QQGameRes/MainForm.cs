@@ -73,6 +73,10 @@ namespace QQGameRes
             node.SelectedImageIndex = 1;
             node.Tag = new Package(ar);
             tvFolders.Nodes.Add(node);
+
+            // Adds the package to a root level node.
+            PackageFolder f = new PackageFolder(ar);
+            vFolderTreeView.AddRootFolder(f);
         }
 
         private CancellationTokenSource ctsLoadRepository;
@@ -164,7 +168,7 @@ namespace QQGameRes
 
         private void timerLoadProgress_Tick(object sender, EventArgs e)
         {
-            if (currentRepository == null)
+            if (currentRepository == null || currentRepository.CurrentDirectory == null)
                 return;
             progLoadDirectory.Value = (int)(currentRepository.CurrentProgress * 100);
             txtStatus.Text = "正在搜索 " + currentRepository.CurrentDirectory.FullName;
@@ -451,6 +455,15 @@ namespace QQGameRes
                     txtImageSize.Text = ent.Thumbnail.Width + " x " + ent.Thumbnail.Height;
                     txtFrames.Text = ent.FrameCount + " Frames";
                 }
+            }
+        }
+
+        private void vFolderTreeView_ActiveFolderChanged(object sender, EventArgs e)
+        {
+            IVirtualFolder vFolder = vFolderTreeView.ActiveFolder;
+            if (vFolder is PackageFolder)
+            {
+                txtStatus.Text = (vFolder as PackageFolder).Archive.FileName;
             }
         }
     }
