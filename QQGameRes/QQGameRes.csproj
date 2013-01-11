@@ -56,6 +56,7 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnimationPlayer.cs">
@@ -89,6 +90,7 @@
       <DependentUpon>ResourceListView.cs</DependentUpon>
     </Compile>
     <Compile Include="ResourceListViewEntry.cs" />
+    <Compile Include="ResourceViewModel.cs" />
     <Compile Include="ThumbnailLoader.cs" />
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
@@ -154,6 +156,9 @@
       <Project>{75a3b432-de47-4e01-9655-22275c400bad}</Project>
       <Name>Util.Media</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="images\Package-Icon-16.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
