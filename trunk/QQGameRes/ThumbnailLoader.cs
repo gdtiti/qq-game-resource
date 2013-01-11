@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Drawing;
 using Util.Media;
+using Util.Forms;
 
 namespace QQGameRes
 {
@@ -130,31 +131,35 @@ namespace QQGameRes
 #endif
 
                 // Load the resource if its format is supported.
-                string name = tag.ResourceEntry.Name.ToLowerInvariant();
-                try
+                if (tag.ResourceEntry is IVirtualFile)
                 {
-                    if (name.EndsWith(".mif"))
+                    IVirtualFile vFile = tag.ResourceEntry as IVirtualFile;
+                    string name = tag.ResourceEntry.Name.ToLowerInvariant();
+                    try
                     {
-                        using (Stream stream = tag.ResourceEntry.Open())
-                        using (ImageDecoder mif = new QQGame.MifImageDecoder(stream))
+                        if (name.EndsWith(".mif"))
                         {
-                            tag.Thumbnail = mif.DecodeFrame().Image;
-                            tag.FrameCount = mif.FrameCount;
+                            using (Stream stream = vFile.Open(FileMode.Open, FileAccess.Read, FileShare.Read))
+                            using (ImageDecoder mif = new QQGame.MifImageDecoder(stream))
+                            {
+                                tag.Thumbnail = mif.DecodeFrame().Image;
+                                tag.FrameCount = mif.FrameCount;
+                            }
+                        }
+                        else if (name.EndsWith(".bmp"))
+                        {
+                            using (Stream stream = vFile.Open(FileMode.Open, FileAccess.Read, FileShare.Read))
+                            {
+                                tag.Thumbnail = new Bitmap(stream);
+                                tag.FrameCount = 1;
+                            }
                         }
                     }
-                    else if (name.EndsWith(".bmp"))
+                    catch (Exception ex)
                     {
-                        using (Stream stream = tag.ResourceEntry.Open())
-                        {
-                            tag.Thumbnail = new Bitmap(stream);
-                            tag.FrameCount = 1;
-                        }
+                        System.Diagnostics.Debug.WriteLine(
+                            "Error loading " + name + ": " + ex.Message);
                     }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        "Error loading " + name + ": " + ex.Message);
                 }
 
                 // If a thumbnail image cannot be loaded, we use a default one.

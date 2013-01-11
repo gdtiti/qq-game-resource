@@ -1,4 +1,5 @@
 ﻿using System;
+using Util.Forms;
 
 namespace QQGameRes
 {
@@ -10,7 +11,7 @@ namespace QQGameRes
         /// <summary>
         /// The resource entry associated with the item.
         /// </summary>
-        public ResourceEntry ResourceEntry;
+        public IVirtualItem ResourceEntry;
 
         /// <summary>
         /// The thumbnail of the associated resource. If the resource is

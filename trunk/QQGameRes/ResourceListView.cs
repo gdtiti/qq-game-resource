@@ -7,6 +7,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using Util.Media;
+using Util.Forms;
 
 namespace QQGameRes
 {
@@ -17,12 +18,16 @@ namespace QQGameRes
             InitializeComponent();
         }
 
+#if true
+        private IVirtualFolder _folder;
+#else
         private ResourceFolder _folder;
+#endif
 
         /// <summary>
         /// Gets or sets the resource folder being displayed in this view.
         /// </summary>
-        public ResourceFolder ResourceFolder
+        public IVirtualFolder ResourceFolder
         {
             get { return _folder; }
             set
@@ -68,7 +73,7 @@ namespace QQGameRes
             lvEntries.Items.Clear();
 
             lvEntries.Visible = false;
-            foreach (ResourceEntry entry in _folder.Entries)
+            foreach (IVirtualItem entry in _folder.EnumerateItems(VirtualItemType.File))
             {
                 // We create each ListViewItem with empty text. Otherwise if 
                 // the actual text is too long, the OwnerDraw bounds for a
@@ -131,7 +136,7 @@ namespace QQGameRes
                 drawer.DrawPlayIcon();
 
             // Draw the file name text.
-            drawer.DrawText(Path.GetFileName(ent.ResourceEntry.Name));
+            drawer.DrawText(ent.ResourceEntry.DisplayName);
         }
 
         /// <summary>
@@ -153,7 +158,9 @@ namespace QQGameRes
             // Starts animation if this item is a multi-frame image.
             if (ent.FrameCount > 1)
             {
-                ImageDecoder mif = new QQGame.MifImageDecoder(ent.ResourceEntry.Open());
+                IVirtualFile vFile = ent.ResourceEntry as IVirtualFile;
+                ImageDecoder mif = new QQGame.MifImageDecoder(
+                    vFile.Open(FileMode.Open, FileAccess.Read, FileShare.Read));
                 animator.StartAnimation(mif, item);
             }
         }

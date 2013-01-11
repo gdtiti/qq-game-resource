@@ -14,6 +14,7 @@ namespace QQGameRes
     class PackageFolder : IVirtualItem, IVirtualFolder, IExtractIcon
     {
         private QQGame.PkgArchive archive;
+        private PackageItem[] children = null;
 
         public PackageFolder(QQGame.PkgArchive ar)
         {
@@ -25,37 +26,76 @@ namespace QQGameRes
             get { return archive; }
         }
 
-        public IEnumerable<IVirtualItem> EnumerateItems(VirtualItemType type)
-        {
-            yield break;
-        }
-
-        public string Name
+        string IVirtualItem.Name
         {
             get { return "Not Used"; }
         }
 
-        public string FullName
+#if false
+        string IVirtualItem.FullName
         {
             get { return "pkg://" + archive.FileName; }
         }
+#endif
 
-        public string DisplayName
+        string IVirtualItem.DisplayName
         {
             get { return Path.GetFileName(archive.FileName); }
         }
 
-        public string GetIconKey(ExtractIconType type, Size desiredSize)
+        IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
+        {
+            if (children == null)
+            {
+                children = (from ent in archive.Entries
+                            select new PackageItem(ent)
+                           ).ToArray();
+            }
+            return children;
+        }
+
+        string IExtractIcon.GetIconKey(ExtractIconType type, Size desiredSize)
         {
             return "Package_Icon_16";
         }
 
-        public Image ExtractIcon(ExtractIconType type, Size desiredSize)
+        Image IExtractIcon.ExtractIcon(ExtractIconType type, Size desiredSize)
         {
             return (Image)smallIcon.Clone();
         }
 
         private static Image smallIcon = Properties.Resources.Package_Icon_16;
+    }
+    
+    /// <summary>
+    /// Encapsulates <code>QQGame.PkgArchiveEntry</code> as a virtual item.
+    /// </summary>
+    class PackageItem : IVirtualItem, IVirtualFile
+    {
+        private QQGame.PkgArchiveEntry entry;
+
+        public PackageItem(QQGame.PkgArchiveEntry ent)
+        {
+            entry = ent;
+        }
+
+        string IVirtualItem.Name
+        {
+            get { return entry.FullName; }
+        }
+
+        string IVirtualItem.DisplayName
+        {
+            get { return Path.GetFileName(entry.FullName); }
+        }
+
+        Stream IVirtualFile.Open(FileMode mode, FileAccess access, FileShare share)
+        {
+            if ((mode == FileMode.Open || mode == FileMode.OpenOrCreate)
+                && access == FileAccess.Read)
+                return entry.Open();
+            throw new NotSupportedException();
+        }
     }
 
     /// <summary>
@@ -72,9 +112,9 @@ namespace QQGameRes
             this.imageFolders = new List<ImageFolder>();
         }
 
-        public void AddImageDirectory(DirectoryInfo dir)
+        public void AddImageDirectory(DirectoryInfo dir, FileInfo[] files)
         {
-            ImageFolder imageFolder = new ImageFolder(dir, reposDir);
+            ImageFolder imageFolder = new ImageFolder(dir, reposDir, files);
             imageFolders.Add(imageFolder);
             if (FolderChanged != null)
             {
@@ -95,10 +135,12 @@ namespace QQGameRes
             get { return "Not Used"; }
         }
 
+#if false
         string IVirtualItem.FullName
         {
             get { return "repository://" + reposDir.FullName; }
         }
+#endif
 
         string IVirtualItem.DisplayName
         {
@@ -127,11 +169,14 @@ namespace QQGameRes
     {
         private DirectoryInfo thisDir;
         private DirectoryInfo rootDir;
+        private PhysicalFile[] files;
 
-        public ImageFolder(DirectoryInfo thisDir, DirectoryInfo rootDir)
+        public ImageFolder(
+            DirectoryInfo thisDir, DirectoryInfo rootDir, FileInfo[] imageFiles)
         {
             this.thisDir = thisDir;
             this.rootDir = rootDir;
+            this.files = imageFiles.Select(x => new PhysicalFile(x)).ToArray();
         }
 
         public DirectoryInfo Directory { get { return thisDir; } }
@@ -141,10 +186,12 @@ namespace QQGameRes
             get { return "Not Used"; }
         }
 
+#if false
         string IVirtualItem.FullName
         {
             get { return "ImageFolder://" + thisDir.FullName; }
         }
+#endif
 
         string IVirtualItem.DisplayName
         {
@@ -161,7 +208,7 @@ namespace QQGameRes
 
         IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
         {
-            yield break;
+            return files;
         }
 
         string IExtractIcon.GetIconKey(ExtractIconType type, Size desiredSize)
