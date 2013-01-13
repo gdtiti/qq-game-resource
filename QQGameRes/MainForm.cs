@@ -460,6 +460,7 @@ namespace QQGameRes
                 txtStatus.Text = (vFolder as ImageFolder).Directory.FullName.TrimEnd('\\');
             }
             viewList.ResourceFolder = vFolder;
+            vFolderListView.Folder = vFolder;
         }
     }
 }

@@ -42,6 +42,7 @@
             // 
             // lvEntries
             // 
+            this.lvEntries.BackColor = System.Drawing.SystemColors.Control;
             this.lvEntries.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lvEntries.HideSelection = false;
             this.lvEntries.LargeImageList = this.imageListPreview;

@@ -162,7 +162,7 @@ This formula can be written more explicitly as below:
 To convert a 6-bit encoded alpha back to an 8-bit alpha value, the following
 formula is used:
 
-  Alpha = (Alpha' << 3) - (Alpha' >> 6).
+  Alpha = (Alpha' << 3) - (Alpha' >> 5).
 
 The above encoding/decoding process effectively truncates an alpha value if
 it's not 255 (i.e. full opacity), but has the desirable property that full
@@ -222,12 +222,12 @@ Each packet that follows the InputSize field has the format below:
   |    NewData    |    (optional) CopyLen bytes
   +---------------+
 
-'SkipLen' is the number of bytes to leave unchanged from the previous buffer.
-This is the key of the delta encoding algorithm: it saves space if many of 
-the pixels do not change from one frame to the next.
+'SkipLen' is the number of bytes (not pixels) to leave unchanged from the
+previous buffer. This is the key of the delta encoding algorithm: it saves
+space if many of the pixels do not change from one frame to the next.
 
-'CopyLen' is the number of bytes to read from input and copy to the buffer.
-The data is stored in 'NewData'. 
+'CopyLen' is the number of bytes (not pixels) to read from input and copy
+to the buffer. The data is stored in 'NewData'. 
 
 The packets are done if InputSize number of bytes are consumed.
 
