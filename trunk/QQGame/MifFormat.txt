@@ -1,140 +1,246 @@
-MIF File Format Description
-===========================
+MIF File Format Description v1.1
+================================
+
+This document describes the MIF format used by QQ Games as of 31-Dec-2012.
 
 The MIF format is an image file format used by QQ Games to store images, clip
-arts, and animations. An image is stored as an uncompressed bitmap with 16-bit
-color depth and (an extra) 5 bits of alpha. Multiple frames may be stored in
-a single MIF file.
+arts, and animations. Each frame in an image is stored as an RGB bitmap with 
+5-6-5 bits for the R-G-B channels and an optionally 6 bits for the alpha 
+channel. Multiple frames are stored sequentially in a single MIF file.
 
-A MIF file has the extension ".MIF". It is usually stored directly in the file
-system, though sometimes it is embedded in a resource package (.PKG file).
+A MIF file has the extension ".MIF". It is typically stored directly in the
+file system, though is sometimes is embedded in a package (.PKG file).
 
 The overall layout of a MIF file is as follows:
 
   +---------------+
-  |  file header  |
+  |  file header  |    20 bytes
   +---------------+
-  |    frame 1    |
+  |    frame 1    |    variable size
   +---------------+
-  |      ...      |
+  |      ...      |    variable size
   +---------------+
-  |    frame N    |
+  |    frame N    |    variable size
   +---------------+
-
-It begins with a 20-byte file header describing the size of each frame (which
-must be identical) and the number of frames (N). Then N blocks of data follow,
-each representing the bitmap of a frame. At least one frame must be present
-in a MIF file.
 
 
 File Header Format
 ------------------
 
-The file header is a 20-byte range at the beginning of the file. It contains
-five DWORD fields, all stored in little endian:
+The file header is a 20-byte structure at the beginning of the file. It 
+contains five DWORD fields, all stored in little endian:
 
-   0            4            8            12           16
-  +------------+------------+------------+------------+------------+
-  |   Version  |    Width   |   Height   |    Type    | FrameCount |
-  +------------+------------+------------+------------+------------+
+  +---------------+
+  |    Version    |    DWORD (4 bytes)
+  +---------------+
+  |     Width     |    DWORD (4 bytes)
+  +---------------+
+  |    Height     |    DWORD (4 bytes)
+  +---------------+
+  |     Flags     |    DWORD (4 bytes)
+  +---------------+
+  |  FrameCount   |    DWORD (4 bytes)
+  +---------------+
 
-  Version     4 bytes  DWORD  Version of the file. Must be 0 or 1.
-  Width       4 bytes  DWORD  Width of each frame, in pixels. 
-  Height      4 bytes  DWORD  Height of each frame, in pixels.
-  Type        4 bytes  DWORD  Type of the image. Must be one of the following:
-                              3 - the image contains only one frame
-                              7 - the image contains multiple frames
-  FrameCount  4 bytes  DWORD  Number of frames in the image.
+'Version' is reserved and should be zero. Its value is ignored when reading
+the file.
+
+'Width' and 'Height' together specify the size of the image in pixels. All
+frames in the image have the same size.
+
+'Flags' is a bit-field that specifies the storage format of the image. Its
+bits are defined as follows:
+
+  Bit 0     0x1  HAS_IMAGE   1 if the stream contains an image, 0 otherwise.
+                             If this bit is zero, the rest bits are ignored.
+  Bit 1     0x2  HAS_ALPHA   1 if each frame contains an alpha channel.
+  Bit 2     0x4  HAS_DELAY   1 if a delay field is associated with each frame.
+  Bit 3     0x8  COMPRESSED  1 if the RGB Section and Alpha Section of the
+                             frames are compressed.
+  Bits 4-31      Reserved    Must be zero.
+
+'FrameCount' specifies the number of frames in the image.
 
 
-Frame Data Format
------------------
+Frame Format
+------------
 
-Each frame describes an image. The frames are independent of one another 
-except in that they must be of the same size (width and height) and take
-the same amount of storage (see below). In addition, each frame may contain
+Each frame describes a bitmap to render. The width and height of each frame
+is specified in the file header. In addition, each frame may contain
 an optional field indicating its delay time when played in an animation.
 
-Let N = Width * Height be the number of pixels in a frame. The format of a
-frame is as follows: (all numeric fields are stored in little endian)
+The overall format is like below:
 
-   0            4               4+2N
-  +------------+---------------+---------------+
-  |    Delay   |  Color-Array  |  Alpha-Array  |
-  +------------+---------------+---------------+
+  +---------------+
+  |     Delay     |    [optional] DWORD, little endian (4 bytes)
+  +---------------+
+  |  RGB Section  |    variable size
+  +---------------+
+  | Alpha Section |    [optional] variable size
+  +---------------+
 
-  Delay        4 bytes   DWORD   (Optional) Number of milliseconds to delay 
-                                 before playing the next frame of an 
-                                 animation. This field is present if and only
-                                 if the Type field in the file header is 7.
-  Color-Array  2N bytes  WORD[]  Two bytes are used to encode the color of
-                                 each pixel. See details below.
-  Alpha-Array  N bytes   BYTE[]  One byte is used to encode the transparency
-                                 of each pixel. See details below.
+'Delay' specifies the number of milliseconds to delay before rendering the
+next frame during an animation. This field is present if and only if the
+HAS_DELAY bit is set in Header.Flags.
 
-For both Color-Array and Alpha-Array, the pixels are encoded row by row from
-top to bottom; in each row, the pixels are encoded from left to right.
+'RGB Section' contains the RGB channel data of each pixel in the frame, with
+two bytes per pixel. The entire section is compressed if the COMPRESSED bit
+in Header.Flags is set. See "RGB Encoding" below for details.
+
+'Alpha Section' contains the alpha channel data of each pixel in the frame,
+with one byte per pixel. This section is present if and only if the HAS_ALPHA
+bit is set in Header.Flags. The entire section is compressed if the COMPRESSED
+bit in Header.Flags is set. See "Alpha Encoding" below for details.
+
+For both 'RGB Section' and 'Alpha Section', the pixels are encoded scanline
+by scanline from top to bottom; in each scanline, the pixels are encoded from
+left to right. There is no padding within or between the scanlines.
 
 
-Color Encoding
---------------
+RGB Encoding
+------------
 
-Two bytes are used to encode the color of each pixel. Let c[15..0] be a 16-bit
-integer containing the encoded value. The actual RGB values are found as
-follows:
+Two bytes are used to encode the RGB components of each pixel. The R-G-B 
+components are encoded using 5-6-5 bits and stored in WORD in little endian
+order, with Red taking the most significant bits and Blue taking the least
+significant bits. That is,
 
-  RED   = c[15..11] 000
-  GREEN = c[10..5]   00
-  BLUE  = c[4..0]   000
+           1          0
+  +----------+----------+
+  | RRRRRGGG | GGGBBBBB |
+  +----------+----------+
 
-That is, the bits in c are divided into three groups of length 5, 6, and 5.
-The highest group represents RED; the middle group represents GREEN; the 
-lowest group represents BLUE. Since each group is short of the 8 bits required
-to represent a color component, the bits are left-aligned to make up the most
-significant part of each component. The remaining less significant bits of
-each color component are set to 0.
+Note that in such encoding, there is one extra bit in GREEN than in RED and 
+BLUE. This gives it the ability to represent "greenness" more precisely. The
+reason for such choice is that the human eye has its highest sensitivity for
+green shades. See http://en.wikipedia.org/wiki/High_color#16-bit_high_color.
 
-A particularity of such encoding is that there is one extra bit in GREEN than
-in RED and in BLUE. This gives it the ability to encode 1/64 more "greenness".
-By examining the actual UI of a QQ game, we conclude that this extra bit of
-GREEN is indeed in effect.
+To convert a 24-bit true color RGB pixel to the above 5-6-5 format, the
+algorithm used by QQ Games is to truncate the lowest 3 (or 2 for green) bits
+of each component are concatenate the remaining 5 (or 6 for green) highest
+bits of each component. This is illustrated below.
 
-Another consequence of such encoding is that it's not possible to encode
-WHITE (with R,G,B=255). The closest it can go is (248, 252, 248).
+           2          1          0                  1           0
+  +----------+----------+----------+      +-----------+-----------+
+  | RRRRRRRR | GGGGGGGG | BBBBBBBB |  ==> | RRRRR GGG | GGG BBBBB |
+  +----------+----------+----------+      +-----------+-----------+
+    76543210   76543210   76543210          76543 765   432 76543
+
+To convert a 5-6-5 encoded pixel back to 24 bpp true color, the algorithm used
+by QQ Games is to left-shift the bits of each component to align at the most
+significant bit, and zero-fill the low bits. That is,
+
+            2           1                   2           1           0
+  +-----------+-----------+       +-----------+-----------+-----------+
+  | RRRRR GGG | GGG BBBBB |  ==>  | RRRRR 000 | GGGGGG 00 | BBBBB 000 |
+  +-----------+-----------+       +-----------+-----------+-----------+
+    76543 765   432 76543           76543       765432      76543
+
+A consequence of the above encoding/decoding process is that the lowest 2 or 3
+bits in each component is lost (truncated). In particular, it is not possible
+to encode pure WHITE (R,G,B=255) -- the closest it can go to is (248,252,248).
 
 
 Alpha Encoding
 --------------
 
-One byte is used to encode the opacity of each pixel. Let a[7..0] be an
-8-bit integer containing the encoded value. The actual alpha value is found
-as follows:
- 
-        7   6   5   4   3   2   1   0
-      +---+---+---+---+---+---+---+---+
-  a = | 0 | 0 | F |       Value       |
-      +---+---+---+---+---+---+---+---+
+One byte is used to encode the opacity (alpha channel) of each pixel. The
+alpha value is stored in the lowest 6 bits, and the highest 2 bits are always
+zero. This appears to be a waste of bits.
 
-Bit 6 and bit 7 are always zero. Bit 5 is a flag (F): if it is set (F = 1),
-then alpha = 255 (i.e. completely opaque), and Value is ignored; if F is 
-not set (F = 0), then alpha = Value << 3, i.e. Value is left-aligned in the
-alpha component, and the lowest 3 bits of alpha is set to zero.
+To convert an 8-bit alpha value to a 6-bit alpha value, QQ Games uses the
+following formula:
 
-Such encoding allows complete opacity to be encoded, which is essential in
-practice. However, the alpha values between 249 and 254 (inclusive) are not
-encodable. While this is not much of a concern visually, it wastes three bits
-without any benefit.
+  Alpha' = ((Alpha << 7) + Alpha) >> 10.
+
+This formula can be written more explicitly as below:
+
+           /  0010 0000         if Alpha = 255;
+  Alpha' = |  (Alpha + 1) >> 3  if 128 <= Alpha < 255;
+           \  Alpha >> 3        if Alpha < 128.
+
+To convert a 6-bit encoded alpha back to an 8-bit alpha value, the following
+formula is used:
+
+  Alpha = (Alpha' << 3) - (Alpha' >> 6).
+
+The above encoding/decoding process effectively truncates an alpha value if
+it's not 255 (i.e. full opacity), but has the desirable property that full
+opacity can be encoded and decoded without change.
+
+
+Frame Compression
+-----------------
+
+Note: This is a relatively new feature of the MIF format and is not supported
+by older QQGame clients.
+
+If the COMPRESSION bit in Header.Flags is set, then the RGB Section and Alpha
+Section of each frame are stored in compressed format. The RGB sections and 
+Alpha sections are compressed separately.
+
+The overall format of a compressed section is as follows:
+
+  +---------------+
+  |     Mode      |    one byte (0=raw, 1=delta encoding)
+  +---------------+
+  |  Section Data |    variable
+  +---------------+
+
+'Mode' specifies the compression mode of the section. If Mode is 0, the 
+section is stored uncompressed. If Mode is 1, the section is stored using
+delta encoding (see description below). Other values of Mode are reserved
+for future use.
+
+Note: The first frame of an image MUST be stored in uncompressed format. If
+the Mode field of the first frame is 1, the parser must fail with an error.
+
+If Mode is 1, the following format applies:
+
+  +---------------+
+  |   InputSize   |    4 bytes, DWORD, little endian
+  +---------------+
+  |   Packet 1    |    variable size
+  +---------------+
+  |      ...      |    ...
+  +---------------+
+  |   Packet N    |    variable size
+  +---------------+
+
+'InputSize' specifies the total number of bytes in the following packets,
+not counting the InputSize field itself. (If InputSize < 4, the behavior is
+undefined: QQGame copies the entire previous frame, but this behavior maynot
+make sense.)
+
+Each packet that follows the InputSize field has the format below:
+
+  +---------------+
+  |    SkipLen    |    4 bytes, DWORD, little endian
+  +---------------+
+  |    CopyLen    |    (optional) 4 bytes, DWORD, little endian
+  +---------------+
+  |    NewData    |    (optional) CopyLen bytes
+  +---------------+
+
+'SkipLen' is the number of bytes to leave unchanged from the previous buffer.
+This is the key of the delta encoding algorithm: it saves space if many of 
+the pixels do not change from one frame to the next.
+
+'CopyLen' is the number of bytes to read from input and copy to the buffer.
+The data is stored in 'NewData'. 
+
+The packets are done if InputSize number of bytes are consumed.
 
 
 Animation Control
 -----------------
 
-If the image Type is 7, a Delay field must be present at the beginning of each
-frame block to indicate the number of milliseconds to wait before playing the
-next frame in an animation. Note, however, that even when the frames in a MIF
-image are not meant to be animated, the Delay field must still be present and
-may contain a legistimate value, though this value should be ignored.
+If the HAS_DELAY field in Header.Flags is set, a Delay field must preceed each
+frame to specify the number of milliseconds to wait before playing the next
+frame in an animation. Note, however, that even when the frames in a MIF image
+are not meant to be animated, the Delay field must still be present and may 
+contain a legistimate value, though this value should be ignored.
 
-In practice, the Delay value (when present) is typically 100, though we have
-observed values from 50 to 3200. The Delay values in a single MIF file may be
-different for each frame.
+In practice, the Delay value (when present) is typically 100 milliseconds, 
+though values ranging from 50 to 3200 are observed. The Delay values in a 
+single MIF file may be different for each frame.
