@@ -172,14 +172,14 @@ namespace QQGameRes
     {
         private DirectoryInfo thisDir;
         private DirectoryInfo rootDir;
-        private PhysicalFile[] files;
+        private ImageFile[] files;
 
         public ImageFolder(
             DirectoryInfo thisDir, DirectoryInfo rootDir, FileInfo[] imageFiles)
         {
             this.thisDir = thisDir;
             this.rootDir = rootDir;
-            this.files = imageFiles.Select(x => new PhysicalFile(x)).ToArray();
+            this.files = imageFiles.Select(x => new ImageFile(x)).ToArray();
         }
 
         public DirectoryInfo Directory { get { return thisDir; } }
@@ -227,4 +227,79 @@ namespace QQGameRes
         private static Image smallIcon = Properties.Resources.Images_Icon_16;
     }
 
+    class ImageFile : PhysicalFile, IExtractIcon
+    {
+        public ImageFile(FileInfo file) : base(file) { }
+
+        string IExtractIcon.GetIconKey(ExtractIconType type, Size desiredSize)
+        {
+            if (type == ExtractIconType.Thumbnail)
+            {
+                return base.File.FullName;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        Image IExtractIcon.ExtractIcon(ExtractIconType type, Size desiredSize)
+        {
+            if (type == ExtractIconType.Thumbnail)
+            {
+                // Do we support this extension?
+                string ext = base.File.Extension.ToLowerInvariant();
+                if (ext == ".mif")
+                {
+                    using (Stream stream = base.File.OpenRead())
+                    using (QQGame.MifImageDecoder mif = new QQGame.MifImageDecoder(stream))
+                    {
+                        // TODO: should we dispose the original image???
+                        return ResizeImage(mif.DecodeFrame().Image, desiredSize);
+                    }
+                }
+                else if (ext == ".bmp")
+                {
+                    using (Stream stream = base.File.OpenRead())
+                    using (Bitmap bmp = new Bitmap(stream))
+                    {
+                        // Make a copy of the bitmap, because MSDN says "You must
+                        // keep the stream open for the lifetime of the Bitmap."
+                        return (Image)bmp.Clone();
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static Bitmap ResizeImage(Image image, Size size)
+        {
+            // Fit the source image into the target image, keeping scale.
+            Rectangle bounds = new Rectangle(0, 0, size.Width, size.Height);
+            Size sz = image.Size;
+            if (sz.Width > bounds.Width)
+            {
+                sz.Height = sz.Height * bounds.Width / sz.Width;
+                sz.Width = bounds.Width;
+            }
+            if (sz.Height > bounds.Height)
+            {
+                sz.Width = sz.Width * bounds.Height / sz.Height;
+                sz.Height = bounds.Height;
+            }
+            bounds.X += (bounds.Width - sz.Width) / 2;
+            bounds.Y += (bounds.Height - sz.Height) / 2;
+            bounds.Width = sz.Width;
+            bounds.Height = sz.Height;
+
+            // Create a new bitmap of the desired size.
+            Bitmap newBitmap = new Bitmap(size.Width, size.Height, 
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(newBitmap))
+            {
+                g.DrawImage(image, bounds);
+            }
+            return newBitmap;
+        }
+    }
 }
