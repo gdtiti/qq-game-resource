@@ -255,7 +255,8 @@ namespace QQGameRes
                     using (QQGame.MifImageDecoder mif = new QQGame.MifImageDecoder(stream))
                     {
                         // TODO: should we dispose the original image???
-                        return ResizeImage(mif.DecodeFrame().Image, desiredSize);
+                        Image img = mif.DecodeFrame().Image;
+                        return ResizeImage(img, desiredSize);
                     }
                 }
                 else if (ext == ".bmp")
@@ -293,10 +294,11 @@ namespace QQGameRes
             bounds.Height = sz.Height;
 
             // Create a new bitmap of the desired size.
-            Bitmap newBitmap = new Bitmap(size.Width, size.Height, 
+            Bitmap newBitmap = new Bitmap(size.Width, size.Height,
                 System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             using (Graphics g = Graphics.FromImage(newBitmap))
             {
+                g.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
                 g.DrawImage(image, bounds);
             }
             return newBitmap;

@@ -28,10 +28,9 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.imageListPreview = new System.Windows.Forms.ImageList(this.components);
+            this.imageListPreview = new System.Windows.Forms.ImageList();
             this.lvEntries = new Util.Forms.DoubleBufferedListView();
-            this.animator = new QQGameRes.AnimationPlayer(this.components);
+            this.animator = new QQGameRes.AnimationPlayer();
             this.SuspendLayout();
             // 
             // imageListPreview
@@ -42,7 +41,7 @@
             // 
             // lvEntries
             // 
-            this.lvEntries.BackColor = System.Drawing.SystemColors.Control;
+            this.lvEntries.BackColor = System.Drawing.SystemColors.Window;
             this.lvEntries.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lvEntries.HideSelection = false;
             this.lvEntries.LargeImageList = this.imageListPreview;

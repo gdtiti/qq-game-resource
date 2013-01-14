@@ -36,7 +36,6 @@
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.vFolderTreeView = new Util.Forms.VirtualFolderTreeView();
             this.vFolderListView = new Util.Forms.VirtualFolderListView();
-            this.viewList = new QQGameRes.ResourceListView();
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
             this.btnOpenFolder = new System.Windows.Forms.ToolStripButton();
             this.btnOpenPackage = new System.Windows.Forms.ToolStripButton();
@@ -53,6 +52,7 @@
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.timerLoadProgress = new System.Windows.Forms.Timer(this.components);
+            this.viewList = new QQGameRes.ResourceListView();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -101,25 +101,14 @@
             // 
             // vFolderListView
             // 
-            this.vFolderListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.vFolderListView.Folder = null;
             this.vFolderListView.Location = new System.Drawing.Point(0, 208);
             this.vFolderListView.Margin = new System.Windows.Forms.Padding(4);
             this.vFolderListView.Name = "vFolderListView";
             this.vFolderListView.Size = new System.Drawing.Size(573, 195);
             this.vFolderListView.TabIndex = 1;
-            this.vFolderListView.ThumbnailSize = new System.Drawing.Size(130, 175);
-            // 
-            // viewList
-            // 
-            this.viewList.Dock = System.Windows.Forms.DockStyle.Top;
-            this.viewList.Location = new System.Drawing.Point(0, 0);
-            this.viewList.Margin = new System.Windows.Forms.Padding(4);
-            this.viewList.Name = "viewList";
-            this.viewList.ResourceFolder = null;
-            this.viewList.Size = new System.Drawing.Size(573, 208);
-            this.viewList.TabIndex = 0;
-            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
+            this.vFolderListView.ThumbnailSize = new System.Drawing.Size(120, 165);
+            this.vFolderListView.Visible = false;
             // 
             // toolStrip3
             // 
@@ -245,6 +234,17 @@
             // 
             this.timerLoadProgress.Tick += new System.EventHandler(this.timerLoadProgress_Tick);
             // 
+            // viewList
+            // 
+            this.viewList.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.viewList.Location = new System.Drawing.Point(0, 0);
+            this.viewList.Margin = new System.Windows.Forms.Padding(4);
+            this.viewList.Name = "viewList";
+            this.viewList.ResourceFolder = null;
+            this.viewList.Size = new System.Drawing.Size(573, 403);
+            this.viewList.TabIndex = 0;
+            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
@@ -258,6 +258,7 @@
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "MainForm";
             this.Text = "QQ游戏资源浏览器";
+            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragOver += new System.Windows.Forms.DragEventHandler(this.MainForm_DragOver);
