@@ -148,6 +148,8 @@ namespace QQGame
 
                 // Reads and validates the MIF file header.
                 this.header = reader.ReadHeader();
+                if ((header.Flags & MifFlags.HasImage) == 0)
+                    throw new InvalidDataException("The stream does not contain an image.");
                 if (header.ImageWidth <= 0)
                     throw new InvalidDataException("ImageWidth field must be positive.");
                 if (header.ImageHeight <= 0)
@@ -161,6 +163,9 @@ namespace QQGame
                 // frame depend on the previous frame.
                 rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
                 alphaData = new byte[header.ImageWidth * header.ImageHeight];
+
+                // TODO: avoid DoS attach if very large fields are specified
+                // in Width and Height.
 
                 // Decode the first frame.
                 //this.currentFrame = MifCodec.DecodeFrame(reader, header);
@@ -407,88 +412,16 @@ using System.Runtime.InteropServices;
 namespace QQGame
 {
     /// <summary>
-    /// Represents a frame in a MIF image.
-    /// </summary>
-    public class MifFrame
-    {
-        /// <summary>
-        /// Gets or sets the image to display for the frame.
-        /// </summary>
-        public System.Drawing.Image Image { get; set; }
-
-        /// <summary>
-        /// Gets or sets the delay, in milliseconds, before displaying the 
-        /// next frame.
-        /// </summary>
-        public int Delay { get; set; }
-    }
-
-    /// <summary>
     /// Defines a decoder for MIF images.
     /// </summary>
     public class MifDecoder : IDisposable
     {
-        private BinaryReader reader;
-        private MifHeader header;
-
-        /// <summary>
-        /// Creates a MIF image decoder from the specified data stream. 
-        /// </summary>
-        /// <param name="stream">A stream that contains the data for this
-        /// image.</param>
-        /// <exception cref="OutOfMemoryException">The stream does not 
-        /// contain a valid MIF image format.</exception>
-        /// <remarks>The stream must remain open throughout the lifetime of
-        /// this decoder, and will be automatically closed when the decoder
-        /// is disposed.</remarks>
-        public MifDecoder(Stream stream)
-        {
-            // Create a binary reader on the stream. The stream will be closed
-            // automatically when the reader is disposed.
-            reader = new BinaryReader(stream);
-
-            // Read MIF header.
-            header.Version = reader.ReadInt32();
-            header.ImageWidth = reader.ReadInt32();
-            header.ImageHeight = reader.ReadInt32();
-            header.Type = reader.ReadInt32();
-            header.FrameCount = reader.ReadInt32();
-
-            // Validate header fields.
-            if (header.Version != 0 && header.Version != 1)
-                throw new OutOfMemoryException("MIF version " + header.Version + " is not supported.");
-            if (header.ImageWidth <= 0)
-                throw new OutOfMemoryException("ImageWidth field must be positive.");
-            if (header.ImageHeight <= 0)
-                throw new OutOfMemoryException("ImageHeight field must be positive.");
-            if (header.Type != 3 && header.Type != 7)
-                throw new OutOfMemoryException("MIF type " + header.Type + " is not supported.");
-            if (header.FrameCount <= 0)
-                throw new OutOfMemoryException("FrameCount field must be positive.");
-        }
-
         /// <summary>
         /// Gets the number of frames in this image.
         /// </summary>
         public int FrameCount
         {
             get { return header.FrameCount; }
-        }
-
-        /// <summary>
-        /// Gets the width of the image in pixels.
-        /// </summary>
-        public int ImageWidth
-        {
-            get { return header.ImageWidth; }
-        }
-
-        /// <summary>
-        /// Gets the height of the image in pixels.
-        /// </summary>
-        public int ImageHeight
-        {
-            get { return header.ImageHeight; }
         }
 
         /// <summary>
@@ -588,64 +521,6 @@ namespace QQGame
                 reader.Close();
             reader = null;
         }
-
-#if false
-            // Count the number of colors and green bits in the bitmap.
-            bool[] colorPresent = new bool[65536];
-            int greenBit = 0;
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    byte b1 = buffer[2 * (y * width + x)];
-                    byte b2 = buffer[2 * (y * width + x) + 1];
-                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
-                    colorPresent[(b2 << 8) | b1] = true;
-                    if ((green & 4) != 0)
-                        greenBit++;
-                }
-            }
-
-            int colorCount = 0;
-            for (int i = 0; i < 65536; i++)
-            {
-                if (colorPresent[i])
-                    ++colorCount;
-            }
-            System.Diagnostics.Debug.WriteLine("Number of colors: " + colorCount);
-            System.Diagnostics.Debug.WriteLine("Green bit set in " + greenBit + " pixels.");
-#endif
-    }
-
-    /// <summary>
-    /// Represents the header of an MIF image.
-    /// </summary>
-    public struct MifHeader
-    {
-        /// <summary>
-        /// Version of this image; must be 0 or 1.
-        /// </summary>
-        public int Version;
-
-        /// <summary>
-        /// Width of an individual image, in pixels.
-        /// </summary>
-        public int ImageWidth;
-
-        /// <summary>
-        /// Height of an individual image, in pixels.
-        /// </summary>
-        public int ImageHeight;
-
-        /// <summary>
-        /// Type of the MIF image; 3 for single-frame, 7 for multi-frame.
-        /// </summary>
-        public int Type;
-
-        /// <summary>
-        /// Number of frames in this image.
-        /// </summary>
-        public int FrameCount;
     }
 }
 #endif
