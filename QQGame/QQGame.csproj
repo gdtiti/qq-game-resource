@@ -75,7 +75,7 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MifCodec.cs" />
+    <Compile Include="MifImage.cs" />
     <Compile Include="PkgArchive.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
