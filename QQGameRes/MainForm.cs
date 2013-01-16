@@ -188,18 +188,7 @@ namespace QQGameRes
                     System.Diagnostics.Debug.WriteLine(filename);
             }
         }
-
-        private void tvFolders_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-#if false
-            if (e.Node.Tag is ResourceFolder)
-            {
-                viewList.ResourceFolder = e.Node.Tag as ResourceFolder;
-                txtStatus.Text = viewList.ResourceFolder.Name;
-            }
-#endif
-        }
-
+        
         private void btnOpenPackage_Click(object sender, EventArgs e)
         {
             if (openFileDialog1.ShowDialog(this) == DialogResult.OK)
@@ -459,8 +448,8 @@ namespace QQGameRes
             {
                 txtStatus.Text = (vFolder as ImageFolder).Directory.FullName.TrimEnd('\\');
             }
-            viewList.ResourceFolder = vFolder;
             vFolderListView.Folder = vFolder;
+            viewList.ResourceFolder = vFolder;
         }
     }
 }

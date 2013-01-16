@@ -211,7 +211,16 @@ namespace QQGameRes
 
         IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
         {
+#if false
+            // The following code is to test the VirtualFolderListView.
+            foreach (var file in files)
+            {
+                yield return file;
+                System.Threading.Thread.Sleep(100);
+            }
+#else
             return files;
+#endif
         }
 
         string IExtractIcon.GetIconKey(ExtractIconType type, Size desiredSize)
