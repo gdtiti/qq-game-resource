@@ -20,6 +20,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -33,10 +34,38 @@ namespace QQGame
     /// </summary>
     public class MifImage : Util.Media.MultiFrameImage
     {
+        /// <summary>
+        /// The MIF header.
+        /// </summary>
         private MifHeader header;
-        private MifFrame[] frames;
-        private int currentIndex;
+
+        /// <summary>
+        /// The bitmap pixel buffer. If all frames in this image are
+        /// completely opaque (either the image contains no alpha channel
+        /// or all alpha values are 255), the pixel format is Format16bpp565.
+        /// Otherwise, the pixel format is Format32bppArgb.
+        /// </summary>
         private Bitmap currentFrame;
+
+        /// <summary>
+        /// Delay in milliseconds of the current frame. This member is useful
+        /// because we may get rid of frames[] array if there's only one
+        /// frame in the image, in which case we need to store its delay.
+        /// </summary>
+        private int currentDelay;
+
+        /// <summary>
+        /// Contains data of each frame in a multi-frame MIF image. If this
+        /// image contains only one frame, this member is set to null and
+        /// the pixel data is stored directly in the bitmap buffer.
+        /// </summary>
+        private MifFrame[] frames;
+
+        /// <summary>
+        /// Index of the active frame. This frame is stored in the bitmap
+        /// buffer.
+        /// </summary>
+        private int currentIndex;
 
         /// <summary>
         /// Creates a MIF image from the specified stream.
@@ -73,25 +102,33 @@ namespace QQGame
                 // and navigate through the frames easily later.
                 frames = new MifFrame[header.FrameCount];
                 frames[0] = reader.ReadFrame(header, null);
+                bool alphaPresent = (frames[0].alphaData != null);
                 for (int i = 1; i < header.FrameCount; i++)
                 {
                     frames[i] = reader.ReadFrame(header, frames[i - 1]);
+                    alphaPresent |= (frames[i].alphaData != null);
                 }
 
-                // TODO: avoid DoS attach if very large fields are specified
-                // in Width and Height.
-
                 // Create a bitmap to store the converted frames. This bitmap
-                // is not changed when we change frame to frame.
+                // is not changed when we change frame to frame. The pixel
+                // format of the bitmap is 16bpp if no alpha channel is
+                // present, or 32bpp otherwise.
                 currentFrame = new Bitmap(
                     header.ImageWidth,
                     header.ImageHeight,
-                    PixelFormat.Format32bppArgb);
+                    alphaPresent ? PixelFormat.Format32bppArgb : 
+                                   PixelFormat.Format16bppRgb565);
 
+                // Render the first frame in the bitmap buffer.
                 this.currentIndex = 0;
+                this.currentDelay = frames[0].delay;
                 ConvertPixelsToBitmap(
                     frames[this.currentIndex].rgbData,
                     frames[this.currentIndex].alphaData);
+
+                // If there's only one frame, we don't need frames[] array.
+                if (frames.Length == 1)
+                    frames = null;
             }
         }
 
@@ -141,6 +178,7 @@ namespace QQGame
 
                 // Convert the format of the requested frame.
                 this.currentIndex = value;
+                this.currentDelay = frames[this.currentIndex].delay;
                 ConvertPixelsToBitmap(
                     frames[this.currentIndex].rgbData,
                     frames[this.currentIndex].alphaData);
@@ -158,7 +196,7 @@ namespace QQGame
         /// </summary>
         public override TimeSpan FrameDelay
         {
-            get { return new TimeSpan(10000 * frames[currentIndex].delay); }
+            get { return new TimeSpan(10000 * currentDelay); }
         }
 
         /// <summary>
@@ -174,6 +212,24 @@ namespace QQGame
         {
             int width = header.ImageWidth;
             int height = header.ImageHeight;
+
+            // If our underlying bitmap is 16bpp, we can just copy the
+            // rgbData directly.
+            if (currentFrame.PixelFormat == PixelFormat.Format16bppRgb565)
+            {
+                BitmapData bmpData16 = currentFrame.LockBits(
+                    new Rectangle(0, 0, width, height),
+                    ImageLockMode.WriteOnly,
+                    PixelFormat.Format16bppRgb565);
+                IntPtr ptr = bmpData16.Scan0;
+                for (int y = 0; y < height; y++)
+                {
+                    Marshal.Copy(rgbData, y * width * 2, ptr, width * 2);
+                    ptr += bmpData16.Stride;
+                }
+                currentFrame.UnlockBits(bmpData16);
+                return;
+            }
 
             // Get a pointer to the underlying pixel data of the bitmap buffer.
             BitmapData bmpData = currentFrame.LockBits(
@@ -353,6 +409,12 @@ namespace QQGame
                 frame.alphaData = new byte[header.ImageWidth * header.ImageHeight];
                 ReadPixelData(header, frame.alphaData,
                     prevFrame == null ? null : prevFrame.alphaData);
+
+                // Check whether all pixels are fully opaque. This corresponds
+                // to an encoded alpha value of 0x20. If so, we don't need to
+                // store the alpha data at all.
+                if (frame.alphaData.All(a => (a == 0x20)))
+                    frame.alphaData = null;
             }
 
             return frame;
