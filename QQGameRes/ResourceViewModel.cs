@@ -265,7 +265,7 @@ namespace QQGameRes
                     {
                         // TODO: should we dispose the original image???
                         Image img = mif.DecodeFrame().Image;
-                        return ResizeImage(img, desiredSize);
+                        return (Image)img.Clone();
                     }
                 }
                 else if (ext == ".bmp")
@@ -280,37 +280,6 @@ namespace QQGameRes
                 }
             }
             return null;
-        }
-
-        private static Bitmap ResizeImage(Image image, Size size)
-        {
-            // Fit the source image into the target image, keeping scale.
-            Rectangle bounds = new Rectangle(0, 0, size.Width, size.Height);
-            Size sz = image.Size;
-            if (sz.Width > bounds.Width)
-            {
-                sz.Height = sz.Height * bounds.Width / sz.Width;
-                sz.Width = bounds.Width;
-            }
-            if (sz.Height > bounds.Height)
-            {
-                sz.Width = sz.Width * bounds.Height / sz.Height;
-                sz.Height = bounds.Height;
-            }
-            bounds.X += (bounds.Width - sz.Width) / 2;
-            bounds.Y += (bounds.Height - sz.Height) / 2;
-            bounds.Width = sz.Width;
-            bounds.Height = sz.Height;
-
-            // Create a new bitmap of the desired size.
-            Bitmap newBitmap = new Bitmap(size.Width, size.Height,
-                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-            using (Graphics g = Graphics.FromImage(newBitmap))
-            {
-                g.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-                g.DrawImage(image, bounds);
-            }
-            return newBitmap;
         }
     }
 }
