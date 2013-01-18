@@ -9,6 +9,222 @@ using Util.IO;
 namespace QQGame
 {
     /// <summary>
+    /// Provides methods to decode a multi-frame MIF image from a stream.
+    /// </summary>
+    public class MifImage : Util.Media.ImageEx
+    {
+        private MifReader reader;
+        private MifHeader header;
+
+        private int currentIndex;
+        private int currentDelay;
+        private Bitmap currentFrame;
+
+        private byte[] rgbData;   // 5-6-5 RGB data of current frame
+        private byte[] alphaData; // 6-bit alpha data of current frame
+
+        /// <summary>
+        /// Creates a MIF image from the specified data stream. 
+        /// </summary>
+        /// <param name="stream">A stream that contains the data for this
+        /// image.</param>
+        /// <exception cref="InvalidDataException">The stream does not 
+        /// contain a valid MIF image format.</exception>
+        /// <remarks>The stream must remain open throughout the lifetime of
+        /// this object, and will be automatically disposed when this object
+        /// is disposed. However, it will not be disposed if the underlying
+        /// reader cannot be created.</remarks>
+        /// TODO: we must always dispose the stream, so that the caller
+        /// don't have to worry about that and this can avoid resource leak.
+        public MifImage(Stream stream)
+        {
+            try
+            {
+                // Create a MIF reader on the stream. The stream will be
+                // automatically closed when the reader is disposed.
+                this.reader = new MifReader(stream);
+
+                // Reads and validates the MIF file header.
+                this.header = reader.ReadHeader();
+                if ((header.Flags & MifFlags.HasImage) == 0)
+                    throw new InvalidDataException("The stream does not contain an image.");
+                if (header.ImageWidth <= 0)
+                    throw new InvalidDataException("ImageWidth field must be positive.");
+                if (header.ImageHeight <= 0)
+                    throw new InvalidDataException("ImageHeight field must be positive.");
+                if (header.FrameCount <= 0)
+                    throw new InvalidDataException("FrameCount field must be positive.");
+
+                // Create the internal buffer for RGB data and Alpha data.
+                // We need to maintain this buffer across frames because
+                // the frames may be delta-encoded, in which case the next
+                // frame depend on the previous frame.
+                rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
+                alphaData = new byte[header.ImageWidth * header.ImageHeight];
+
+                // TODO: avoid DoS attach if very large fields are specified
+                // in Width and Height.
+
+                // Create a bitmap to store the converted frames. This bitmap
+                // is not changed when we change frame to frame.
+                currentFrame = new Bitmap(
+                    header.ImageWidth,
+                    header.ImageHeight,
+                    PixelFormat.Format32bppArgb);
+
+                // Decode the first frame.
+                this.currentIndex = 0;
+                DecodeFrame();
+            }
+            catch (Exception)
+            {
+                if (reader != null)
+                    reader.Dispose();
+                throw;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                currentFrame.Dispose();
+                reader.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Gets the width of the image in pixels.
+        /// </summary>
+        public override int Width { get { return header.ImageWidth; } }
+
+        /// <summary>
+        /// Gets the height of the image in pixels.
+        /// </summary>
+        public override int Height { get { return header.ImageHeight; } }
+
+        /// <summary>
+        /// Gets the number of frames in this image.
+        /// </summary>
+        public override int FrameCount { get { return header.FrameCount; } }
+
+        /// <summary>
+        /// Gets or sets the zero-based index of the active frame.
+        /// </summary>
+        public override int FrameIndex
+        {
+            get { return this.currentIndex; }
+            set
+            {
+                // Validate parameter.
+                if (value < 0 || value >= this.FrameCount)
+                    throw new IndexOutOfRangeException("FrameIndex out of range.");
+
+                // Do nothing if the frame index is not changed.
+                if (value == this.currentIndex)
+                    return;
+
+                // Seek the underlying stream if the frame index jumps.
+                if (value != this.currentIndex + 1)
+                {
+                    reader.BaseStream.Seek((value - (this.currentIndex + 1)) *
+                        header.BytesPerFrame, SeekOrigin.Current);
+                }
+
+                // Decode the requested frame.
+                DecodeFrame();
+                this.currentIndex = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the current frame of the image.
+        /// </summary>
+        public override Image Frame { get { return this.currentFrame; } }
+
+        /// <summary>
+        /// Gets the delay of the current frame in milliseconds, or zero if 
+        /// the underlying image doesn't support delay.
+        /// </summary>
+        public override int FrameDelay { get { return currentDelay; } }
+
+        /// <summary>
+        /// Decode a frame from the current stream position.
+        /// </summary>
+        public void DecodeFrame()
+        {
+            // Read Delay field if present.
+            int delay;
+            if (header.Flags.HasFlag(MifFlags.HasDelay))
+                delay = reader.ReadInt32();
+            else
+                delay = 0;
+
+            // Read primary channels.
+            reader.ReadPixelData(header, rgbData);
+
+            // Read alpha channel if present.
+            if (header.Flags.HasFlag(MifFlags.HasAlpha))
+                reader.ReadPixelData(header, alphaData);
+
+            // TODO: we need to initialize Alpha if the image doesn't contain it.
+
+            // Convert RGB and Alpha data to an image.
+            ConvertPixelsToBitmap();
+        }
+
+        /// <summary>
+        /// Decodes a frame from the given stream.
+        /// </summary>
+        /// <param name="reader">The underlying stream.</param>
+        /// <param name="header">The MifHeader.</param>
+        /// <exception cref="InvalidDataException">The stream does not 
+        /// contain a valid MIF image format.</exception>
+        /// <remarks>The caller is responsible for disposing the returned
+        /// <code>MifFrame.Image</code>.</remarks>
+        private void ConvertPixelsToBitmap()
+        {
+            int width = header.ImageWidth;
+            int height = header.ImageHeight;
+
+            // Create a bitmap and get a pointer to its pixel data.
+            BitmapData bmpData = currentFrame.LockBits(
+                new Rectangle(0, 0, width, height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
+            IntPtr bmpPtr = bmpData.Scan0;
+
+            // Convert the pixels scanline by scanline.
+            int[] scanline = new int[width];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    byte a = alphaData[y * width + x];
+                    byte b1 = rgbData[2 * (y * width + x)];
+                    byte b2 = rgbData[2 * (y * width + x) + 1];
+
+                    byte alpha = (byte)((a << 3) - (a >> 5));
+                    byte red = (byte)(b2 & 0xF8);
+                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
+                    byte blue = (byte)((b1 & 0x1F) << 3);
+
+                    scanline[x] = (alpha << 24)
+                                | (red << 16)
+                                | (green << 8)
+                                | (blue << 0);
+                }
+                Marshal.Copy(scanline, 0, bmpPtr, width);
+                bmpPtr += bmpData.Stride;
+            }
+
+            // Return the bitmap.
+            currentFrame.UnlockBits(bmpData);
+        }
+    }
+
+    /// <summary>
     /// Provides methods to read a MIF image file.
     /// </summary>
     public class MifReader : BinaryReader
@@ -389,6 +605,27 @@ namespace QQGame
         /// Number of frames in this image.
         /// </summary>
         public int FrameCount;
+
+        /// <summary>
+        /// Gets the number of bytes per frame.
+        /// </summary>
+        /// <exception cref="NotSupportedException">The image frames are 
+        /// compressed.</exception>
+        public int BytesPerFrame
+        {
+            get
+            {
+                if (Flags.HasFlag(MifFlags.Compressed))
+                    throw new NotSupportedException();
+
+                int n = 2 * ImageWidth * ImageHeight;
+                if (Flags.HasFlag(MifFlags.HasAlpha))
+                    n += ImageWidth * ImageHeight;
+                if (Flags.HasFlag(MifFlags.HasDelay))
+                    n += 4;
+                return n;
+            }
+        }
     }
 
     [Flags]
