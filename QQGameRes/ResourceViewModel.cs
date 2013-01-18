@@ -260,7 +260,7 @@ namespace QQGameRes
                 string ext = base.File.Extension.ToLowerInvariant();
                 if (ext == ".mif")
                 {
-#if true
+#if false
                     using (Stream stream = base.File.OpenRead())
                     using (QQGame.MifImageDecoder mif = new QQGame.MifImageDecoder(stream))
                     {
@@ -269,8 +269,8 @@ namespace QQGameRes
                         return (Image)img.Clone();
                     }
 #else
-                    return new MifFrameExtractor(base.File.OpenRead()).ExtractIcon(
-                        type, desiredSize);
+                    Stream stream = base.File.OpenRead();
+                    return new QQGame.MifImage(stream);
 #endif
                 }
                 else if (ext == ".bmp")
@@ -287,45 +287,4 @@ namespace QQGameRes
             return null;
         }
     }
-
-#if false
-    class MifFrameExtractor : IExtractIcon, IResourceExpiry
-    {
-        // TODO: dispose stream and mif...
-        Stream stream;
-        QQGame.MifImageDecoder mif;
-        int frameIndex;
-        int delay;
-
-        public MifFrameExtractor(Stream stream)
-        {
-            this.stream = stream;
-            this.mif = new QQGame.MifImageDecoder(stream);
-            this.frameIndex = -1;
-        }
-
-        string IExtractIcon.GetIconKey(ExtractIconType type, Size desiredSize)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Image ExtractIcon(ExtractIconType type, Size desiredSize)
-        {
-            if (++frameIndex >= mif.FrameCount)
-                return null;
-
-            // TODO: should we dispose the original image???
-            var frame = mif.DecodeFrame();
-            delay = frame.Delay;
-            Image img = (Image)frame.Image.Clone();
-            img.Tag = this;
-            return img;
-        }
-
-        public TimeSpan GetExpiry()
-        {
-            return TimeSpan.FromMilliseconds(this.delay);
-        }
-    }
-#endif
 }

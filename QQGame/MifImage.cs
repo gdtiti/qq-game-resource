@@ -11,7 +11,7 @@ namespace QQGame
     /// <summary>
     /// Provides methods to decode a multi-frame MIF image from a stream.
     /// </summary>
-    public class MifImage : Util.Media.ImageEx
+    public class MifImage : Util.Media.MultiFrameImage
     {
         private MifReader reader;
         private MifHeader header;
@@ -155,11 +155,10 @@ namespace QQGame
         public void DecodeFrame()
         {
             // Read Delay field if present.
-            int delay;
             if (header.Flags.HasFlag(MifFlags.HasDelay))
-                delay = reader.ReadInt32();
+                currentDelay = reader.ReadInt32();
             else
-                delay = 0;
+                currentDelay = 0;
 
             // Read primary channels.
             reader.ReadPixelData(header, rgbData);
@@ -224,10 +223,16 @@ namespace QQGame
         }
     }
 
+    internal class MifFrame
+    {
+        public byte[] rgbData;   // 5-6-5 RGB data of the frame, uncompressed
+        public byte[] alphaData; // 6-bit alpha data of the frame, uncompressed
+    }
+
     /// <summary>
     /// Provides methods to read a MIF image file.
     /// </summary>
-    public class MifReader : BinaryReader
+    internal class MifReader : BinaryReader
     {
         /// <summary>
         /// Creates a MIF reader from an underlying stream.
