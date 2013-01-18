@@ -456,7 +456,14 @@ namespace QQGameRes
         {
             IVirtualItem vItem = vFolderListView.ActiveItem;
             if (vItem == null)
+            {
+                ImageFolder f = vFolderListView.Folder as ImageFolder;
+                if (f != null)
+                {
+                    txtStatus.Text = "共 " + f.Files.Length + " 个文件";
+                }
                 return;
+            }
 
             if (vItem is ImageFile)
             {

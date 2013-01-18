@@ -203,6 +203,8 @@ namespace QQGameRes
             this.files = imageFiles.Select(x => new ImageFile(x)).ToArray();
         }
 
+        public ImageFile[] Files { get { return files; } }
+
         public DirectoryInfo Directory { get { return thisDir; } }
 
         string IVirtualItem.Name
