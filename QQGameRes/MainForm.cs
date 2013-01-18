@@ -472,7 +472,8 @@ namespace QQGameRes
                 if (image is MultiFrameImage)
                 {
                     MultiFrameImage mf = image as MultiFrameImage;
-                    txtImageSize.Text = mf.Width + " x " + mf.Height;
+                    txtImageSize.Text = mf.Width + " x " + mf.Height +
+                        " (" + (vItem as ImageFile).File.Length.ToString("0,0") + " bytes)";
                     txtFrames.Text = mf.FrameCount + " Frames";
                 }
                 using (image as IDisposable) { }

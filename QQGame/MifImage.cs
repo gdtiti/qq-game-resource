@@ -107,6 +107,11 @@ namespace QQGame
                 {
                     frames[i] = reader.ReadFrame(header, frames[i - 1]);
                     alphaPresent |= (frames[i].alphaData != null);
+
+                    // Test delta encoding.
+                    byte[] deltaEncoded = MifWriter.DeltaEncode(
+                        frames[i - 1].rgbData, 
+                        frames[i].rgbData);
                 }
 
                 // Create a bitmap to store the converted frames. This bitmap
@@ -312,6 +317,19 @@ namespace QQGame
         }
 
         /// <summary>
+        /// Decodes a buffer that is delta encoded.
+        /// </summary>
+        /// <param name="buffer">On input, this contains the uncompressed 
+        /// data of the previous frame. On output, this buffer is filled
+        /// with the new data decoded.</param>
+        /// <param name="diff">The encoded difference between the previous
+        /// buffer to the new buffer.</param>
+        public static void DeltaDecode(byte[] buffer, byte[] diff)
+        {
+            throw new NotSupportedException();
+        }
+
+        /// <summary>
         /// Reads delta-encoded data from the underlying stream into the 
         /// specified buffer.
         /// </summary>
@@ -362,13 +380,13 @@ namespace QQGame
             if (header.Flags.HasFlag(MifFlags.Compressed))
             {
                 // Read mode.
-                byte mode = ReadByte();
+                MifCompressionMode mode =(MifCompressionMode) ReadByte();
                 switch (mode)
                 {
-                    case 0: // not compressed
+                    case MifCompressionMode.None: // 0: not compressed
                         ReadRawPixelData(buffer);
                         break;
-                    case 1: // delta encoded
+                    case MifCompressionMode.Delta: // 1: delta encoded
                         if (prevBuffer == null)
                             throw new InvalidDataException("The first frame must not be delta encoded.");
                         prevBuffer.CopyTo(buffer, 0);
@@ -415,10 +433,183 @@ namespace QQGame
                 // store the alpha data at all.
                 if (frame.alphaData.All(a => (a == 0x20)))
                     frame.alphaData = null;
+
+#if false
+                // Disable the following for the moment because there are not
+                // so many images that are completely opaque or transparent.
+                // ----------------------------------------------------------
+                // Check whether all pixels are either fully opaque or fully
+                // transparent. If so, we only need 1 bpp for alpha channel.
+                if (frame.alphaData != null)
+                // && !frame.alphaData.All(a => (a & ~0x20) == 0))
+                {
+                    for (int k = 0; k < frame.alphaData.Length; k++)
+                    {
+                        if (frame.alphaData[k] != 0 && frame.alphaData[k] != 0x20)
+                        {
+                            int kk = 1;
+                            System.Diagnostics.Debug.WriteLine("Image is semi-transparent.");
+                        }
+                    }
+                }
+#endif
             }
 
             return frame;
         }
+    }
+
+    internal class MifWriter
+    {
+        private struct CommonSegment
+        {
+            public int StartIndex;
+            public int Length;
+        }
+
+        /// <summary>
+        /// Encodes a buffer using delta encoding.
+        /// </summary>
+        /// <param name="previous">On input, contains the uncompressed data
+        /// of the previous buffer. On output, this buffer is filled with
+        /// the encoded difference (including the leading 4-byte length
+        /// indicator). The total number of bytes stored is in the return
+        /// value.</param>
+        /// <param name="current">Contains uncompressed data of the current
+        /// buffer. This function does not alter this buffer.</param>
+        /// <returns>The number of bytes stored in 'previous' after encoding,
+        /// or zero if the new buffer cannot be encoded using delta encoding.
+        /// This can happen if the encoding will produce a larger buffer than
+        /// the uncompressed format, for example say when the buffer only 
+        /// contains bytes. If the return value is zero, the new frame should
+        /// be written to the file in uncompressed format.
+        /// </returns>
+        public static byte[] DeltaEncode(byte[] previous, byte[] current)
+        {
+            if (previous == null)
+                throw new ArgumentNullException("previous");
+            if (current == null)
+                throw new ArgumentNullException("previous");
+            if (previous.Length != current.Length)
+                throw new ArgumentException("The buffers must have the same size.");
+            if (previous.Length == 0)
+                return null;
+
+            // Let (i,j) be a locally maximal range of bytes such that 
+            // previou[i..j] and current[i..j] are equal but extending i or j
+            // by one will cause them to be unequal. It takes 8 bytes to
+            // encode such a segment, so it makes sense if and only if
+            // the common length (j - i + 1) >= 8. The number of bytes saved
+            // is (j - i - 7).
+            //
+            // There are three special points to note (in that order):
+            // 1. Since the encoded format always starts with a 4-byte length
+            //    indicator, this causes a 4-byte overhead to start.
+            // 2. If the last byte is part of a common segment, we only need
+            //    4 bytes of overhead for that. So it makes sense if the 
+            //    length of the common segment is > 4.
+            // 3. Since the format spec requires that we start by encoding the
+            //    length of a common segment (even if this length is zero), we
+            //    should encode the first common segment whatsoever. If the
+            //    length of this segment is L < 8, then there's an overhead of
+            //    (8 - L) bytes.
+            //
+            // We proceed as follows. First, we find all the common segments
+            // that have
+            //   o  L >= 0 if in the beginning
+            //   o  L > 8 if in the middle
+            //   o  L > 4 if in the end
+            // Then we compute the total savings by using delta encoding, 
+            // taking into account the 4-byte overhead of the length field.
+            // If the savings is positive, we encoded; if breakeven or
+            // negative, we don't encode it and use uncompressed format.
+
+            List<CommonSegment> common = new List<CommonSegment>();
+            int savings = -4; // length field
+            for (int index = 0; index < previous.Length; )
+            {
+                int L = GetCommonLength(previous, current, index);
+                int threshold = (index + L == previous.Length) ? 4 : 8;
+                bool include = false;
+                if (index == 0) // beginning of buffer
+                {
+                    savings += (L - threshold);
+                    include = true;
+                }
+                else
+                {
+                    if (L > threshold)
+                    {
+                        savings += (L - threshold);
+                        include = true;
+                    }
+                }
+
+                if (include)
+                {
+                    common.Add(new CommonSegment { StartIndex = index, Length = L });
+                }
+                index += L;
+                index += GetDistinctLength(previous, current, index);
+            }
+
+            // Don't bother if we're only saving a few bytes.
+            if (savings <= 16) // 16 is arbitrary
+                return null;
+
+            // Now write the actual encoded array.
+            int totalLen = previous.Length - savings;
+            byte[] result = new byte[totalLen];
+            using (MemoryStream output = new MemoryStream(result))
+            using (BinaryWriter writer = new BinaryWriter(output))
+            {
+                writer.Write(totalLen - 4);
+                int index = 0;
+                foreach (CommonSegment segment in common)
+                {
+                    if (segment.StartIndex > 0)
+                    {
+                        int n = segment.StartIndex - index;
+                        writer.Write(n);
+                        writer.Write(current, index, n);
+                    }
+                    writer.Write(segment.Length);
+                    index = segment.StartIndex + segment.Length;
+                }
+                if (index < current.Length)
+                {
+                    int n = current.Length - index;
+                    writer.Write(n);
+                    writer.Write(current, index, n);
+                }
+                if (output.Position != totalLen)
+                    throw new Exception("Internal exception");
+            }
+
+            return result;
+        }
+
+        private static int GetCommonLength(byte[] x, byte[] y, int startIndex)
+        {
+            int i = startIndex;
+            while (i < x.Length && x[i] == y[i])
+                i++;
+            return (i - startIndex);
+        }
+
+        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex)
+        {
+            int i = startIndex;
+            while (i < x.Length && x[i] != y[i])
+                i++;
+            return (i - startIndex);
+        }
+    }
+
+    public enum MifCompressionMode
+    {
+        None = 0,
+        Delta = 1,
     }
 
 #if true
