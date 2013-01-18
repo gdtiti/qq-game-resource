@@ -33,40 +33,31 @@ namespace QQGame
     /// </summary>
     public class MifImage : Util.Media.MultiFrameImage
     {
-        private MifReader reader;
         private MifHeader header;
-
+        private MifFrame[] frames;
         private int currentIndex;
-        private int currentDelay;
         private Bitmap currentFrame;
 
-        private byte[] rgbData;   // 5-6-5 RGB data of current frame
-        private byte[] alphaData; // 6-bit alpha data of current frame
-
         /// <summary>
-        /// Creates a MIF image from the specified data stream. 
+        /// Creates a MIF image from the specified stream.
         /// </summary>
-        /// <param name="stream">A stream that contains the data for this
-        /// image.</param>
-        /// <exception cref="InvalidDataException">The stream does not 
+        /// <param name="stream">The stream to read the image from. This 
+        /// stream is automatically disposed by the constructor, whether the
+        /// constructor succeeds or throws an exception. If this is not what
+        /// you want, create an extra layer on top of the stream to ignore
+        /// Dispose().
+        /// </param>
+        /// <exception cref="InvalidDataException">The stream does not
         /// contain a valid MIF image format.</exception>
-        /// <remarks>The stream must remain open throughout the lifetime of
-        /// this object, and will be automatically disposed when this object
-        /// is disposed. However, it will not be disposed if the underlying
-        /// reader cannot be created.</remarks>
-        /// TODO: we must always dispose the stream, so that the caller
-        /// don't have to worry about that and this can avoid resource leak.
         public MifImage(Stream stream)
         {
-            try
+            // Create a MIF reader on the stream.
+            using (stream)
+            using (MifReader reader = new MifReader(stream))
             {
-                // Create a MIF reader on the stream. The stream will be
-                // automatically closed when the reader is disposed.
-                this.reader = new MifReader(stream);
-
                 // Reads and validates the MIF file header.
                 this.header = reader.ReadHeader();
-                if ((header.Flags & MifFlags.HasImage) == 0)
+                if (!header.Flags.HasFlag(MifFlags.HasImage))
                     throw new InvalidDataException("The stream does not contain an image.");
                 if (header.ImageWidth <= 0)
                     throw new InvalidDataException("ImageWidth field must be positive.");
@@ -75,12 +66,17 @@ namespace QQGame
                 if (header.FrameCount <= 0)
                     throw new InvalidDataException("FrameCount field must be positive.");
 
-                // Create the internal buffer for RGB data and Alpha data.
-                // We need to maintain this buffer across frames because
-                // the frames may be delta-encoded, in which case the next
-                // frame depend on the previous frame.
-                rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
-                alphaData = new byte[header.ImageWidth * header.ImageHeight];
+                // TODO: avoid DoS attach if FrameCount, Width, or Height
+                // are very large.
+
+                // Read all frames at once so that we can close the stream
+                // and navigate through the frames easily later.
+                frames = new MifFrame[header.FrameCount];
+                frames[0] = reader.ReadFrame(header, null);
+                for (int i = 1; i < header.FrameCount; i++)
+                {
+                    frames[i] = reader.ReadFrame(header, frames[i - 1]);
+                }
 
                 // TODO: avoid DoS attach if very large fields are specified
                 // in Width and Height.
@@ -92,15 +88,10 @@ namespace QQGame
                     header.ImageHeight,
                     PixelFormat.Format32bppArgb);
 
-                // Decode the first frame.
                 this.currentIndex = 0;
-                DecodeFrame();
-            }
-            catch (Exception)
-            {
-                if (reader != null)
-                    reader.Dispose();
-                throw;
+                ConvertPixelsToBitmap(
+                    frames[this.currentIndex].rgbData,
+                    frames[this.currentIndex].alphaData);
             }
         }
 
@@ -108,8 +99,11 @@ namespace QQGame
         {
             if (disposing)
             {
-                currentFrame.Dispose();
-                reader.Dispose();
+                if (currentFrame != null)
+                {
+                    currentFrame.Dispose();
+                    currentFrame = null;
+                }
             }
             base.Dispose(disposing);
         }
@@ -145,16 +139,11 @@ namespace QQGame
                 if (value == this.currentIndex)
                     return;
 
-                // Seek the underlying stream if the frame index jumps.
-                if (value != this.currentIndex + 1)
-                {
-                    reader.BaseStream.Seek((value - (this.currentIndex + 1)) *
-                        header.BytesPerFrame, SeekOrigin.Current);
-                }
-
-                // Decode the requested frame.
-                DecodeFrame();
+                // Convert the format of the requested frame.
                 this.currentIndex = value;
+                ConvertPixelsToBitmap(
+                    frames[this.currentIndex].rgbData,
+                    frames[this.currentIndex].alphaData);
             }
         }
 
@@ -169,31 +158,7 @@ namespace QQGame
         /// </summary>
         public override TimeSpan FrameDelay
         {
-            get { return new TimeSpan(10000 * currentDelay); }
-        }
-
-        /// <summary>
-        /// Decode a frame from the current stream position.
-        /// </summary>
-        public void DecodeFrame()
-        {
-            // Read Delay field if present.
-            if (header.Flags.HasFlag(MifFlags.HasDelay))
-                currentDelay = reader.ReadInt32();
-            else
-                currentDelay = 0;
-
-            // Read primary channels.
-            reader.ReadPixelData(header, rgbData);
-
-            // Read alpha channel if present.
-            if (header.Flags.HasFlag(MifFlags.HasAlpha))
-                reader.ReadPixelData(header, alphaData);
-
-            // TODO: we need to initialize Alpha if the image doesn't contain it.
-
-            // Convert RGB and Alpha data to an image.
-            ConvertPixelsToBitmap();
+            get { return new TimeSpan(10000 * frames[currentIndex].delay); }
         }
 
         /// <summary>
@@ -205,12 +170,12 @@ namespace QQGame
         /// contain a valid MIF image format.</exception>
         /// <remarks>The caller is responsible for disposing the returned
         /// <code>MifFrame.Image</code>.</remarks>
-        private void ConvertPixelsToBitmap()
+        private void ConvertPixelsToBitmap(byte[] rgbData, byte[] alphaData)
         {
             int width = header.ImageWidth;
             int height = header.ImageHeight;
 
-            // Create a bitmap and get a pointer to its pixel data.
+            // Get a pointer to the underlying pixel data of the bitmap buffer.
             BitmapData bmpData = currentFrame.LockBits(
                 new Rectangle(0, 0, width, height),
                 ImageLockMode.WriteOnly,
@@ -223,7 +188,7 @@ namespace QQGame
             {
                 for (int x = 0; x < width; x++)
                 {
-                    byte a = alphaData[y * width + x];
+                    byte a = (alphaData == null) ? (byte)0x20 : alphaData[y * width + x];
                     byte b1 = rgbData[2 * (y * width + x)];
                     byte b2 = rgbData[2 * (y * width + x) + 1];
 
@@ -246,10 +211,14 @@ namespace QQGame
         }
     }
 
+    /// <summary>
+    /// Contains data about a frame in a MIF image.
+    /// </summary>
     internal class MifFrame
     {
-        public byte[] rgbData;   // 5-6-5 RGB data of the frame, uncompressed
-        public byte[] alphaData; // 6-bit alpha data of the frame, uncompressed
+        public int delay = 0; // delay in milliseconds
+        public byte[] rgbData = null;   // 5-6-5 RGB data of the frame, uncompressed
+        public byte[] alphaData = null; // 6-bit alpha data of the frame, uncompressed
     }
 
     /// <summary>
@@ -332,9 +301,9 @@ namespace QQGame
             }
         }
 
-        public void ReadPixelData(MifHeader header, byte[] buffer)
+        public void ReadPixelData(MifHeader header, byte[] buffer, byte[] prevBuffer)
         {
-            if ((header.Flags & MifFlags.Compressed) != 0)
+            if (header.Flags.HasFlag(MifFlags.Compressed))
             {
                 // Read mode.
                 byte mode = ReadByte();
@@ -344,6 +313,9 @@ namespace QQGame
                         ReadRawPixelData(buffer);
                         break;
                     case 1: // delta encoded
+                        if (prevBuffer == null)
+                            throw new InvalidDataException("The first frame must not be delta encoded.");
+                        prevBuffer.CopyTo(buffer, 0);
                         ReadDeltaEncodedPixelData(buffer);
                         break;
                     default:
@@ -355,6 +327,35 @@ namespace QQGame
             {
                 ReadRawPixelData(buffer);
             }
+        }
+
+        /// <summary>
+        /// Read a frame.
+        /// </summary>
+        public MifFrame ReadFrame(MifHeader header, MifFrame prevFrame)
+        {
+            MifFrame frame = new MifFrame();
+
+            // Read Delay field if present.
+            if (header.Flags.HasFlag(MifFlags.HasDelay))
+            {
+                frame.delay = ReadInt32();
+            }
+
+            // Read primary channels.
+            frame.rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
+            ReadPixelData(header, frame.rgbData,
+                prevFrame == null ? null : prevFrame.rgbData);
+
+            // Read alpha channel if present.
+            if (header.Flags.HasFlag(MifFlags.HasAlpha))
+            {
+                frame.alphaData = new byte[header.ImageWidth * header.ImageHeight];
+                ReadPixelData(header, frame.alphaData,
+                    prevFrame == null ? null : prevFrame.alphaData);
+            }
+
+            return frame;
         }
     }
 
@@ -540,11 +541,11 @@ namespace QQGame
                 delay = 0;
 
             // Read primary channels.
-            reader.ReadPixelData(header, rgbData);
+            reader.ReadPixelData(header, rgbData, rgbData);
 
             // Read alpha channel if present.
             if ((header.Flags & MifFlags.HasAlpha) != 0)
-                reader.ReadPixelData(header, alphaData);
+                reader.ReadPixelData(header, alphaData, alphaData);
 
             // Convert RGB and Alpha data to an image.
             return new Util.Media.ImageFrame(ConvertPixelsToBitmap(), delay);
