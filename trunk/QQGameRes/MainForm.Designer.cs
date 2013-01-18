@@ -34,9 +34,6 @@
             this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.vFolderTreeView = new Util.Forms.VirtualFolderTreeView();
-            this.vFolderListView = new Util.Forms.VirtualFolderListView();
-            this.viewList = new QQGameRes.ResourceListView();
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
             this.btnOpenFolder = new System.Windows.Forms.ToolStripButton();
             this.btnOpenPackage = new System.Windows.Forms.ToolStripButton();
@@ -53,6 +50,9 @@
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.timerLoadProgress = new System.Windows.Forms.Timer(this.components);
+            this.vFolderTreeView = new Util.Forms.VirtualFolderTreeView();
+            this.vFolderListView = new Util.Forms.VirtualFolderListView();
+            this.viewList = new QQGameRes.ResourceListView();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -88,39 +88,6 @@
             this.splitContainer1.Size = new System.Drawing.Size(788, 403);
             this.splitContainer1.SplitterDistance = 211;
             this.splitContainer1.TabIndex = 8;
-            // 
-            // vFolderTreeView
-            // 
-            this.vFolderTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.vFolderTreeView.Location = new System.Drawing.Point(0, 0);
-            this.vFolderTreeView.Margin = new System.Windows.Forms.Padding(4);
-            this.vFolderTreeView.Name = "vFolderTreeView";
-            this.vFolderTreeView.Size = new System.Drawing.Size(211, 403);
-            this.vFolderTreeView.TabIndex = 11;
-            this.vFolderTreeView.ActiveFolderChanged += new System.EventHandler(this.vFolderTreeView_ActiveFolderChanged);
-            // 
-            // vFolderListView
-            // 
-            this.vFolderListView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.vFolderListView.Folder = null;
-            this.vFolderListView.Location = new System.Drawing.Point(0, 200);
-            this.vFolderListView.Margin = new System.Windows.Forms.Padding(4);
-            this.vFolderListView.Name = "vFolderListView";
-            this.vFolderListView.Size = new System.Drawing.Size(573, 203);
-            this.vFolderListView.TabIndex = 1;
-            this.vFolderListView.ThumbnailFrameColor = System.Drawing.Color.DarkGray;
-            this.vFolderListView.ThumbnailSize = new System.Drawing.Size(120, 165);
-            // 
-            // viewList
-            // 
-            this.viewList.Dock = System.Windows.Forms.DockStyle.Top;
-            this.viewList.Location = new System.Drawing.Point(0, 0);
-            this.viewList.Margin = new System.Windows.Forms.Padding(4);
-            this.viewList.Name = "viewList";
-            this.viewList.ResourceFolder = null;
-            this.viewList.Size = new System.Drawing.Size(573, 200);
-            this.viewList.TabIndex = 0;
-            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
             // toolStrip3
             // 
@@ -245,6 +212,40 @@
             // timerLoadProgress
             // 
             this.timerLoadProgress.Tick += new System.EventHandler(this.timerLoadProgress_Tick);
+            // 
+            // vFolderTreeView
+            // 
+            this.vFolderTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.vFolderTreeView.Location = new System.Drawing.Point(0, 0);
+            this.vFolderTreeView.Margin = new System.Windows.Forms.Padding(4);
+            this.vFolderTreeView.Name = "vFolderTreeView";
+            this.vFolderTreeView.Size = new System.Drawing.Size(211, 403);
+            this.vFolderTreeView.TabIndex = 11;
+            this.vFolderTreeView.ActiveFolderChanged += new System.EventHandler(this.vFolderTreeView_ActiveFolderChanged);
+            // 
+            // vFolderListView
+            // 
+            this.vFolderListView.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.vFolderListView.Folder = null;
+            this.vFolderListView.Location = new System.Drawing.Point(0, 200);
+            this.vFolderListView.Margin = new System.Windows.Forms.Padding(4);
+            this.vFolderListView.Name = "vFolderListView";
+            this.vFolderListView.Size = new System.Drawing.Size(573, 203);
+            this.vFolderListView.TabIndex = 1;
+            this.vFolderListView.ThumbnailFrameColor = System.Drawing.Color.DarkGray;
+            this.vFolderListView.ThumbnailSize = new System.Drawing.Size(120, 165);
+            this.vFolderListView.ActiveItemChanged += new System.EventHandler(this.vFolderListView_ActiveItemChanged);
+            // 
+            // viewList
+            // 
+            this.viewList.Dock = System.Windows.Forms.DockStyle.Top;
+            this.viewList.Location = new System.Drawing.Point(0, 0);
+            this.viewList.Margin = new System.Windows.Forms.Padding(4);
+            this.viewList.Name = "viewList";
+            this.viewList.ResourceFolder = null;
+            this.viewList.Size = new System.Drawing.Size(573, 200);
+            this.viewList.TabIndex = 0;
+            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
             // MainForm
             // 
