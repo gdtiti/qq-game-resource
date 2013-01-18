@@ -451,5 +451,25 @@ namespace QQGameRes
             vFolderListView.Folder = vFolder;
             viewList.ResourceFolder = vFolder;
         }
+
+        private void vFolderListView_ActiveItemChanged(object sender, EventArgs e)
+        {
+            IVirtualItem vItem = vFolderListView.ActiveItem;
+            if (vItem == null)
+                return;
+
+            if (vItem is ImageFile)
+            {
+                object image = (vItem as IExtractIcon).ExtractIcon(
+                    ExtractIconType.Thumbnail, Size.Empty);
+                if (image is MultiFrameImage)
+                {
+                    MultiFrameImage mf = image as MultiFrameImage;
+                    txtImageSize.Text = mf.Width + " x " + mf.Height;
+                    txtFrames.Text = mf.FrameCount + " Frames";
+                }
+                using (image as IDisposable) { }
+            }
+        }
     }
 }
