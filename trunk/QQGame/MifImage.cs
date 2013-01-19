@@ -45,27 +45,38 @@ namespace QQGame
         /// or all alpha values are 255), the pixel format is Format16bpp565.
         /// Otherwise, the pixel format is Format32bppArgb.
         /// </summary>
-        private Bitmap currentFrame;
+        private Bitmap bitmap;
 
         /// <summary>
-        /// Delay in milliseconds of the current frame. This member is useful
-        /// because we may get rid of frames[] array if there's only one
-        /// frame in the image, in which case we need to store its delay.
-        /// </summary>
-        private int currentDelay;
-
-        /// <summary>
-        /// Contains data of each frame in a multi-frame MIF image. If this
+        /// Contains compressed data of each frame in the MIF image. If this
         /// image contains only one frame, this member is set to null and
         /// the pixel data is stored directly in the bitmap buffer.
         /// </summary>
         private MifFrame[] frames;
 
         /// <summary>
-        /// Index of the active frame. This frame is stored in the bitmap
+        /// Contains the delay of each frame in the MIF image.
+        /// </summary>
+        private int[] delays;
+
+        /// <summary>
+        /// Contains data of the active frame. The RGB and alpha data are 
+        /// always stored in uncompressed format. This member may point to
+        /// an element in the frame[] array if that frame is stored 
+        /// uncompressed. If this image contains only one frame, this member
+        /// is set to null and the pixel data is stored directly in the bitmap
         /// buffer.
         /// </summary>
+        private MifFrame currentFrame;
+
+        /// <summary>
+        /// Index of the active frame. The pixel data of this frame is stored
+        /// in currentFrame as well as the bitmap buffer.
+        /// </summary>
         private int currentIndex;
+
+        // test
+        private int compressedSize;
 
         /// <summary>
         /// Creates a MIF image from the specified stream.
@@ -101,24 +112,53 @@ namespace QQGame
                 // Read all frames at once so that we can close the stream
                 // and navigate through the frames easily later.
                 frames = new MifFrame[header.FrameCount];
-                frames[0] = reader.ReadFrame(header, null);
-                bool alphaPresent = (frames[0].alphaData != null);
-                for (int i = 1; i < header.FrameCount; i++)
+                delays = new int[header.FrameCount];
+                currentFrame = null;
+                for (int i = 0; i < header.FrameCount; i++)
                 {
-                    frames[i] = reader.ReadFrame(header, frames[i - 1]);
-                    alphaPresent |= (frames[i].alphaData != null);
+                    frames[i] = reader.ReadFrame(header, currentFrame);
+                    delays[i] = frames[i].delay;
 
                     // Test delta encoding.
-                    byte[] deltaEncoded = MifWriter.DeltaEncode(
-                        frames[i - 1].rgbData, 
-                        frames[i].rgbData);
+                    if (i > 0)
+                    {
+                        byte[] deltaEncoded = MifWriter.DeltaEncode(
+                            currentFrame.rgbData,
+                            frames[i].rgbData);
+                        compressedSize += (deltaEncoded != null) ?
+                            deltaEncoded.Length : frames[i].rgbData.Length;
+                        if (frames[i].alphaData != null)
+                        {
+                            if (currentFrame.alphaData != null)
+                            {
+                                deltaEncoded = MifWriter.DeltaEncode(
+                                    currentFrame.alphaData,
+                                    frames[i].alphaData);
+                                compressedSize += (deltaEncoded != null) ?
+                                    deltaEncoded.Length : frames[i].alphaData.Length;
+                            }
+                            else
+                            {
+                                compressedSize += frames[i].alphaData.Length;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        compressedSize += frames[i].rgbData.Length;
+                        if (frames[i].alphaData != null)
+                            compressedSize += frames[i].alphaData.Length;
+                    }
+
+                    currentFrame = frames[i];
                 }
 
                 // Create a bitmap to store the converted frames. This bitmap
                 // is not changed when we change frame to frame. The pixel
                 // format of the bitmap is 16bpp if no alpha channel is
                 // present, or 32bpp otherwise.
-                currentFrame = new Bitmap(
+                bool alphaPresent = frames.Any(x => x.alphaData != null);
+                bitmap = new Bitmap(
                     header.ImageWidth,
                     header.ImageHeight,
                     alphaPresent ? PixelFormat.Format32bppArgb : 
@@ -126,14 +166,17 @@ namespace QQGame
 
                 // Render the first frame in the bitmap buffer.
                 this.currentIndex = 0;
-                this.currentDelay = frames[0].delay;
+                this.currentFrame = frames[0];
                 ConvertPixelsToBitmap(
-                    frames[this.currentIndex].rgbData,
-                    frames[this.currentIndex].alphaData);
+                    currentFrame.rgbData,
+                    currentFrame.alphaData);
 
                 // If there's only one frame, we don't need frames[] array.
                 if (frames.Length == 1)
+                {
+                    currentFrame = null;
                     frames = null;
+                }
             }
         }
 
@@ -141,10 +184,10 @@ namespace QQGame
         {
             if (disposing)
             {
-                if (currentFrame != null)
+                if (bitmap != null)
                 {
-                    currentFrame.Dispose();
-                    currentFrame = null;
+                    bitmap.Dispose();
+                    bitmap = null;
                 }
             }
             base.Dispose(disposing);
@@ -183,17 +226,17 @@ namespace QQGame
 
                 // Convert the format of the requested frame.
                 this.currentIndex = value;
-                this.currentDelay = frames[this.currentIndex].delay;
+                this.currentFrame = frames[this.currentIndex];
                 ConvertPixelsToBitmap(
-                    frames[this.currentIndex].rgbData,
-                    frames[this.currentIndex].alphaData);
+                    currentFrame.rgbData,
+                    currentFrame.alphaData);
             }
         }
 
         /// <summary>
         /// Gets the current frame of the image.
         /// </summary>
-        public override Image Frame { get { return this.currentFrame; } }
+        public override Image Frame { get { return this.bitmap; } }
 
         /// <summary>
         /// Gets the delay of the current frame in milliseconds, or zero if 
@@ -201,7 +244,20 @@ namespace QQGame
         /// </summary>
         public override TimeSpan FrameDelay
         {
-            get { return new TimeSpan(10000 * currentDelay); }
+            get { return new TimeSpan(10000L * delays[currentIndex]); }
+        }
+
+        /// <summary>
+        /// Gets the sum of delays of all frames.
+        /// </summary>
+        public TimeSpan Duration
+        {
+            get { return new TimeSpan(10000L * delays.Sum()); }
+        }
+
+        public int CompressedSize
+        {
+            get { return compressedSize; }
         }
 
         /// <summary>
@@ -220,9 +276,9 @@ namespace QQGame
 
             // If our underlying bitmap is 16bpp, we can just copy the
             // rgbData directly.
-            if (currentFrame.PixelFormat == PixelFormat.Format16bppRgb565)
+            if (bitmap.PixelFormat == PixelFormat.Format16bppRgb565)
             {
-                BitmapData bmpData16 = currentFrame.LockBits(
+                BitmapData bmpData16 = bitmap.LockBits(
                     new Rectangle(0, 0, width, height),
                     ImageLockMode.WriteOnly,
                     PixelFormat.Format16bppRgb565);
@@ -232,12 +288,12 @@ namespace QQGame
                     Marshal.Copy(rgbData, y * width * 2, ptr, width * 2);
                     ptr += bmpData16.Stride;
                 }
-                currentFrame.UnlockBits(bmpData16);
+                bitmap.UnlockBits(bmpData16);
                 return;
             }
 
             // Get a pointer to the underlying pixel data of the bitmap buffer.
-            BitmapData bmpData = currentFrame.LockBits(
+            BitmapData bmpData = bitmap.LockBits(
                 new Rectangle(0, 0, width, height),
                 ImageLockMode.WriteOnly,
                 PixelFormat.Format32bppArgb);
@@ -268,7 +324,7 @@ namespace QQGame
             }
 
             // Return the bitmap.
-            currentFrame.UnlockBits(bmpData);
+            bitmap.UnlockBits(bmpData);
         }
     }
 
@@ -319,14 +375,58 @@ namespace QQGame
         /// <summary>
         /// Decodes a buffer that is delta encoded.
         /// </summary>
-        /// <param name="buffer">On input, this contains the uncompressed 
+        /// <param name="output">On input, this contains the uncompressed 
         /// data of the previous frame. On output, this buffer is filled
         /// with the new data decoded.</param>
-        /// <param name="diff">The encoded difference between the previous
+        /// <param name="input">The encoded difference between the previous
         /// buffer to the new buffer.</param>
-        public static void DeltaDecode(byte[] buffer, byte[] diff)
+        public static void DeltaDecode(byte[] output, byte[] input)
         {
-            throw new NotSupportedException();
+            int iInput = 0, iOutput = 0;
+
+            // Read and verify length field.
+            int inputSize = BitConverter.ToInt32(input, iInput);
+            iInput += 4;
+            if (inputSize != input.Length - 4)
+                throw new InvalidDataException("InputSize mismatch.");
+
+            // Read and decode packets until the input is consumed.
+            while (inputSize > 0)
+            {
+                if (inputSize < 4)
+                    throw new InvalidDataException("Cannot read SkipLen field.");
+                int skipLen = BitConverter.ToInt32(input, iInput);
+                iInput += 4;
+                inputSize -= 4;
+
+                if (skipLen < 0)
+                    throw new InvalidDataException("SkipLen must be greater than or equal to zero.");
+                if (iOutput + skipLen > output.Length)
+                    throw new InvalidDataException("SkipLen must not exceed the output buffer size.");
+                iOutput += skipLen;
+
+                if (inputSize == 0)
+                    break;
+                if (inputSize < 4)
+                    throw new InvalidDataException("Cannot read CopyLen field.");
+                int copyLen = BitConverter.ToInt32(input, iInput);
+                iInput += 4;
+                inputSize -= 4;
+
+                if (copyLen < 0)
+                    throw new InvalidDataException("CopyLen must be greater than or equal to zero.");
+                if (iOutput + copyLen > output.Length)
+                    throw new InvalidDataException("CopyLen must not exceed the output buffer size.");
+                if (copyLen > inputSize)
+                    throw new InvalidDataException("CopyLen must not exceed the input buffer size.");
+
+                Array.Copy(input, iInput, output, iOutput, copyLen);
+                iInput += copyLen;
+                inputSize -= copyLen;
+                iOutput += copyLen;
+            }
+
+            // When we exit the loop, the remaining buffer is left unchanged.
         }
 
         /// <summary>
