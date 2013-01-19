@@ -469,12 +469,18 @@ namespace QQGameRes
             {
                 object image = (vItem as IExtractIcon).ExtractIcon(
                     ExtractIconType.Thumbnail, Size.Empty);
-                if (image is MultiFrameImage)
+                if (image is QQGame.MifImage)
                 {
-                    MultiFrameImage mf = image as MultiFrameImage;
-                    txtImageSize.Text = mf.Width + " x " + mf.Height +
-                        " (" + (vItem as ImageFile).File.Length.ToString("0,0") + " bytes)";
-                    txtFrames.Text = mf.FrameCount + " Frames";
+                    QQGame.MifImage mif = image as QQGame.MifImage;
+                    txtImageSize.Text = string.Format(
+                        "{0} x {1} ({2:0,0} uncompressed, {3:0,0} after compression)",
+                        mif.Width, mif.Height,
+                        (vItem as ImageFile).File.Length,
+                        mif.CompressedSize);
+                    txtFrames.Text = string.Format(
+                        "{0} frames ({1})",
+                        mif.FrameCount,
+                        mif.Duration);
                 }
                 using (image as IDisposable) { }
             }
