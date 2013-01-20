@@ -125,6 +125,12 @@ namespace QQGame
                         byte[] deltaEncoded = MifWriter.DeltaEncode(
                             lastFrame.rgbData,
                             frames[i].rgbData);
+                        ArrayChunk<byte>[] newData = MifDeltaEncoding.GetData(
+                            frames[i].rgbData,
+                            MifDeltaEncoding.FindChanges(
+                                lastFrame.rgbData,
+                                frames[i].rgbData,
+                                8));
                         compressedSize += (deltaEncoded != null) ?
                             deltaEncoded.Length : frames[i].rgbData.Length;
                         if (frames[i].alphaData != null)
@@ -328,6 +334,40 @@ namespace QQGame
         }
     }
 
+#if false
+    class MifFrame2
+    {
+        public abstract class DataPacket 
+        {
+            public int Length; // length in bytes of the data
+        }
+
+        public class SkipPacket : DataPacket
+        {
+        }
+
+        public class CopyPacket :DataPacket
+        {
+            public byte[] Data;
+        }
+
+        public class RepeatPacket : DataPacket
+        {
+            public int 
+        }
+
+        public class DataChunk
+        {
+            public int StartIndex;
+            public byte[] Data;
+        }
+
+        public int delay;
+        public DataChunk[] rgbChunks;
+        public DataChunk[] alphaChunks;
+    }
+#endif
+
     /// <summary>
     /// Contains data about a frame in a MIF image.
     /// </summary>
@@ -336,6 +376,9 @@ namespace QQGame
         public int delay = 0; // delay in milliseconds
         public byte[] rgbData = null;   // 5-6-5 RGB data of the frame, uncompressed
         public byte[] alphaData = null; // 6-bit alpha data of the frame, uncompressed
+
+        public DataChunk[] rgbChunks;   // chunks of 5-6-5 RGB data
+        public DataChunk[] alphaChunks; // chunks of 6-bit alpha data
     }
 
     /// <summary>
@@ -665,6 +708,433 @@ namespace QQGame
         None = 0,
         Delta = 1,
     }
+
+#if true
+
+
+
+    /// <summary>
+    /// Represents a continuous range of bytes in a large array.
+    /// </summary>
+    class DataChunk
+    {
+        private int startIndex;
+        private byte[] data;
+
+        protected DataChunk(int length)
+        {
+            this.Length = length;
+        }
+
+        /// <summary>
+        /// Gets the length of the data chunk in bytes.
+        /// </summary>
+        public int Length { get; private set; }
+
+#if false
+        /// <summary>
+        /// Gets or sets the (unrepeated) data. If this member is null, the
+        /// data is undefined and should be treated as unchanged from its
+        /// current value. If the length of Data is shorter than Length, it
+        /// is cycled to fill Length bytes.
+        /// </summary>
+        public byte[] Data { get; set; }
+
+        public static DataChunk CreateCopyChunk(byte[] buffer, int startIndex, int count)
+        {
+            DataChunk chunk = new DataChunk();
+            chunk.Length = count;
+            chunk.Data = new byte[count];
+            Array.Copy(buffer, startIndex, chunk.Data, 0, count);
+            return chunk;
+        }
+
+        public static DataChunk CreateSkipChunk(int length)
+        {
+            return new DataChunk { Data = null, Length = length };
+        }
+#endif
+    }
+
+    /// <summary>
+    /// Represents a chunk of bytes.
+    /// </summary>
+    class CopyChunk : DataChunk
+    {
+        public byte[] Data { get; private set; }
+
+        public CopyChunk(byte[] buffer, int startIndex, int length)
+            : base(length)
+        {
+            this.Data = new byte[length];
+            Array.Copy(buffer, startIndex, Data, 0, length);
+        }
+    }
+
+    class SkipChunk : DataChunk
+    {
+        public SkipChunk(int length) : base(length) { }
+    }
+
+    class RepeatChunk : DataChunk
+    {
+        private byte[] data;
+
+        public RepeatChunk(int length, byte[] buffer)
+            : base(length)
+        {
+            data = (byte[])buffer.Clone();
+        }
+    }
+
+    /// <summary>
+    /// Defines an interval by indices.
+    /// </summary>
+    struct IndexRange
+    {
+        private int startIndex;
+        private int endIndex;
+
+        public int StartIndex { get { return startIndex; } }
+        public int EndIndex { get { return endIndex; } }
+
+        public IndexRange(int startIndex, int endIndex)
+        {
+            this.startIndex = startIndex;
+            this.endIndex = endIndex;
+        }
+
+        public override string ToString()
+        {
+            return string.Format("[{0}, {1})", startIndex, endIndex);
+        }
+    }
+
+    struct ArrayChunk<T>
+    {
+        public IndexRange Range;
+        public T[] Data;
+    }
+
+    static class MifDeltaEncoding
+    {
+        /// <summary>
+        /// Finds the changed portions of a buffer.
+        /// </summary>
+        /// <param name="current">A buffer of bytes to encode.</param>
+        /// <param name="previous">Contains the bytes in the previous buffer.
+        /// This buffer must have the same length as 'current'.</param>
+        /// <returns>An array of non-overlapping DataChunks that cover the 
+        /// changed portions of the buffer. This array may be empty if the
+        /// two buffers are identical.
+        /// </returns>
+        public static IndexRange[] FindChanges<T>(
+            T[] previous, T[] current, int bytesOverhead)
+        {
+            if (previous == null)
+                throw new ArgumentNullException("previous");
+            if (current == null)
+                throw new ArgumentNullException("current");
+            if (current.Length != previous.Length)
+                throw new ArgumentException("The arrays must have the same size.");
+
+            // Let (i,j) be a locally maximal chunk of elements such that 
+            // previous[i..j] = current[i..j] but extending either i or j by
+            // one will cause them to be unequal. Suppose it takes 'overhead'
+            // number of bytes to encode a common chunk, then it makes sense
+            // to create a common chunk only if the common length
+            // (j - i + 1) * sizeof(T) > overhead.
+            //
+            // Note that this function returns the changed portions instead of
+            // the unchanged portions as described above.
+
+            int overhead = bytesOverhead / Marshal.SizeOf(typeof(T));
+            int length = current.Length;
+            List<IndexRange> changes = new List<IndexRange>();
+            int lastIndex = 0; // end-index of the last common block
+            for (int index = 0; index < length; )
+            {
+                int n = GetCommonLength(previous, current, index);
+                if (n > overhead) // makes sense to encode a common chunk
+                {
+                    if (index > lastIndex)
+                    {
+                        changes.Add(new IndexRange(lastIndex, index));
+                    }
+                    lastIndex = index + n;
+                }
+                index += n;
+                index += GetDistinctLength(previous, current, index);
+            }
+
+            // Encode the last distinct segment.
+            if (lastIndex < length)
+            {
+                changes.Add(new IndexRange(lastIndex, length));
+            }
+            return changes.ToArray();
+        }
+
+        /// <summary>
+        /// Finds the changed portions of a buffer.
+        /// </summary>
+        /// <param name="current">A buffer of bytes to encode.</param>
+        /// <param name="previous">Contains the bytes in the previous buffer.
+        /// This buffer must have the same length as 'current'.</param>
+        /// <returns>An array of non-overlapping DataChunks that cover the 
+        /// changed portions of the buffer. This array may be empty if the
+        /// two buffers are identical.
+        /// </returns>
+        public static ArrayChunk<T>[] GetData<T>(T[] array, IndexRange[] ranges)
+        {
+            return (from range in ranges
+                    select new ArrayChunk<T>
+                    {
+                        Range = range,
+                        Data = GetArrayChunk(array, range.StartIndex, range.EndIndex)
+                    }).ToArray();
+        }
+
+#if false
+        /// <summary>
+        /// Encodes a buffer of bytes into a list of DataChunks using delta
+        /// encoding, in a way such that saving the encoded data to a MIF file
+        /// takes fewer bytes than saving the original data.
+        /// </summary>
+        /// <param name="current">A buffer of bytes to encode.</param>
+        /// <param name="previous">Contains the bytes in the previous buffer.
+        /// This buffer must have the same length as 'current'.</param>
+        /// <returns>An array of non-overlapping DataChunks that cover the 
+        /// changed portions of the buffer. This array may be empty if the
+        /// two buffers are identical.
+        /// </returns>
+        public static DataChunk[] Encode(byte[] current, byte[] previous)
+        {
+            if (current == null)
+                throw new ArgumentNullException("current");
+            if (previous == null)
+                throw new ArgumentNullException("previous");
+            if (current.Length != previous.Length)
+                throw new ArgumentException("The buffers must have the same size.");
+            //if (previous.Length == 0)
+            //    return null;
+            // TODO: if buffer length is zero, we have a problem.
+
+            // Let (i,j) be a locally maximal chunk of bytes such that 
+            // previous[i..j] = current[i..j] but extending either i or j by
+            // one will cause them to be unequal. It takes 8 bytes' overhead
+            // to encode such a chunk in a MIF file, so it makes sense to 
+            // create a chunk only if the common length (j - i + 1) >= 8.
+            //
+            // There are three special points to note (in that order):
+            // 1. Since the encoded format always starts with a 4-byte length
+            //    indicator, this causes a 4-byte overhead to start.
+            // 2. If the last byte is part of a common segment, we only need
+            //    4 bytes of overhead for that. So it makes sense if the 
+            //    length of the common segment is > 4.
+            // 3. Since the format spec requires that we start by encoding the
+            //    length of a common segment (even if this length is zero), we
+            //    should encode the first common segment whatsoever. If the
+            //    length of this segment is L < 8, then there's an overhead of
+            //    (8 - L) bytes.
+            //
+            // We proceed as follows. First, we encode the common segments of
+            // length L such that
+            //   o  L >= 0 if in the beginning
+            //   o  L > 4 if in the end
+            //   o  L > 8 if in the middle
+            // As we encode, we keep track of the number of byte savings 
+            // accumulated so far (assuming the encoded buffer is written to a
+            // MIF file, taking into account the 4-byte overhead of the length
+            // field). If the total saving is positive, we return the delta-
+            // encoded chunks; if the total savings is breakeven or negative,
+            // we return the whole buffer in one uncompressed chunk.
+
+            int length = current.Length;
+            List<DataChunk> chunks = new List<DataChunk>();
+            int savings = -4; // length field
+            int lastIndex = 0;
+            for (int index = 0; index < length; )
+            {
+                int L = GetCommonLength(previous, current, index);
+                int threshold = (index + L == length) ? 4 : 8;
+                bool include = false;
+                if (index == 0) // beginning of buffer
+                {
+                    savings += (L - threshold);
+                    include = true;
+                }
+                else
+                {
+                    if (L > threshold)
+                    {
+                        savings += (L - threshold);
+                        include = true;
+                    }
+                }
+
+                if (include) // create a Skip packet for this common chunk
+                {
+                    if (index > lastIndex)
+                    {
+                        chunks.Add(new CopyChunk(current, lastIndex, index - lastIndex));
+                    }
+                    chunks.Add(new SkipChunk(L));
+                    lastIndex = index + L;
+                }
+                index += L;
+                index += GetDistinctLength(previous, current, index);
+            }
+
+            // Encode the last distinct segment.
+            if (lastIndex < length)
+            {
+                chunks.Add(new CopyChunk(current, lastIndex, length - lastIndex));
+            }
+
+            // Revert to raw data if we got no savings.
+            if (savings <= 0) // we could adjust the threshold as needed
+            {
+                return new DataChunk[] { new CopyChunk(current, 0, length) };
+            }
+
+            return chunks.ToArray();
+        }
+#endif
+        private static int GetCommonLength<T>(T[] x, T[] y, int startIndex)
+        {
+            int i = startIndex;
+            while (i < x.Length && EqualityComparer<T>.Default.Equals(x[i], y[i]))
+                i++;
+            return (i - startIndex);
+        }
+
+        private static int GetDistinctLength<T>(T[] x, T[] y, int startIndex)
+        {
+            int i = startIndex;
+            while (i < x.Length && !EqualityComparer<T>.Default.Equals(x[i], y[i]))
+                i++;
+            return (i - startIndex);
+        }
+
+        private static T[] GetArrayChunk<T>(T[] array, int startIndex, int endIndex)
+        {
+            T[] chunk = new T[endIndex - startIndex];
+            Array.Copy(array, startIndex, chunk, 0, chunk.Length);
+            return chunk;
+        }
+    }
+
+#endif
+
+#if false
+
+    public class PixelBuffer
+    {
+    }
+
+    public class MifPixelChunk
+    {
+        public int StartIndex;  // index of the pixels
+        public int Count;       // number of pixels
+        public int ChannelMask; // what channels are contained
+        public byte[] Data;
+    }
+
+    public class MifFrameNewTest
+    {
+        public LinkedList<MifPixelChunk> Chunks;
+    }
+
+    /// Each pixel chunk has three members: data, repeat, mask.
+    public class PixelChunk
+    {
+        private readonly byte[] data;
+        private readonly int repeat;
+        private readonly int mask;
+
+        public PixelChunk(byte[] data, int repeat, int mask)
+        {
+            this.data = data;
+            this.repeat = repeat;
+            this.mask = mask;
+        }
+
+        /// <summary>
+        /// Gets the (unrepeated) data.
+        /// </summary>
+        public byte[] Data { get { return data; } }
+
+        /// <summary>
+        /// Gets the number of times Data repeats.
+        /// </summary>
+        public int RepeatCount { get { return repeat; } }
+
+        /// <summary>
+        /// Gets a bit-mask that indicates the channels present in this chunk.
+        /// The bits in Data corresponding to unset bits in the mask must be
+        /// set to zero, so that an external user can simply OR the result.
+        /// Examples:
+        /// 0xFF000000 - contains the alpha channel only
+        /// 0x00FFFFFF - contains the RGB channel only
+        /// 0x00000000 - contains no data; used to skip bytes
+        /// </summary>
+        public int Mask { get { return mask; } }
+    }
+
+    public abstract class PixelReader
+    {
+        // public PixelFormat PixelFormat { get; }
+
+        // public abstract PixelChunk ReadPixels(int count);
+        public abstract int ReadPixels(int[] pixels, int startIndex, int count, out int mask);
+    }
+
+    public abstract class PixelWriter
+    {
+        public abstract void WritePixels(int[] pixels, int startIndex, int count, int mask);
+    }
+
+    public class BitmapPixelWriter:PixelWriter
+    {
+        public override void WritePixels(int[] pixels, int startIndex, int count, int mask)
+        {
+            // throw new NotImplementedException();
+            // just copy the data is fine.
+        }
+    }
+
+    public class OpaqueAlphaReader : PixelReader
+    {
+        // TODO: make it int.
+        private static readonly byte[] OnePixel = new byte[] { 255 };
+
+        public override PixelChunk ReadPixels(int count)
+        {
+            return new PixelChunk(
+                data: OnePixel,
+                mask: (0xFF << 24),
+                repeat: count);
+        }
+    }
+
+    public class MifRgbChannelReader: PixelReader
+    {
+        public override PixelChunk ReadPixels(int count)
+        {
+            // if (pixel format is 16bpp) then copy as is
+
+            // if (pixel format is 32bpp) then decode
+            for (int i = 0; i < count; i++)
+            {
+                buffer[startIndex + i] |= (0xFF << 24);
+            }
+
+            // if (chunk type is rle), then do a loop
+            // if (chunk type is rle and mask == 0) // skip
+        }
+    }
+#endif
 
 #if true
     /// <summary>
