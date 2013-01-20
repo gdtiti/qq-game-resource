@@ -187,15 +187,17 @@ The overall format of a compressed section is as follows:
   |  Section Data |    variable
   +---------------+
 
-'Mode' specifies the compression mode of the section. If Mode is 0, the 
-section is stored uncompressed. If Mode is 1, the section is stored using
-delta encoding (see description below). Other values of Mode are reserved
-for future use.
+'Mode' specifies the compression mode of the section. It can take one of the
+following values:
+
+  0 - the section is stored uncompressed.
+  1 - the section is stored using delta encoding (see description below).
+  Other values: reserved.
 
 Note: The first frame of an image MUST be stored in uncompressed format. If
 the Mode field of the first frame is 1, the parser must fail with an error.
 
-If Mode is 1, the following format applies:
+If Mode is 1 (delta encoded), Section Data has following format:
 
   +---------------+
   |   InputSize   |    4 bytes, DWORD, little endian
@@ -207,29 +209,33 @@ If Mode is 1, the following format applies:
   |   Packet N    |    variable size
   +---------------+
 
-'InputSize' specifies the total number of bytes in the following packets,
-not counting the InputSize field itself. (If InputSize < 4, the behavior is
-undefined: QQGame copies the entire previous frame, but this behavior maynot
+'InputSize' specifies the total number of bytes in the following packets, not
+counting the InputSize field itself. (If InputSize < 4, the behavior is
+undefined: QQGame copies the entire previous frame, but this behavior may not
 make sense.)
 
-Each packet that follows the InputSize field has the format below:
+There are two types of packets in a delta-encoded stream: Skip packets and 
+Copy packets. Their format is illustrated below:
 
-  +---------------+
-  |    SkipLen    |    4 bytes, DWORD, little endian
-  +---------------+
-  |    CopyLen    |    (optional) 4 bytes, DWORD, little endian
-  +---------------+
-  |    NewData    |    (optional) CopyLen bytes
-  +---------------+
+     Skip packet          Copy packet
+  +---------------+    +---------------+
+  |    SkipLen    |    |    CopyLen    |   DWORD, little endian
+  +---------------+    +---------------+
+                       |    CopyData   |   CopyLen bytes
+                       +---------------+
 
-'SkipLen' is the number of bytes (not pixels) to leave unchanged from the
-previous buffer. This is the key of the delta encoding algorithm: it saves
-space if many of the pixels do not change from one frame to the next.
+A Skip packet contains a single DWORD field, 'SkipLen', specifying the number
+of bytes (not pixels) to skip (i.e. leave unchanged) in the previous buffer.
+'SkipLen' may be zero.
 
-'CopyLen' is the number of bytes (not pixels) to read from input and copy
-to the buffer. The data is stored in 'NewData'. 
+A Copy packet consists of a DWORD field 'CopyLen' followed by CopyLen bytes
+(not pixels) containing the data to overwrite the previous buffer. 'CopyLen'
+may be zero in a non-optimal encoding.
 
-The packets are done if InputSize number of bytes are consumed.
+A delta-encoded stream ALWAYS starts with a Skip packet. Then these two types
+of packets alternate. The stream is finished when 'InputSize' number of bytes
+is consumed; the last packet in the stream may be a Skip packet or a Copy 
+packet.
 
 
 Animation Control
