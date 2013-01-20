@@ -121,10 +121,10 @@ namespace QQGame
                     // to last frame.
                     if (lastFrame != null)
                     {
-                        frameDiff[i].colorDiff = new ArrayPatch<byte>(
+                        frameDiff[i].colorDiff = new ArrayPatch<short>(
                             lastFrame.rgbData,
                             thisFrame.rgbData,
-                            8, // two DWORDs
+                            4, // two DWORDs
                             ArrayPatchType.Overwrite);
 
                         if (thisFrame.alphaData != null)
@@ -142,7 +142,7 @@ namespace QQGame
                 // Delta-encode the first frame from the last frame.
                 if (header.FrameCount > 1)
                 {
-                    frameDiff[0].colorDiff = new ArrayPatch<byte>(
+                    frameDiff[0].colorDiff = new ArrayPatch<short>(
                         lastFrame.rgbData,
                         firstFrame.rgbData,
                         8,
@@ -362,6 +362,72 @@ namespace QQGame
             // Return the bitmap.
             bitmap.UnlockBits(bmpData);
         }
+
+        /// <summary>
+        /// Decodes a frame from the given stream.
+        /// </summary>
+        /// <param name="reader">The underlying stream.</param>
+        /// <param name="header">The MifHeader.</param>
+        /// <exception cref="InvalidDataException">The stream does not 
+        /// contain a valid MIF image format.</exception>
+        /// <remarks>The caller is responsible for disposing the returned
+        /// <code>MifFrame.Image</code>.</remarks>
+        private void ConvertPixelsToBitmap(short[] rgbData, byte[] alphaData)
+        {
+            int width = header.ImageWidth;
+            int height = header.ImageHeight;
+
+            // If our underlying bitmap is 16bpp, we can just copy the
+            // rgbData directly.
+            if (bitmap.PixelFormat == PixelFormat.Format16bppRgb565)
+            {
+                BitmapData bmpData16 = bitmap.LockBits(
+                    new Rectangle(0, 0, width, height),
+                    ImageLockMode.WriteOnly,
+                    PixelFormat.Format16bppRgb565);
+                IntPtr ptr = bmpData16.Scan0;
+                for (int y = 0; y < height; y++)
+                {
+                    Marshal.Copy(rgbData, y * width, ptr, width);
+                    ptr += bmpData16.Stride;
+                }
+                bitmap.UnlockBits(bmpData16);
+                return;
+            }
+
+            // Get a pointer to the underlying pixel data of the bitmap buffer.
+            BitmapData bmpData = bitmap.LockBits(
+                new Rectangle(0, 0, width, height),
+                ImageLockMode.WriteOnly,
+                PixelFormat.Format32bppArgb);
+            IntPtr bmpPtr = bmpData.Scan0;
+
+            // Convert the pixels scanline by scanline.
+            int[] scanline = new int[width];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    byte a = (alphaData == null) ? (byte)0x20 : alphaData[y * width + x];
+                    short b = rgbData[y * width + x];
+
+                    byte alpha = (byte)((a << 3) - (a >> 5));
+                    byte red = (byte)((b >> 8) & 0xF8);
+                    byte green = (byte)((b >> 3) & 0xFC);
+                    byte blue = (byte)((b << 3) & 0xF8);
+
+                    scanline[x] = (alpha << 24)
+                                | (red << 16)
+                                | (green << 8)
+                                | (blue << 0);
+                }
+                Marshal.Copy(scanline, 0, bmpPtr, width);
+                bmpPtr += bmpData.Stride;
+            }
+
+            // Return the bitmap.
+            bitmap.UnlockBits(bmpData);
+        }
     }
 
     /// <summary>
@@ -370,7 +436,7 @@ namespace QQGame
     internal class MifFrame
     {
         public int delay = 0; // delay in milliseconds
-        public byte[] rgbData = null;   // 5-6-5 RGB data of the frame, uncompressed
+        public short[] rgbData = null;   // 5-6-5 RGB data of the frame, uncompressed
         public byte[] alphaData = null; // 6-bit alpha data of the frame, uncompressed
     }
 
@@ -379,7 +445,7 @@ namespace QQGame
     /// </summary>
     internal class MifFrameDiff
     {
-        public ArrayPatch<byte> colorDiff; // change in RGB data
+        public ArrayPatch<short> colorDiff; // change in RGB data
         public ArrayPatch<byte> alphaDiff; // change in alpha data
     }
 
@@ -474,7 +540,7 @@ namespace QQGame
             DeltaDecode(buffer, this);
         }
 
-        public void ReadPixelData(MifHeader header, byte[] buffer, byte[] prevBuffer)
+        public void ReadPixelData(MifHeader header, byte[] buffer, bool isFirstFrame)
         {
             if (header.Flags.HasFlag(MifFlags.Compressed))
             {
@@ -486,9 +552,8 @@ namespace QQGame
                         ReadRawPixelData(buffer);
                         break;
                     case MifCompressionMode.Delta: // 1: delta encoded
-                        if (prevBuffer == null)
+                        if (isFirstFrame)
                             throw new InvalidDataException("The first frame must not be delta encoded.");
-                        prevBuffer.CopyTo(buffer, 0);
                         ReadDeltaEncodedPixelData(buffer);
                         break;
                     default:
@@ -516,17 +581,32 @@ namespace QQGame
             }
 
             // Read primary channels.
-            frame.rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
-            ReadPixelData(header, frame.rgbData,
-                prevFrame == null ? null : prevFrame.rgbData);
+            byte[] rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
+            if (prevFrame != null && prevFrame.rgbData != null)
+            {
+                Buffer.BlockCopy(prevFrame.rgbData, 0, rgbData, 0, rgbData.Length);
+                ReadPixelData(header, rgbData, false);
+            }
+            else
+            {
+                ReadPixelData(header, rgbData, true);
+            }
+            frame.rgbData = new short[header.ImageWidth * header.ImageHeight];
+            Buffer.BlockCopy(rgbData, 0, frame.rgbData, 0, rgbData.Length);
 
             // Read alpha channel if present.
             if (header.Flags.HasFlag(MifFlags.HasAlpha))
             {
                 frame.alphaData = new byte[header.ImageWidth * header.ImageHeight];
-                ReadPixelData(header, frame.alphaData,
-                    prevFrame == null ? null : prevFrame.alphaData);
-
+                if (prevFrame != null && prevFrame.alphaData != null)
+                {
+                    prevFrame.alphaData.CopyTo(frame.alphaData, 0);
+                    ReadPixelData(header, frame.alphaData, false);
+                }
+                else
+                {
+                    ReadPixelData(header, frame.alphaData, true);
+                }
 #if false
                 // Check whether all pixels are fully opaque. This corresponds
                 // to an encoded alpha value of 0x20. If so, we don't need to
@@ -1004,11 +1084,11 @@ namespace QQGame
                 delay = 0;
 
             // Read primary channels.
-            reader.ReadPixelData(header, rgbData, rgbData);
+            reader.ReadPixelData(header, rgbData, false);
 
             // Read alpha channel if present.
             if ((header.Flags & MifFlags.HasAlpha) != 0)
-                reader.ReadPixelData(header, alphaData, alphaData);
+                reader.ReadPixelData(header, alphaData, false);
 
             // Convert RGB and Alpha data to an image.
             return new Util.Media.ImageFrame(ConvertPixelsToBitmap(), delay);
