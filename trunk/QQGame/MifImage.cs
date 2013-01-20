@@ -113,26 +113,26 @@ namespace QQGame
                 // and navigate through the frames easily later.
                 frames = new MifFrame[header.FrameCount];
                 delays = new int[header.FrameCount];
-                currentFrame = null;
+                MifFrame lastFrame = null;
                 for (int i = 0; i < header.FrameCount; i++)
                 {
-                    frames[i] = reader.ReadFrame(header, currentFrame);
+                    frames[i] = reader.ReadFrame(header, lastFrame);
                     delays[i] = frames[i].delay;
 
                     // Test delta encoding.
                     if (i > 0)
                     {
                         byte[] deltaEncoded = MifWriter.DeltaEncode(
-                            currentFrame.rgbData,
+                            lastFrame.rgbData,
                             frames[i].rgbData);
                         compressedSize += (deltaEncoded != null) ?
                             deltaEncoded.Length : frames[i].rgbData.Length;
                         if (frames[i].alphaData != null)
                         {
-                            if (currentFrame.alphaData != null)
+                            if (lastFrame.alphaData != null)
                             {
                                 deltaEncoded = MifWriter.DeltaEncode(
-                                    currentFrame.alphaData,
+                                    lastFrame.alphaData,
                                     frames[i].alphaData);
                                 compressedSize += (deltaEncoded != null) ?
                                     deltaEncoded.Length : frames[i].alphaData.Length;
@@ -150,7 +150,7 @@ namespace QQGame
                             compressedSize += frames[i].alphaData.Length;
                     }
 
-                    currentFrame = frames[i];
+                    lastFrame = frames[i];
                 }
 
                 // Create a bitmap to store the converted frames. This bitmap
@@ -344,6 +344,54 @@ namespace QQGame
     internal class MifReader : BinaryReader
     {
         /// <summary>
+        /// Decodes a buffer that is delta encoded.
+        /// </summary>
+        /// <param name="buffer">On input, this contains the data of the
+        /// previous frame. On output, this buffer is updated with the data
+        /// of the new frame.</param>
+        /// <param name="delta">A stream containing the encoded difference
+        /// from the previous buffer to the new buffer.</param>
+        public static void DeltaDecode(byte[] buffer, BinaryReader delta)
+        {
+            // Read input size.
+            int inputSize = delta.ReadInt32();
+            if (inputSize < 0)
+                throw new InvalidDataException("InputSize must be greater than or equal to zero.");
+
+            // Read packets until InputSize number of bytes are consumed.
+            int index = 0; // buffer[index] is the next byte to output
+            bool expectCopyPacket = false;
+            while (inputSize > 0)
+            {
+                if (inputSize < 4)
+                    throw new InvalidDataException("Not enough bytes for packet length.");
+                int len = delta.ReadInt32();
+                inputSize -= 4;
+
+                if (len < 0)
+                    throw new InvalidDataException("Packet length must be greater than or equal to zero.");
+                if (index + len > buffer.Length)
+                    throw new InvalidDataException("Packet length must not exceed output buffer size.");
+
+                if (expectCopyPacket) // copy packet
+                {
+                    if (len > inputSize)
+                        throw new InvalidDataException("Packet length must not exceed input size.");
+                    delta.ReadFull(buffer, index, len);
+                    inputSize -= len;
+                    index += len;
+                }
+                else // skip packet
+                {
+                    index += len;
+                }
+                expectCopyPacket = !expectCopyPacket;
+            }
+
+            // When we exit the loop, the remaining buffer is left unchanged.
+        }
+
+        /// <summary>
         /// Creates a MIF reader from an underlying stream.
         /// </summary>
         /// <param name="stream">The underlying stream.</param>
@@ -373,106 +421,12 @@ namespace QQGame
         }
 
         /// <summary>
-        /// Decodes a buffer that is delta encoded.
-        /// </summary>
-        /// <param name="output">On input, this contains the uncompressed 
-        /// data of the previous frame. On output, this buffer is filled
-        /// with the new data decoded.</param>
-        /// <param name="input">The encoded difference between the previous
-        /// buffer to the new buffer.</param>
-        public static void DeltaDecode(byte[] output, byte[] input)
-        {
-            int iInput = 0, iOutput = 0;
-
-            // Read and verify length field.
-            int inputSize = BitConverter.ToInt32(input, iInput);
-            iInput += 4;
-            if (inputSize != input.Length - 4)
-                throw new InvalidDataException("InputSize mismatch.");
-
-            // Read and decode packets until the input is consumed.
-            while (inputSize > 0)
-            {
-                if (inputSize < 4)
-                    throw new InvalidDataException("Cannot read SkipLen field.");
-                int skipLen = BitConverter.ToInt32(input, iInput);
-                iInput += 4;
-                inputSize -= 4;
-
-                if (skipLen < 0)
-                    throw new InvalidDataException("SkipLen must be greater than or equal to zero.");
-                if (iOutput + skipLen > output.Length)
-                    throw new InvalidDataException("SkipLen must not exceed the output buffer size.");
-                iOutput += skipLen;
-
-                if (inputSize == 0)
-                    break;
-                if (inputSize < 4)
-                    throw new InvalidDataException("Cannot read CopyLen field.");
-                int copyLen = BitConverter.ToInt32(input, iInput);
-                iInput += 4;
-                inputSize -= 4;
-
-                if (copyLen < 0)
-                    throw new InvalidDataException("CopyLen must be greater than or equal to zero.");
-                if (iOutput + copyLen > output.Length)
-                    throw new InvalidDataException("CopyLen must not exceed the output buffer size.");
-                if (copyLen > inputSize)
-                    throw new InvalidDataException("CopyLen must not exceed the input buffer size.");
-
-                Array.Copy(input, iInput, output, iOutput, copyLen);
-                iInput += copyLen;
-                inputSize -= copyLen;
-                iOutput += copyLen;
-            }
-
-            // When we exit the loop, the remaining buffer is left unchanged.
-        }
-
-        /// <summary>
         /// Reads delta-encoded data from the underlying stream into the 
         /// specified buffer.
         /// </summary>
         private void ReadDeltaEncodedPixelData(byte[] buffer)
         {
-            // Read input size.
-            int inputSize = ReadInt32();
-            if (inputSize < 0)
-                throw new InvalidDataException();
-
-            // Read packets until InputSize number of bytes are consumed.
-            // When we exit the loop, the remaining buffer is left unchanged.
-            int index = 0;
-            while (inputSize > 0)
-            {
-                if (inputSize < 4)
-                    throw new InvalidDataException("Cannot read SkipLen field.");
-                int skipLen = ReadInt32();
-                inputSize -= 4;
-                if (skipLen < 0)
-                    throw new InvalidDataException("SkipLen must be greater than or equal to zero.");
-
-                index += skipLen;
-                if (index > buffer.Length)
-                    throw new InvalidDataException("SkipLen must not exceed the output buffer size.");
-
-                if (inputSize == 0)
-                    break;
-                if (inputSize < 4)
-                    throw new InvalidDataException("Cannot read CopyLen field.");
-                int copyLen = ReadInt32();
-                inputSize -= 4;
-                if (copyLen < 0)
-                    throw new InvalidDataException("CopyLen must be greater than or equal to zero.");
-                if (copyLen > inputSize)
-                    throw new InvalidDataException("CopyLen must not exceed the input buffer size.");
-                if (index + copyLen > buffer.Length)
-                    throw new InvalidDataException("CopyLen must not exceed the output buffer size.");
-
-                this.ReadFull(buffer, index, copyLen);
-                index += copyLen;
-                inputSize -= copyLen;
-            }
+            DeltaDecode(buffer, this);
         }
 
         public void ReadPixelData(MifHeader header, byte[] buffer, byte[] prevBuffer)
@@ -480,7 +434,7 @@ namespace QQGame
             if (header.Flags.HasFlag(MifFlags.Compressed))
             {
                 // Read mode.
-                MifCompressionMode mode =(MifCompressionMode) ReadByte();
+                MifCompressionMode mode = (MifCompressionMode)ReadByte();
                 switch (mode)
                 {
                     case MifCompressionMode.None: // 0: not compressed
