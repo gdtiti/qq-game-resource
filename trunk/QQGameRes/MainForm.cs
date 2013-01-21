@@ -478,27 +478,30 @@ namespace QQGameRes
                         (vItem as ImageFile).File.Length,
                         mif.CompressedSize);
                     int alphaCount;
-                    int colorCount = CountColors(mif, out alphaCount);
+                    int maxColorCount;
+                    int totalColorCount = CountColors(mif, out alphaCount, out maxColorCount);
                     txtFrames.Text = string.Format(
-                        "{0} frames ({1}), {2} colors, {3} alphas",
+                        "{0} frames ({1}), {2}/{3} colors, {4} alphas",
                         mif.FrameCount,
                         mif.Duration,
-                        colorCount,
+                        maxColorCount,
+                        totalColorCount,
                         alphaCount);
                 }
                 using (image as IDisposable) { }
             }
         }
 
-        private int CountColors(QQGame.MifImage mif, out int alphaCount)
+        private int CountColors(QQGame.MifImage mif, 
+            out int alphaCount, out int maxColorCount)
         {
-            int count = 0;
             byte[] pixels = new byte[mif.Width * mif.Height * 4];
             HashSet<int> colors = new HashSet<int>();
             HashSet<int> alphas = new HashSet<int>();
+            maxColorCount = 0;
             for (int i = 0; i < mif.FrameCount; i++)
             {
-                colors.Clear();
+                HashSet<int> frameColors = new HashSet<int>();
                 mif.FrameIndex = i;
                 using (BitmapPixelBuffer buffer = new BitmapPixelBuffer(
                     mif.Frame as Bitmap, PixelFormat.Format32bppArgb))
@@ -510,12 +513,13 @@ namespace QQGameRes
                 {
                     int c = BitConverter.ToInt32(pixels, j * 4);
                     colors.Add(c);
+                    frameColors.Add(c);
                     alphas.Add((c >> 24) & 0xFF);
                 }
-                count = Math.Max(count, colors.Count);
+                maxColorCount = Math.Max(maxColorCount, frameColors.Count);
             }
             alphaCount = alphas.Count;
-            return count;
+            return colors.Count;
         }
     }
 }
