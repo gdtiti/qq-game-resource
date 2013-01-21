@@ -47,16 +47,16 @@ namespace QQGame
         private int[] bmpBuffer;
 
         /// <summary>
-        /// Pin-handle of bmpData. This handle must be released at disposal.
+        /// Pin-handle of bmpBuffer. This handle must be freed when the 
+        /// MifImage object is disposed.
         /// </summary>
         private GCHandle bmpBufferHandle;
 
         /// <summary>
-        /// Bitmap that contains the pixel data of the active frame. If all
-        /// frames in the MIF image are opaque (i.e. either the image does not
-        /// contain an alpha channel or all alpha values are 255), the pixel
-        /// format is Format16bpp565. Otherwise, the pixel format is 
-        /// Format32bppArgb.
+        /// Bitmap of the active frame. If all frames in the MIF image are
+        /// opaque (i.e. either the image does not contain an alpha channel
+        /// or all alpha values are 255), the pixel format is Format16bpp565.
+        /// Otherwise, the pixel format is Format32bppArgb.
         /// </summary>
         private Bitmap bitmap;
 
@@ -65,14 +65,6 @@ namespace QQGame
         /// If this image contains only one frame, this member is set to null.
         /// </summary>
         private MifFrameDiff[] frameDiff;
-
-        /// <summary>
-        /// Contains the frames in this MIF image. The color data and alpha
-        /// data of each frame are stored either in uncompressed format or in
-        /// delta-encoded format.
-        /// If this image contains only one frame, this member is set to null.
-        /// </summary>
-        private MifFrame2[] frames;
 
         /// <summary>
         /// Contains the delay in milliseconds of each frame in the MIF image.
@@ -126,67 +118,45 @@ namespace QQGame
 
                 // Read all frames at once so that we can close the stream
                 // and navigate through the frames easily later.
-                frames = new MifFrame2[header.FrameCount];
                 frameDiff = new MifFrameDiff[header.FrameCount];
                 delays = new int[header.FrameCount];
-                MifFrame firstFrame = null, lastFrame = null;
+                MifFrame firstFrame = null, prevFrame = null;
                 for (int i = 0; i < header.FrameCount; i++)
                 {
                     // Read the next frame in uncompressed format.
-                    MifFrame thisFrame = reader.ReadFrame(header, lastFrame);
-
-                    // ----
-                    frames[i] = new MifFrame2();
-                    frames[i].colorCompression = MifCompressionMode.None;
-                    frames[i].alphaCompression = MifCompressionMode.None;
-                    frames[i].colorData = new byte[thisFrame.rgbData.Length * 2];
-                    Buffer.BlockCopy(thisFrame.rgbData, 0, frames[i].colorData, 0, frames[i].colorData.Length);
-                    if (thisFrame.alphaData != null)
-                        frames[i].alphaData = (byte[])thisFrame.alphaData.Clone();
-                    // ----
-
+                    MifFrame thisFrame = reader.ReadFrame(header, prevFrame);
                     delays[i] = thisFrame.delay;
                     if (i == 0)
                         firstFrame = thisFrame;
+
+                    // Encode the difference of thisFrame from prevFrame.
                     frameDiff[i] = new MifFrameDiff();
-
-                    // Only store the difference of this frame compared
-                    // to last frame.
-                    if (lastFrame != null)
+                    if (prevFrame != null)
                     {
-                        frameDiff[i].colorDiff = new ArrayPatch<short>(
-                            lastFrame.rgbData,
-                            thisFrame.rgbData,
-                            4, // two DWORDs
-                            ArrayPatchType.Overwrite);
-
-                        if (thisFrame.alphaData != null)
-                        {
-                            frameDiff[i].alphaDiff = new ArrayPatch<byte>(
-                                lastFrame.alphaData,
-                                thisFrame.alphaData,
-                                8, // two DWORDs
-                                ArrayPatchType.Overwrite);
-                        }
+                        frameDiff[i].colorDiff = MifDeltaEncoding.EncodeAsBytes(
+                            prevFrame.colorData,
+                            thisFrame.colorData);
                     }
-                    lastFrame = thisFrame;
+                    if (prevFrame != null && prevFrame.alphaData != null)
+                    {
+                        frameDiff[i].alphaDiff = MifDeltaEncoding.EncodeAsBytes(
+                            prevFrame.alphaData,
+                            thisFrame.alphaData);
+                    }
+                    prevFrame = thisFrame;
                 }
 
                 // Delta-encode the first frame from the last frame.
                 if (header.FrameCount > 1)
                 {
-                    frameDiff[0].colorDiff = new ArrayPatch<short>(
-                        lastFrame.rgbData,
-                        firstFrame.rgbData,
-                        8,
-                        ArrayPatchType.Overwrite);
-                    if (lastFrame.alphaData != null)
+                    frameDiff[0].colorDiff = MifDeltaEncoding.EncodeAsBytes(
+                            prevFrame.colorData,
+                            firstFrame.colorData);
+                    if (prevFrame.alphaData != null)
                     {
-                        frameDiff[0].alphaDiff = new ArrayPatch<byte>(
-                            lastFrame.alphaData,
-                            firstFrame.alphaData,
-                            8,
-                            ArrayPatchType.Overwrite);
+                        frameDiff[0].alphaDiff = MifDeltaEncoding.EncodeAsBytes(
+                            prevFrame.alphaData,
+                            firstFrame.alphaData);
                     }
                 }
 
@@ -216,12 +186,9 @@ namespace QQGame
                 this.activeIndex = 0;
                 this.activeFrame = firstFrame;
                 ConvertFrameToBitmap(
-                    activeFrame.rgbData,
+                    activeFrame.colorData,
                     activeFrame.alphaData,
                     bmpBuffer);
-
-                // activeColorBuffer = new MifBitmap32ColorProxy(
-
 
                 // If there's only one frame, we don't need frames[] array.
                 if (frameDiff.Length == 1)
@@ -285,16 +252,20 @@ namespace QQGame
                 do
                 {
                     oldIndex = (oldIndex + 1) % this.FrameCount;
-                    frameDiff[oldIndex].colorDiff.Apply(activeFrame.rgbData);
+                    MifDeltaEncoding.DecodeFromBytes(
+                        activeFrame.colorData, frameDiff[oldIndex].colorDiff);
                     if (activeFrame.alphaData != null)
-                        frameDiff[oldIndex].alphaDiff.Apply(activeFrame.alphaData);
+                    {
+                        MifDeltaEncoding.DecodeFromBytes(
+                            activeFrame.alphaData, frameDiff[oldIndex].alphaDiff);
+                    }
                 }
                 while (oldIndex != newIndex);
 
                 // Render the requested frame.
                 this.activeIndex = newIndex;
                 ConvertFrameToBitmap(
-                    activeFrame.rgbData,
+                    activeFrame.colorData,
                     activeFrame.alphaData,
                     bmpBuffer);
             }
@@ -332,187 +303,68 @@ namespace QQGame
                     foreach (MifFrameDiff diff in frameDiff)
                     {
                         if (diff.colorDiff != null)
-                        {
-                            foreach (var change in diff.colorDiff.Changes)
-                                size += change.Data.Length;
-                        }
+                            size += diff.colorDiff.Length;
                         if (diff.alphaDiff != null)
-                        {
-                            foreach (var change in diff.alphaDiff.Changes)
-                                size += change.Data.Length;
-                        }
+                            size += diff.alphaDiff.Length;
                     }
                 }
                 return size;
             }
         }
 
+
 #if false
         /// <summary>
-        /// Decodes a frame from the given stream.
+        /// Converts MIF pixel format to 16-bpp RGB-565 format.
         /// </summary>
-        /// <param name="reader">The underlying stream.</param>
-        /// <param name="header">The MifHeader.</param>
-        /// <exception cref="InvalidDataException">The stream does not 
-        /// contain a valid MIF image format.</exception>
-        /// <remarks>The caller is responsible for disposing the returned
-        /// <code>MifFrame.Image</code>.</remarks>
-        private void ConvertPixelsToBitmap(byte[] rgbData, byte[] alphaData)
-        {
-            int width = header.ImageWidth;
-            int height = header.ImageHeight;
-
-            // If our underlying bitmap is 16bpp, we can just copy the
-            // rgbData directly.
-            if (bitmap.PixelFormat == PixelFormat.Format16bppRgb565)
-            {
-                BitmapData bmpData16 = bitmap.LockBits(
-                    new Rectangle(0, 0, width, height),
-                    ImageLockMode.WriteOnly,
-                    PixelFormat.Format16bppRgb565);
-                IntPtr ptr = bmpData16.Scan0;
-                for (int y = 0; y < height; y++)
-                {
-                    Marshal.Copy(rgbData, y * width * 2, ptr, width * 2);
-                    ptr += bmpData16.Stride;
-                }
-                bitmap.UnlockBits(bmpData16);
-                return;
-            }
-
-            // Get a pointer to the underlying pixel data of the bitmap buffer.
-            BitmapData bmpData = bitmap.LockBits(
-                new Rectangle(0, 0, width, height),
-                ImageLockMode.WriteOnly,
-                PixelFormat.Format32bppArgb);
-            IntPtr bmpPtr = bmpData.Scan0;
-
-            // Convert the pixels scanline by scanline.
-            int[] scanline = new int[width];
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    byte a = (alphaData == null) ? (byte)0x20 : alphaData[y * width + x];
-                    byte b1 = rgbData[2 * (y * width + x)];
-                    byte b2 = rgbData[2 * (y * width + x) + 1];
-
-                    byte alpha = (byte)((a << 3) - (a >> 5));
-                    byte red = (byte)(b2 & 0xF8);
-                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
-                    byte blue = (byte)((b1 & 0x1F) << 3);
-
-                    scanline[x] = (alpha << 24)
-                                | (red << 16)
-                                | (green << 8)
-                                | (blue << 0);
-                }
-                Marshal.Copy(scanline, 0, bmpPtr, width);
-                bmpPtr += bmpData.Stride;
-            }
-
-            // Return the bitmap.
-            bitmap.UnlockBits(bmpData);
-        }
-#endif
-
-        /// <summary>
-        /// Converts MIF pixel format to RGB-16bpp or RGB-32bpp format.
-        /// </summary>
-        private static void ConvertFrameToBitmap(
-            short[] colorData, byte[] alphaData, int[] bmpBuffer)
+        private static void ConvertFrameToBitmap16(
+            byte[] colorData, byte[] alphaData, int[] bmpBuffer)
         {
             if (bmpBuffer == null)
                 throw new ArgumentNullException("bmpBuffer");
-            if (colorData.Length != bmpBuffer.Length)
-                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
-            if (alphaData.Length != bmpBuffer.Length)
-                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
-#if false
-            // If our underlying bitmap is 16bpp, we can just copy the
-            // rgbData directly.
-            if (bitmap.PixelFormat == PixelFormat.Format16bppRgb565)
-            {
-                BitmapData bmpData16 = bitmap.LockBits(
-                    new Rectangle(0, 0, width, height),
-                    ImageLockMode.WriteOnly,
-                    PixelFormat.Format16bppRgb565);
-                IntPtr ptr = bmpData16.Scan0;
-                for (int y = 0; y < height; y++)
-                {
-                    Marshal.Copy(rgbData, y * width, ptr, width);
-                    ptr += bmpData16.Stride;
-                }
-                bitmap.UnlockBits(bmpData16);
-                return;
-            }
+            if (colorData == null)
+                throw new ArgumentNullException("colorData");
+            if (alphaData!=null)
+                throw new ArgumentException("alphaData is not supported for 16 bpp bitmaps.");
+
+        // STRIDE!!!
+            Buffer.BlockCopy(colorData, 0, bmpBuffer, 0, colorData.Length);
+        }
 #endif
 
-            // Convert the pixels one by one.
-            for (int i = 0; i < bmpBuffer.Length; i++)
-            {
-                byte a = (alphaData == null) ? (byte)0x20 : alphaData[i];
-                short b = colorData[i];
-
-                byte alpha = (byte)((a << 3) - (a >> 5));
-                byte red = (byte)((b >> 8) & 0xF8);
-                byte green = (byte)((b >> 3) & 0xFC);
-                byte blue = (byte)((b << 3) & 0xF8);
-
-                bmpBuffer[i] = (alpha << 24)
-                            | (red << 16)
-                            | (green << 8)
-                            | (blue << 0);
-            }
-        }
-
         /// <summary>
-        /// Decodes a frame from the given stream.
+        /// Converts MIF pixel format to 32-bpp ARGB format.
         /// </summary>
-        /// <param name="reader">The underlying stream.</param>
-        /// <param name="header">The MifHeader.</param>
-        /// <exception cref="InvalidDataException">The stream does not 
-        /// contain a valid MIF image format.</exception>
-        /// <remarks>The caller is responsible for disposing the returned
-        /// <code>MifFrame.Image</code>.</remarks>
-        private void ConvertPixelsToBitmap(short[] rgbData, byte[] alphaData)
+        private static void ConvertFrameToBitmap(
+            byte[] colorData, byte[] alphaData, int[] bmpBuffer)
         {
-            int width = header.ImageWidth;
-            int height = header.ImageHeight;
-
-            // If our underlying bitmap is 16bpp, we can just copy the
-            // rgbData directly.
-            if (bitmap.PixelFormat == PixelFormat.Format16bppRgb565)
-            {
-                BitmapData bmpData16 = bitmap.LockBits(
-                    new Rectangle(0, 0, width, height),
-                    ImageLockMode.WriteOnly,
-                    PixelFormat.Format16bppRgb565);
-                IntPtr ptr = bmpData16.Scan0;
-                for (int y = 0; y < height; y++)
-                {
-                    Marshal.Copy(rgbData, y * width, ptr, width);
-                    ptr += bmpData16.Stride;
-                }
-                bitmap.UnlockBits(bmpData16);
-                return;
-            }
+            if (bmpBuffer == null)
+                throw new ArgumentNullException("bmpBuffer");
+            if (colorData != null && colorData.Length != bmpBuffer.Length * 2)
+                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
+            if (alphaData != null && alphaData.Length != bmpBuffer.Length)
+                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
 
             // Convert the pixels one by one.
             for (int i = 0; i < bmpBuffer.Length; i++)
             {
-                byte a = (alphaData == null) ? (byte)0x20 : alphaData[i];
-                short b = rgbData[i];
-
-                byte alpha = (byte)((a << 3) - (a >> 5));
-                byte red = (byte)((b >> 8) & 0xF8);
-                byte green = (byte)((b >> 3) & 0xFC);
-                byte blue = (byte)((b << 3) & 0xF8);
-
-                bmpBuffer[i] = (alpha << 24)
-                            | (red << 16)
-                            | (green << 8)
-                            | (blue << 0);
+                if (colorData != null)
+                {
+                    // RRRR-RGGG|GGGB-BBBB
+                    ushort c = (ushort)(colorData[2 * i] |
+                                       (colorData[2 * i + 1] << 8));
+                    bmpBuffer[i] = (bmpBuffer[i] & ~0x00FFFFFF) // A
+                                 | ((c & 0xF800) << 8)          // R
+                                 | ((c & 0x07E0) << 5)          // G
+                                 | ((c & 0x001F) << 3);         // B
+                }
+                if (alphaData != null)
+                {
+                    byte a = alphaData[i];
+                    bmpBuffer[i] =
+                        (bmpBuffer[i] & 0x00FFFFFF) |
+                        (a >= 0x20 ? 255 : a << 3) << 24;
+                }
             }
         }
     }
@@ -523,10 +375,11 @@ namespace QQGame
     class MifFrame
     {
         public int delay = 0; // delay in milliseconds
-        public short[] rgbData = null;   // 5-6-5 RGB data of the frame, uncompressed
-        public byte[] alphaData = null; // 6-bit alpha data of the frame, uncompressed
+        public byte[] colorData; // 5-6-5 RGB data of the frame, uncompressed
+        public byte[] alphaData; // 6-bit alpha data of the frame, uncompressed
     }
 
+#if false
     struct IndexRange
     {
         public int BeginIndex;
@@ -562,7 +415,9 @@ namespace QQGame
             yield break;
         }
     }
+#endif
 
+#if false
     class MifConversion
     {
         public static void UpdateColor16(byte[] colorData, short[] bmpBuffer)
@@ -572,7 +427,7 @@ namespace QQGame
 
         public static void UpdateColor16DeltaEncoded(byte[] colorData, short[] bmpBuffer)
         {
-            foreach (IndexRange r in MifDeltaEncoding.Decode(colorData))
+            //foreach (IndexRange r in MifDeltaEncoding.Decode(colorData))
             {
             }
         }
@@ -610,7 +465,9 @@ namespace QQGame
             }
         }
     }
+#endif
 
+#if false
     //class 
     class MifFrame2
     {
@@ -662,34 +519,18 @@ namespace QQGame
             }
         }
     }
-
-    class MifUncompressedFrame
-    {
-    }
-
-    class MifDeltaFrame
-    {
-    }
+#endif
 
     /// <summary>
     /// Contains information about the change from one frame to the next.
     /// </summary>
     class MifFrameDiff
     {
-        public ArrayPatch<short> colorDiff; // change in RGB data
-        public ArrayPatch<byte> alphaDiff; // change in alpha data
-
-        public void Apply(IPixelBuffer pixels)
-        {
-            // for each change in color
-            // pixels.Write(pos, change, 0, change.length);
-        }
+        public byte[] colorDiff; // delta-encoded change in color
+        public byte[] alphaDiff; // delta-encoded change in alpha
     }
 
-    /// <summary>
-    /// Provides methods to read a MIF image file.
-    /// </summary>
-    internal class MifReader : BinaryReader
+    class MifDeltaEncoding
     {
         /// <summary>
         /// Decodes a buffer that is delta encoded.
@@ -699,23 +540,14 @@ namespace QQGame
         /// of the new frame.</param>
         /// <param name="delta">A stream containing the encoded difference
         /// from the previous buffer to the new buffer.</param>
-        public static void DeltaDecode(byte[] buffer, BinaryReader delta)
+        public static void Decode(byte[] buffer, BinaryReader delta)
         {
-            // Read input size.
-            int inputSize = delta.ReadInt32();
-            if (inputSize < 0)
-                throw new InvalidDataException("InputSize must be greater than or equal to zero.");
-
             // Read packets until InputSize number of bytes are consumed.
             int index = 0; // buffer[index] is the next byte to output
             bool expectCopyPacket = false;
-            while (inputSize > 0)
+            while (delta.BaseStream.Position < delta.BaseStream.Length)
             {
-                if (inputSize < 4)
-                    throw new InvalidDataException("Not enough bytes for packet length.");
                 int len = delta.ReadInt32();
-                inputSize -= 4;
-
                 if (len < 0)
                     throw new InvalidDataException("Packet length must be greater than or equal to zero.");
                 if (index + len > buffer.Length)
@@ -723,22 +555,123 @@ namespace QQGame
 
                 if (expectCopyPacket) // copy packet
                 {
-                    if (len > inputSize)
-                        throw new InvalidDataException("Packet length must not exceed input size.");
                     delta.ReadFull(buffer, index, len);
-                    inputSize -= len;
-                    index += len;
                 }
-                else // skip packet
-                {
-                    index += len;
-                }
+                index += len;
                 expectCopyPacket = !expectCopyPacket;
             }
 
             // When we exit the loop, the remaining buffer is left unchanged.
         }
 
+        public static void DecodeFromBytes(byte[] buffer, byte[] delta)
+        {
+            using (MemoryStream memstream = new MemoryStream(delta))
+            using (BinaryReader reader = new BinaryReader(memstream))
+            {
+                Decode(buffer, reader);
+            }
+        }
+
+        /// <summary>
+        /// Encodes the difference between the previous contents and the 
+        /// current contents of a byte buffer. The encoded format can be
+        /// written directly to a MIF file.
+        /// </summary>
+        /// <param name="oldData">Contains the data in the previous buffer.
+        /// </param>
+        /// <param name="newData">Contains the data of the current buffer.
+        /// </param>
+        /// <param name="writer">A stream to write the encoded difference.
+        /// </param>
+        /// <remarks>
+        /// The encoding algorithm is described below.
+        /// 
+        /// Let (i,j) be a locally maximal range of bytes such that 
+        /// previous[i..j] = current[i..j] but extending either i or j by one
+        /// will cause them to be unequal. It takes 8 bytes to encode such a
+        /// segment, so it makes sense if and only if the common length 
+        /// (j - i + 1) > 8. We use this as the criteria to determine whether
+        /// a new chunk should be encoded.
+        /// 
+        /// Note that the encoded difference ALWAYS starts with a common
+        /// chunk, even if its length is zero.
+        ///</remarks>
+        public static void Encode(
+            byte[] oldData, byte[] newData, BinaryWriter writer)
+        {
+            if (oldData == null)
+                throw new ArgumentNullException("oldData");
+            if (newData == null)
+                throw new ArgumentNullException("newData");
+            if (oldData.Length != newData.Length)
+                throw new ArgumentException("The buffers must have the same size.");
+            if (writer == null)
+                throw new ArgumentNullException("writer");
+
+            int threshold = 8; // only encode a common chunk if the length of
+                               // chunk is greater than 8.
+            int lastIndex = 0; // end-index of the previous common chunk
+            int index = 0;     // begin-index of the current common chunk
+            while (index < newData.Length)
+            {
+                int L = GetCommonLength(oldData, newData, index);
+                if (index == 0 || L > threshold) // savings > overhead
+                {
+                    // Encode last distinct chunk.
+                    if (index > lastIndex)
+                    {
+                        writer.Write(index - lastIndex);
+                        writer.Write(newData, lastIndex, index - lastIndex);
+                    }
+                    // Encode current common chunk.
+                    writer.Write(L);
+                    lastIndex = index + L;
+                }
+                index += L;
+                index += GetDistinctLength(oldData, newData, index);
+            }
+
+            // Encode last distinct chunk.
+            if (index > lastIndex)
+            {
+                writer.Write(index - lastIndex);
+                writer.Write(newData, lastIndex, index - lastIndex);
+            }
+        }
+
+        public static byte[] EncodeAsBytes(byte[] oldData, byte[] newData)
+        {
+            using (MemoryStream memstream = new MemoryStream())
+            using (BinaryWriter writer = new BinaryWriter(memstream))
+            {
+                Encode(oldData, newData, writer);
+                return memstream.ToArray();
+            }
+        }
+
+        private static int GetCommonLength(byte[] x, byte[] y, int startIndex)
+        {
+            int i = startIndex;
+            while (i < x.Length && x[i] == y[i])
+                i++;
+            return (i - startIndex);
+        }
+
+        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex)
+        {
+            int i = startIndex;
+            while (i < x.Length && x[i] != y[i])
+                i++;
+            return (i - startIndex);
+        }
+    }
+
+    /// <summary>
+    /// Provides methods to read a MIF image file.
+    /// </summary>
+    internal class MifReader : BinaryReader
+    {
         /// <summary>
         /// Creates a MIF reader from an underlying stream.
         /// </summary>
@@ -774,7 +707,18 @@ namespace QQGame
         /// </summary>
         private void ReadDeltaEncodedPixelData(byte[] buffer)
         {
-            DeltaDecode(buffer, this);
+            // Read input size.
+            int inputSize = ReadInt32();
+            if (inputSize < 0)
+                throw new InvalidDataException("InputSize must be greater than or equal to zero.");
+
+            // Create a stream view to cover the range.
+            using (StreamView view = new StreamView(
+                this.BaseStream, this.BaseStream.Position, inputSize))
+            using (BinaryReader reader = new BinaryReader(view))
+            {
+                MifDeltaEncoding.Decode(buffer, reader);
+            }
         }
 
         public void ReadPixelData(MifHeader header, byte[] buffer, bool isFirstFrame)
@@ -818,18 +762,16 @@ namespace QQGame
             }
 
             // Read primary channels.
-            byte[] rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
-            if (prevFrame != null && prevFrame.rgbData != null)
+            frame.colorData = new byte[2 * header.ImageWidth * header.ImageHeight];
+            if (prevFrame != null && prevFrame.colorData != null)
             {
-                Buffer.BlockCopy(prevFrame.rgbData, 0, rgbData, 0, rgbData.Length);
-                ReadPixelData(header, rgbData, false);
+                prevFrame.colorData.CopyTo(frame.colorData, 0);
+                ReadPixelData(header, frame.colorData, false);
             }
             else
             {
-                ReadPixelData(header, rgbData, true);
+                ReadPixelData(header, frame.colorData, true);
             }
-            frame.rgbData = new short[header.ImageWidth * header.ImageHeight];
-            Buffer.BlockCopy(rgbData, 0, frame.rgbData, 0, rgbData.Length);
 
             // Read alpha channel if present.
             if (header.Flags.HasFlag(MifFlags.HasAlpha))
@@ -877,153 +819,6 @@ namespace QQGame
         }
     }
 
-    internal class MifWriter
-    {
-        private struct CommonSegment
-        {
-            public int StartIndex;
-            public int Length;
-        }
-
-        /// <summary>
-        /// Encodes a buffer using delta encoding.
-        /// </summary>
-        /// <param name="previous">On input, contains the uncompressed data
-        /// of the previous buffer. On output, this buffer is filled with
-        /// the encoded difference (including the leading 4-byte length
-        /// indicator). The total number of bytes stored is in the return
-        /// value.</param>
-        /// <param name="current">Contains uncompressed data of the current
-        /// buffer. This function does not alter this buffer.</param>
-        /// <returns>The number of bytes stored in 'previous' after encoding,
-        /// or zero if the new buffer cannot be encoded using delta encoding.
-        /// This can happen if the encoding will produce a larger buffer than
-        /// the uncompressed format, for example say when the buffer only 
-        /// contains bytes. If the return value is zero, the new frame should
-        /// be written to the file in uncompressed format.
-        /// </returns>
-        public static byte[] DeltaEncode(byte[] previous, byte[] current)
-        {
-            if (previous == null)
-                throw new ArgumentNullException("previous");
-            if (current == null)
-                throw new ArgumentNullException("previous");
-            if (previous.Length != current.Length)
-                throw new ArgumentException("The buffers must have the same size.");
-            if (previous.Length == 0)
-                return null;
-
-            // Let (i,j) be a locally maximal range of bytes such that 
-            // previou[i..j] and current[i..j] are equal but extending i or j
-            // by one will cause them to be unequal. It takes 8 bytes to
-            // encode such a segment, so it makes sense if and only if
-            // the common length (j - i + 1) >= 8. The number of bytes saved
-            // is (j - i - 7).
-            //
-            // There are three special points to note (in that order):
-            // 1. Since the encoded format always starts with a 4-byte length
-            //    indicator, this causes a 4-byte overhead to start.
-            // 2. If the last byte is part of a common segment, we only need
-            //    4 bytes of overhead for that. So it makes sense if the 
-            //    length of the common segment is > 4.
-            // 3. Since the format spec requires that we start by encoding the
-            //    length of a common segment (even if this length is zero), we
-            //    should encode the first common segment whatsoever. If the
-            //    length of this segment is L < 8, then there's an overhead of
-            //    (8 - L) bytes.
-            //
-            // We proceed as follows. First, we find all the common segments
-            // that have
-            //   o  L >= 0 if in the beginning
-            //   o  L > 8 if in the middle
-            //   o  L > 4 if in the end
-            // Then we compute the total savings by using delta encoding, 
-            // taking into account the 4-byte overhead of the length field.
-            // If the savings is positive, we encoded; if breakeven or
-            // negative, we don't encode it and use uncompressed format.
-
-            List<CommonSegment> common = new List<CommonSegment>();
-            int savings = -4; // length field
-            for (int index = 0; index < previous.Length; )
-            {
-                int L = GetCommonLength(previous, current, index);
-                int threshold = (index + L == previous.Length) ? 4 : 8;
-                bool include = false;
-                if (index == 0) // beginning of buffer
-                {
-                    savings += (L - threshold);
-                    include = true;
-                }
-                else
-                {
-                    if (L > threshold)
-                    {
-                        savings += (L - threshold);
-                        include = true;
-                    }
-                }
-
-                if (include)
-                {
-                    common.Add(new CommonSegment { StartIndex = index, Length = L });
-                }
-                index += L;
-                index += GetDistinctLength(previous, current, index);
-            }
-
-            // Don't bother if we're only saving a few bytes.
-            if (savings <= 16) // 16 is arbitrary
-                return null;
-
-            // Now write the actual encoded array.
-            int totalLen = previous.Length - savings;
-            byte[] result = new byte[totalLen];
-            using (MemoryStream output = new MemoryStream(result))
-            using (BinaryWriter writer = new BinaryWriter(output))
-            {
-                writer.Write(totalLen - 4);
-                int index = 0;
-                foreach (CommonSegment segment in common)
-                {
-                    if (segment.StartIndex > 0)
-                    {
-                        int n = segment.StartIndex - index;
-                        writer.Write(n);
-                        writer.Write(current, index, n);
-                    }
-                    writer.Write(segment.Length);
-                    index = segment.StartIndex + segment.Length;
-                }
-                if (index < current.Length)
-                {
-                    int n = current.Length - index;
-                    writer.Write(n);
-                    writer.Write(current, index, n);
-                }
-                if (output.Position != totalLen)
-                    throw new Exception("Internal exception");
-            }
-
-            return result;
-        }
-
-        private static int GetCommonLength(byte[] x, byte[] y, int startIndex)
-        {
-            int i = startIndex;
-            while (i < x.Length && x[i] == y[i])
-                i++;
-            return (i - startIndex);
-        }
-
-        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex)
-        {
-            int i = startIndex;
-            while (i < x.Length && x[i] != y[i])
-                i++;
-            return (i - startIndex);
-        }
-    }
-
     public enum MifCompressionMode
     {
         None = 0,
@@ -1046,6 +841,7 @@ namespace QQGame
     }
 #endif
 
+#if false
     /// <summary>
     /// Supports reading and writing the (uncompressed) RGB section of a 
     /// MIF frame. Each pixel is represented by two bytes in RGB-565 format.
@@ -1240,7 +1036,8 @@ namespace QQGame
             // render colorData and alphaData to MifPixelWriter.
         }
     }
-
+#endif
+    
 #if false
 
     public class PixelBuffer
@@ -1358,10 +1155,6 @@ namespace QQGame
     {
         private MifReader reader;
         private MifHeader header;
-#if false
-        private int currentIndex;
-        private MifFrame currentFrame;
-#endif
 
         /// <summary>
         /// Creates a MIF image from the specified data stream. 
@@ -1439,54 +1232,6 @@ namespace QQGame
             get { return header.FrameCount; }
         }
 
-#if false
-        /// <summary>
-        /// Gets or sets the zero-based index of the active frame.
-        /// </summary>
-        public int FrameIndex
-        {
-            get { return this.currentIndex; }
-            set
-            {
-                // Validate parameter.
-                if (value < 0 || value >= this.FrameCount)
-                    throw new IndexOutOfRangeException("FrameIndex out of range.");
-
-                // Do nothing if the frame index is not changed.
-                if (value == this.currentIndex)
-                    return;
-
-                // Seek the underlying stream if the frame index jumps.
-                if (value != this.currentIndex + 1)
-                {
-                    reader.BaseStream.Seek((value - (this.currentIndex + 1)) *
-                        MifCodec.GetBytesPerFrame(header), SeekOrigin.Current);
-                }
-
-                // Decode the requested frame.
-                this.currentFrame = MifCodec.DecodeFrame(reader, header);
-                this.currentIndex = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets the active frame of the image.
-        /// </summary>
-        public MifFrame ActiveFrame { get { return this.currentFrame; } }
-#endif
-
-#if false
-        /// <summary>
-        /// Gets the image to display for the active frame.
-        /// </summary>
-        public Image Image { get { return currentFrame.Image; } }
-
-        /// <summary>
-        /// Gets the delay (in milliseconds) of the active frame.
-        /// </summary>
-        public int Delay { get { return currentFrame.Delay; } }
-#endif
-
         /// <summary>
         /// Disposes the image and closes the underlying stream.
         /// </summary>
@@ -1494,33 +1239,6 @@ namespace QQGame
         {
             reader.Dispose();
         }
-
-#if false
-            // Count the number of colors and green bits in the bitmap.
-            bool[] colorPresent = new bool[65536];
-            int greenBit = 0;
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    byte b1 = buffer[2 * (y * width + x)];
-                    byte b2 = buffer[2 * (y * width + x) + 1];
-                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
-                    colorPresent[(b2 << 8) | b1] = true;
-                    if ((green & 4) != 0)
-                        greenBit++;
-                }
-            }
-
-            int colorCount = 0;
-            for (int i = 0; i < 65536; i++)
-            {
-                if (colorPresent[i])
-                    ++colorCount;
-            }
-            System.Diagnostics.Debug.WriteLine("Number of colors: " + colorCount);
-            System.Diagnostics.Debug.WriteLine("Green bit set in " + greenBit + " pixels.");
-#endif
 
         public override Util.Media.ImageFrame DecodeFrame()
         {
@@ -1658,126 +1376,3 @@ namespace QQGame
         Compressed = 8,
     }
 }
-
-#if false
-using System;
-using System.IO;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
-
-namespace QQGame
-{
-    /// <summary>
-    /// Defines a decoder for MIF images.
-    /// </summary>
-    public class MifDecoder : IDisposable
-    {
-        /// <summary>
-        /// Gets the number of frames in this image.
-        /// </summary>
-        public int FrameCount
-        {
-            get { return header.FrameCount; }
-        }
-
-        /// <summary>
-        /// Decodes the next frame from the underlying stream.
-        /// </summary>
-        /// <returns>The frame decoded, or <code>null</code> if there are
-        /// no more frames left.</returns>
-        /// <exception cref="ObjectDisposedException">This decoder has been
-        /// disposed.</exception>
-        /// <exception cref="OutOfMemoryException">The stream does not 
-        /// contain a valid MIF image format.</exception>
-        /// <remarks>The caller is responsible for disposing the returned
-        /// <code>System.Drawing.Image</code>.</remarks>
-        public MifFrame DecodeFrame()
-        {
-            if (reader == null)
-                throw new ObjectDisposedException("MifDecoder");
-
-#if false
-            // TODO: do we need this?
-            // Return null if there are no more frames left.
-            if (frameIndex + 1 >= header.FrameCount)
-            {
-                reader.Close();
-                reader = null;
-                return false;
-            }
-#endif
-
-            // Read the next image from the stream.
-            // Create a buffer to read the raw data and another buffer to
-            // convert the data.
-            int width = header.ImageWidth;
-            int height = header.ImageHeight;
-            byte[] buffer = new byte[3 * width * height];
-            byte[] bmpData = new byte[4 * width * height];
-
-            // Read frame delay if Type is 7.
-            MifFrame frame = new MifFrame();
-            if (header.Type == 7)
-                frame.Delay = reader.ReadInt32();
-            else
-                frame.Delay = 0;
-
-            // Load frame into memory.
-            if (reader.Read(buffer, 0, buffer.Length) != buffer.Length)
-                throw new OutOfMemoryException("Premature end of file.");
-
-            // Convert each pixel of the frame. Note that we assume that
-            // Stride is equal to 4 * Width, i.e. there's no padding.
-            // If we choose to loose this assumption, we will need to 
-            // convert the image scan line by scan line.
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    byte a = buffer[2 * width * height + y * width + x];
-                    byte b1 = buffer[2 * (y * width + x)];
-                    byte b2 = buffer[2 * (y * width + x) + 1];
-                    byte alpha = (byte)((a >= 32) ? 255 : (a << 3));
-                    byte red = (byte)(b2 & 0xF8);
-                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
-                    byte blue = (byte)((b1 & 0x1F) << 3);
-
-                    bmpData[4 * (y * width + x) + 0] = blue;
-                    bmpData[4 * (y * width + x) + 1] = green;
-                    bmpData[4 * (y * width + x) + 2] = red;
-                    bmpData[4 * (y * width + x) + 3] = alpha;
-                }
-            }
-
-            // Create a bitmap from the converted pixel data.
-            Bitmap bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            BitmapData data = bmp.LockBits(new Rectangle(0, 0, width, height),
-                ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-            Marshal.Copy(bmpData, 0, data.Scan0, 4 * width * height);
-            bmp.UnlockBits(data);
-
-            // Return this frame.
-            frame.Image = bmp;
-            return frame;
-        }
-
-        /// <summary>
-        /// Disposes the decoder and closes the underlying stream.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (reader == null) // already disposed
-                return;
-            if (disposing)
-                reader.Close();
-            reader = null;
-        }
-    }
-}
-#endif
