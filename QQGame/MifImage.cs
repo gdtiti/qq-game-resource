@@ -72,14 +72,6 @@ namespace QQGame
         private int[] delays;
 
         /// <summary>
-        /// Contains uncompressed RGB and alpha channel data of the active
-        /// frame. If the image contains only one frame, this member is set to
-        /// null and the pixel data is stored directly in the bitmap buffer.
-        /// </summary>
-        // TODO: get rid of this
-        private MifFrame activeFrame;
-
-        /// <summary>
         /// Index of the active frame. The pixel data of this frame is stored
         /// in activeFrame as well as the bitmap buffer.
         /// </summary>
@@ -184,16 +176,16 @@ namespace QQGame
 
                 // Render the first frame in the bitmap buffer.
                 this.activeIndex = 0;
-                this.activeFrame = firstFrame;
+                //this.activeFrame = firstFrame;
                 ConvertFrameToBitmap(
-                    activeFrame.colorData,
-                    activeFrame.alphaData,
+                    firstFrame.colorData,
+                    firstFrame.alphaData,
                     bmpBuffer);
 
                 // If there's only one frame, we don't need frames[] array.
                 if (frameDiff.Length == 1)
                 {
-                    activeFrame = null;
+                    //activeFrame = null;
                     frameDiff = null;
                 }
             }
@@ -248,26 +240,28 @@ namespace QQGame
                 if (newIndex == oldIndex)
                     return;
 
+                // Get MIF frame from Bitmap buffer.
+                byte[] colorData = new byte[2 * header.ImageWidth * header.ImageHeight];
+                byte[] alphaData = new byte[header.ImageWidth * header.ImageHeight];
+                ConvertBitmapToFrame(bmpBuffer, colorData, alphaData);
+
                 // Delta-decode the frames.
                 do
                 {
                     oldIndex = (oldIndex + 1) % this.FrameCount;
                     MifDeltaEncoding.DecodeFromBytes(
-                        activeFrame.colorData, frameDiff[oldIndex].colorDiff);
-                    if (activeFrame.alphaData != null)
+                        colorData, frameDiff[oldIndex].colorDiff);
+                    if (alphaData != null)
                     {
                         MifDeltaEncoding.DecodeFromBytes(
-                            activeFrame.alphaData, frameDiff[oldIndex].alphaDiff);
+                            alphaData, frameDiff[oldIndex].alphaDiff);
                     }
                 }
                 while (oldIndex != newIndex);
 
                 // Render the requested frame.
                 this.activeIndex = newIndex;
-                ConvertFrameToBitmap(
-                    activeFrame.colorData,
-                    activeFrame.alphaData,
-                    bmpBuffer);
+                ConvertFrameToBitmap(colorData, alphaData, bmpBuffer);
             }
         }
 
@@ -297,7 +291,7 @@ namespace QQGame
         {
             get
             {
-                int size = header.ImageWidth * header.ImageHeight * 7;
+                int size = header.ImageWidth * header.ImageHeight * 4;
                 if (frameDiff != null)
                 {
                     foreach (MifFrameDiff diff in frameDiff)
@@ -364,6 +358,42 @@ namespace QQGame
                     bmpBuffer[i] =
                         (bmpBuffer[i] & 0x00FFFFFF) |
                         (a >= 0x20 ? 255 : a << 3) << 24;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Converts 32-bpp ARGB format to MIF pixel format.
+        /// </summary>
+        private static void ConvertBitmapToFrame(
+            int[] bmpBuffer, byte[] colorData, byte[] alphaData)
+        {
+            if (bmpBuffer == null)
+                throw new ArgumentNullException("bmpBuffer");
+            if (colorData != null && colorData.Length != bmpBuffer.Length * 2)
+                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
+            if (alphaData != null && alphaData.Length != bmpBuffer.Length)
+                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
+
+            // Convert the pixels one by one.
+            for (int i = 0; i < bmpBuffer.Length; i++)
+            {
+                if (colorData != null)
+                {
+                    // RRRR-RGGG|GGGB-BBBB
+                    byte r = (byte)(bmpBuffer[i] >> 16);
+                    byte g = (byte)(bmpBuffer[i] >> 8);
+                    byte b = (byte)(bmpBuffer[i] >> 0);
+                    int c = ((r & 0xF8) << 8)
+                          | ((g & 0xFC) << 3)
+                          | (b >> 3);
+                    colorData[2 * i] = (byte)c;
+                    colorData[2 * i + 1] = (byte)(c >> 8);
+                }
+                if (alphaData != null)
+                {
+                    byte a = (byte)(bmpBuffer[i] >> 24);
+                    alphaData[i] = (byte)(((a << 7) + a) >> 10);
                 }
             }
         }
