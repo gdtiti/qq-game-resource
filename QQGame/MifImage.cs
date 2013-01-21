@@ -41,22 +41,41 @@ namespace QQGame
         private MifHeader header;
 
         /// <summary>
-        /// The bitmap pixel buffer. If all frames in this image are
-        /// completely opaque (either the image contains no alpha channel
-        /// or all alpha values are 255), the pixel format is Format16bpp565.
-        /// Otherwise, the pixel format is Format32bppArgb.
+        /// Contains 32-bpp ARGB pixel data of the active frame. This array
+        /// is pinned in memory and is selected into the underlying bitmap.
+        /// </summary>
+        private int[] bmpBuffer;
+
+        /// <summary>
+        /// Pin-handle of bmpData. This handle must be released at disposal.
+        /// </summary>
+        private GCHandle bmpBufferHandle;
+
+        /// <summary>
+        /// Bitmap that contains the pixel data of the active frame. If all
+        /// frames in the MIF image are opaque (i.e. either the image does not
+        /// contain an alpha channel or all alpha values are 255), the pixel
+        /// format is Format16bpp565. Otherwise, the pixel format is 
+        /// Format32bppArgb.
         /// </summary>
         private Bitmap bitmap;
 
         /// <summary>
         /// Contains compressed data of the change from one frame to the next.
-        /// If this image contains only one frame, this member is set to null
-        /// and the pixel data is stored directly in the bitmap buffer.
+        /// If this image contains only one frame, this member is set to null.
         /// </summary>
         private MifFrameDiff[] frameDiff;
 
         /// <summary>
-        /// Contains the delay of each frame in the MIF image.
+        /// Contains the frames in this MIF image. The color data and alpha
+        /// data of each frame are stored either in uncompressed format or in
+        /// delta-encoded format.
+        /// If this image contains only one frame, this member is set to null.
+        /// </summary>
+        private MifFrame2[] frames;
+
+        /// <summary>
+        /// Contains the delay in milliseconds of each frame in the MIF image.
         /// </summary>
         private int[] delays;
 
@@ -65,6 +84,7 @@ namespace QQGame
         /// frame. If the image contains only one frame, this member is set to
         /// null and the pixel data is stored directly in the bitmap buffer.
         /// </summary>
+        // TODO: get rid of this
         private MifFrame activeFrame;
 
         /// <summary>
@@ -106,6 +126,7 @@ namespace QQGame
 
                 // Read all frames at once so that we can close the stream
                 // and navigate through the frames easily later.
+                frames = new MifFrame2[header.FrameCount];
                 frameDiff = new MifFrameDiff[header.FrameCount];
                 delays = new int[header.FrameCount];
                 MifFrame firstFrame = null, lastFrame = null;
@@ -113,6 +134,17 @@ namespace QQGame
                 {
                     // Read the next frame in uncompressed format.
                     MifFrame thisFrame = reader.ReadFrame(header, lastFrame);
+
+                    // ----
+                    frames[i] = new MifFrame2();
+                    frames[i].colorCompression = MifCompressionMode.None;
+                    frames[i].alphaCompression = MifCompressionMode.None;
+                    frames[i].colorData = new byte[thisFrame.rgbData.Length * 2];
+                    Buffer.BlockCopy(thisFrame.rgbData, 0, frames[i].colorData, 0, frames[i].colorData.Length);
+                    if (thisFrame.alphaData != null)
+                        frames[i].alphaData = (byte[])thisFrame.alphaData.Clone();
+                    // ----
+
                     delays[i] = thisFrame.delay;
                     if (i == 0)
                         firstFrame = thisFrame;
@@ -163,18 +195,33 @@ namespace QQGame
                 // format of the bitmap is 16bpp if no alpha channel is
                 // present, or 32bpp otherwise.
                 bool alphaPresent = true; // frames.Any(x => x.alphaData != null);
+#if false
                 bitmap = new Bitmap(
                     header.ImageWidth,
                     header.ImageHeight,
                     alphaPresent ? PixelFormat.Format32bppArgb :
                                    PixelFormat.Format16bppRgb565);
+#else
+                bmpBuffer = new int[header.ImageWidth * header.ImageHeight];
+                bmpBufferHandle = GCHandle.Alloc(bmpBuffer, GCHandleType.Pinned);
+                bitmap = new Bitmap(
+                    header.ImageWidth,
+                    header.ImageHeight,
+                    header.ImageWidth * 4,
+                    PixelFormat.Format32bppArgb,
+                    bmpBufferHandle.AddrOfPinnedObject());
+#endif
 
                 // Render the first frame in the bitmap buffer.
                 this.activeIndex = 0;
                 this.activeFrame = firstFrame;
-                ConvertPixelsToBitmap(
+                ConvertFrameToBitmap(
                     activeFrame.rgbData,
-                    activeFrame.alphaData);
+                    activeFrame.alphaData,
+                    bmpBuffer);
+
+                // activeColorBuffer = new MifBitmap32ColorProxy(
+
 
                 // If there's only one frame, we don't need frames[] array.
                 if (frameDiff.Length == 1)
@@ -193,6 +240,8 @@ namespace QQGame
                 {
                     bitmap.Dispose();
                     bitmap = null;
+                    bmpBufferHandle.Free();
+                    bmpBuffer = null;
                 }
             }
             base.Dispose(disposing);
@@ -244,9 +293,10 @@ namespace QQGame
 
                 // Render the requested frame.
                 this.activeIndex = newIndex;
-                ConvertPixelsToBitmap(
+                ConvertFrameToBitmap(
                     activeFrame.rgbData,
-                    activeFrame.alphaData);
+                    activeFrame.alphaData,
+                    bmpBuffer);
             }
         }
 
@@ -367,6 +417,56 @@ namespace QQGame
 #endif
 
         /// <summary>
+        /// Converts MIF pixel format to RGB-16bpp or RGB-32bpp format.
+        /// </summary>
+        private static void ConvertFrameToBitmap(
+            short[] colorData, byte[] alphaData, int[] bmpBuffer)
+        {
+            if (bmpBuffer == null)
+                throw new ArgumentNullException("bmpBuffer");
+            if (colorData.Length != bmpBuffer.Length)
+                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
+            if (alphaData.Length != bmpBuffer.Length)
+                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
+#if false
+            // If our underlying bitmap is 16bpp, we can just copy the
+            // rgbData directly.
+            if (bitmap.PixelFormat == PixelFormat.Format16bppRgb565)
+            {
+                BitmapData bmpData16 = bitmap.LockBits(
+                    new Rectangle(0, 0, width, height),
+                    ImageLockMode.WriteOnly,
+                    PixelFormat.Format16bppRgb565);
+                IntPtr ptr = bmpData16.Scan0;
+                for (int y = 0; y < height; y++)
+                {
+                    Marshal.Copy(rgbData, y * width, ptr, width);
+                    ptr += bmpData16.Stride;
+                }
+                bitmap.UnlockBits(bmpData16);
+                return;
+            }
+#endif
+
+            // Convert the pixels one by one.
+            for (int i = 0; i < bmpBuffer.Length; i++)
+            {
+                byte a = (alphaData == null) ? (byte)0x20 : alphaData[i];
+                short b = colorData[i];
+
+                byte alpha = (byte)((a << 3) - (a >> 5));
+                byte red = (byte)((b >> 8) & 0xF8);
+                byte green = (byte)((b >> 3) & 0xFC);
+                byte blue = (byte)((b << 3) & 0xF8);
+
+                bmpBuffer[i] = (alpha << 24)
+                            | (red << 16)
+                            | (green << 8)
+                            | (blue << 0);
+            }
+        }
+
+        /// <summary>
         /// Decodes a frame from the given stream.
         /// </summary>
         /// <param name="reader">The underlying stream.</param>
@@ -398,49 +498,177 @@ namespace QQGame
                 return;
             }
 
-            // Get a pointer to the underlying pixel data of the bitmap buffer.
-            BitmapData bmpData = bitmap.LockBits(
-                new Rectangle(0, 0, width, height),
-                ImageLockMode.WriteOnly,
-                PixelFormat.Format32bppArgb);
-            IntPtr bmpPtr = bmpData.Scan0;
-
-            // Convert the pixels scanline by scanline.
-            int[] scanline = new int[width];
-            for (int y = 0; y < height; y++)
+            // Convert the pixels one by one.
+            for (int i = 0; i < bmpBuffer.Length; i++)
             {
-                for (int x = 0; x < width; x++)
-                {
-                    byte a = (alphaData == null) ? (byte)0x20 : alphaData[y * width + x];
-                    short b = rgbData[y * width + x];
+                byte a = (alphaData == null) ? (byte)0x20 : alphaData[i];
+                short b = rgbData[i];
 
-                    byte alpha = (byte)((a << 3) - (a >> 5));
-                    byte red = (byte)((b >> 8) & 0xF8);
-                    byte green = (byte)((b >> 3) & 0xFC);
-                    byte blue = (byte)((b << 3) & 0xF8);
+                byte alpha = (byte)((a << 3) - (a >> 5));
+                byte red = (byte)((b >> 8) & 0xF8);
+                byte green = (byte)((b >> 3) & 0xFC);
+                byte blue = (byte)((b << 3) & 0xF8);
 
-                    scanline[x] = (alpha << 24)
-                                | (red << 16)
-                                | (green << 8)
-                                | (blue << 0);
-                }
-                Marshal.Copy(scanline, 0, bmpPtr, width);
-                bmpPtr += bmpData.Stride;
+                bmpBuffer[i] = (alpha << 24)
+                            | (red << 16)
+                            | (green << 8)
+                            | (blue << 0);
             }
-
-            // Return the bitmap.
-            bitmap.UnlockBits(bmpData);
         }
     }
 
     /// <summary>
     /// Contains data about a frame in a MIF image.
     /// </summary>
-    internal class MifFrame
+    class MifFrame
     {
         public int delay = 0; // delay in milliseconds
         public short[] rgbData = null;   // 5-6-5 RGB data of the frame, uncompressed
         public byte[] alphaData = null; // 6-bit alpha data of the frame, uncompressed
+    }
+
+    struct IndexRange
+    {
+        public int BeginIndex;
+        public int EndIndex;
+    }
+
+    class MifDeltaEncoding
+    {
+        public static IEnumerable<IndexRange> FindUnchangedRanges(
+            byte[] previous, byte[] current, int threshold, int alignment)
+        {
+            yield break;
+        }
+
+        public static void SaveDeltaEncodedStream(
+            byte[] previous, byte[] current, int threshold, int alignment,
+            BinaryWriter writer)
+        {
+            int lastIndex = 0;
+            foreach (IndexRange r in FindUnchangedRanges(previous, current, threshold, alignment))
+            {
+                if (lastIndex == 0)
+                {
+                    writer.Write(0);
+                    writer.Write(r.BeginIndex - lastIndex);
+                    writer.Write(current, r.BeginIndex, r.EndIndex - r.BeginIndex);
+                }
+            }
+        }
+
+        public static IEnumerable<IndexRange> Decode<T>(T[] data)
+        {
+            yield break;
+        }
+    }
+
+    class MifConversion
+    {
+        public static void UpdateColor16(byte[] colorData, short[] bmpBuffer)
+        {
+            Buffer.BlockCopy(colorData, 0, bmpBuffer, 0, colorData.Length);
+        }
+
+        public static void UpdateColor16DeltaEncoded(byte[] colorData, short[] bmpBuffer)
+        {
+            foreach (IndexRange r in MifDeltaEncoding.Decode(colorData))
+            {
+            }
+        }
+
+        public static void UpdateColor32(short[] colorData, int[] bmpBuffer)
+        {
+            // RRRR RGGG-GGGB BBBB
+            for (int i = 0; i < colorData.Length; i++)
+            {
+                ushort c = (ushort)colorData[i];
+                bmpBuffer[i] =
+                    (bmpBuffer[i] & ~0x00FFFFFF) // A
+                    | ((c & 0xF800) << 8)        // R
+                    | ((c & 0x07E0) << 5)        // G
+                    | ((c & 0x001F) << 3);       // B
+            }
+        }
+
+        /// <summary>
+        /// Updates the alpha channel data of a 16-bpp bitmap buffer.
+        /// </summary>
+        public static void UpdateAlpha16(byte[] alphaData, short[] bmpBuffer)
+        {
+            throw new NotSupportedException();
+        }
+
+        /// <summary>
+        /// Updates the alpha channel data of a 32-bpp bitmap buffer.
+        /// </summary>
+        public static void UpdateAlpha32(byte[] alphaData, int[] bmpBuffer)
+        {
+            for (int i = 0; i < alphaData.Length; i++)
+            {
+                bmpBuffer[i] = (bmpBuffer[i] & 0x00FFFFFF) | (alphaData[i] << 24);
+            }
+        }
+    }
+
+    //class 
+    class MifFrame2
+    {
+        public MifCompressionMode colorCompression;
+        public MifCompressionMode alphaCompression;
+        public byte[] colorData;
+        public byte[] alphaData;
+
+
+        /// <summary>
+        /// Draws the frame onto a pixel buffer.
+        /// </summary>
+        /// <param name="bmpBuffer"></param>
+        public void Draw(IPixelBuffer colorBuffer, IPixelBuffer alphaBuffer)
+        {
+            if (colorCompression == MifCompressionMode.None)
+            {
+                colorBuffer.Write(0, colorData, 0, colorData.Length);
+            }
+            if (colorCompression == MifCompressionMode.Delta)
+            {
+                byte[] data = colorData;
+                bool expectCopyPacket = false;
+                int iInput = 0, iOutput = 0;
+                while (iInput < data.Length)
+                {
+                    int len = BitConverter.ToInt32(data, iInput);
+                    iInput += 4;
+                    if (expectCopyPacket)
+                    {
+                        colorBuffer.Write(iOutput, data, iInput, len);
+                        iInput += len;
+                    }
+                    iOutput += len;
+                    expectCopyPacket = !expectCopyPacket;
+                }
+            }
+
+            if (alphaData == null)
+            {
+                return;
+            }
+            if (alphaCompression == MifCompressionMode.None)
+            {
+                alphaBuffer.Write(0, alphaData, 0, alphaData.Length);
+            }
+            if (alphaCompression == MifCompressionMode.Delta)
+            {
+            }
+        }
+    }
+
+    class MifUncompressedFrame
+    {
+    }
+
+    class MifDeltaFrame
+    {
     }
 
     /// <summary>
@@ -981,7 +1209,7 @@ namespace QQGame
             bmpBuffer.Read(position, argb, 0, 4 * count);
             for (int i = 0; i < count; i++)
             {
-                byte a=buffer[i];
+                byte a = buffer[i];
                 argb[4 * i + 3] = (byte)((a >= 32) ? 255 : (a << 3)); // A
             }
             bmpBuffer.Write(position, argb, 0, 4 * count);
