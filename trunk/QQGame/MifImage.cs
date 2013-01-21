@@ -446,10 +446,16 @@ namespace QQGame
     /// <summary>
     /// Contains information about the change from one frame to the next.
     /// </summary>
-    internal class MifFrameDiff
+    class MifFrameDiff
     {
         public ArrayPatch<short> colorDiff; // change in RGB data
         public ArrayPatch<byte> alphaDiff; // change in alpha data
+
+        public void Apply(IPixelBuffer pixels)
+        {
+            // for each change in color
+            // pixels.Write(pos, change, 0, change.length);
+        }
     }
 
     /// <summary>
@@ -831,6 +837,155 @@ namespace QQGame
     {
         public MifAlphaBuffer(byte[] alphaData)
             : base(alphaData, PixelFormat.Format8bppIndexed) { }
+    }
+
+    /// <summary>
+    /// Provides methods to read and write the RGB channels in a RGB 5-6-5
+    /// bitmap.
+    /// </summary>
+    class MifBitmap16ColorProxy : BitmapPixelBuffer
+    {
+        public MifBitmap16ColorProxy(Bitmap bitmap)
+            : base(bitmap)
+        {
+            if (bitmap.PixelFormat != PixelFormat.Format16bppRgb565)
+                throw new NotSupportedException("Unsupported pixel format.");
+        }
+    }
+
+    /// <summary>
+    /// Provides methods to read and write the RGB channels in a 32-bpp ARGB
+    /// bitmap as if its pixel format were RGB 5-6-5.
+    /// </summary>
+    class MifBitmap32ColorProxy : IPixelBuffer
+    {
+        Bitmap bmp;
+        BitmapPixelBuffer bmpBuffer;
+
+        public MifBitmap32ColorProxy(Bitmap bitmap)
+        {
+            if (bitmap.PixelFormat != PixelFormat.Format32bppArgb)
+                throw new NotSupportedException("Unsupported bitmap pixel format.");
+            this.bmp = bitmap;
+            this.bmpBuffer = new BitmapPixelBuffer(bitmap);
+        }
+
+        public void Dispose()
+        {
+            if (bmpBuffer != null)
+            {
+                bmpBuffer.Dispose();
+                bmpBuffer = null;
+                bmp = null;
+            }
+        }
+
+        public PixelFormat PixelFormat { get { return PixelFormat.Format16bppRgb565; } }
+
+        public int Length { get { return bmp.Width * bmp.Height * 2; } }
+
+        public void Read(int position, byte[] buffer, int offset, int count)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Write(int position, byte[] buffer, int offset, int count)
+        {
+            // TODO: validate parameters.
+
+            int iPixel = position / 2;
+            int numWholePixels = (count - (position % 2)) / 2;
+            byte[] argb = new byte[Math.Max(1, numWholePixels) * 4];
+
+            // Process odd byte at the beginning: GGGBBBBB
+            if (count > 0 && position % 2 != 0)
+            {
+                byte b = buffer[offset];
+                bmpBuffer.Read(iPixel * 4, argb, 0, 4);
+                argb[0] = (byte)(b << 3);
+                argb[1] = (byte)((argb[1] & 0xE0) | ((b & 0xE0) >> 3));
+                bmpBuffer.Write(iPixel * 4, argb, 0, 4);
+                offset++;
+                count--;
+                iPixel++;
+            }
+
+            // Process WORD-aligned bytes.
+            if (numWholePixels > 0)
+            {
+                bmpBuffer.Read(iPixel * 4, argb, 0, 4 * numWholePixels);
+                for (int i = 0; i < numWholePixels; i++)
+                {
+                    short c = (short)(buffer[offset] | (buffer[offset + 1] << 8));
+                    argb[4 * i + 0] = (byte)((c << 3) & 0xF8); // B
+                    argb[4 * i + 1] = (byte)((c >> 3) & 0xFC); // G
+                    argb[4 * i + 2] = (byte)((c >> 8) & 0xF8); // R
+                    offset += 2;
+                }
+                bmpBuffer.Write(iPixel * 4, argb, 0, 4 * numWholePixels);
+                count -= 2 * numWholePixels;
+                iPixel += numWholePixels;
+            }
+
+            // Process odd byte at the end: RRRRRGGG
+            if (count > 0)
+            {
+                byte b = buffer[offset];
+                bmpBuffer.Read(iPixel * 4, argb, 0, 4);
+                argb[1] = (byte)((argb[1] & 0x1F) | (b << 5)); // G
+                argb[2] = (byte)(b & 0xF8); // R
+                bmpBuffer.Write(iPixel * 4, argb, 0, 4);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Provides methods to read and write the Alpha channel in a 32-bpp ARGB
+    /// bitmap as a continuous buffer with alpha value ranging from 0 to 32.
+    /// </summary>
+    class MifBitmap32AlphaProxy : IPixelBuffer
+    {
+        Bitmap bmp;
+        BitmapPixelBuffer bmpBuffer;
+
+        public MifBitmap32AlphaProxy(Bitmap bitmap)
+        {
+            if (bitmap.PixelFormat != PixelFormat.Format32bppArgb)
+                throw new NotSupportedException("Unsupported bitmap pixel format.");
+            this.bmp = bitmap;
+            this.bmpBuffer = new BitmapPixelBuffer(bitmap);
+        }
+
+        public void Dispose()
+        {
+            if (bmpBuffer != null)
+            {
+                bmpBuffer.Dispose();
+                bmpBuffer = null;
+                bmp = null;
+            }
+        }
+
+        public PixelFormat PixelFormat { get { return PixelFormat.Format8bppIndexed; } }
+
+        public int Length { get { return bmp.Width * bmp.Height; } }
+
+        public void Read(int position, byte[] buffer, int offset, int count)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Write(int position, byte[] buffer, int offset, int count)
+        {
+            byte[] argb = new byte[count * 4];
+            bmpBuffer.Read(position, argb, 0, 4 * count);
+            for (int i = 0; i < count; i++)
+            {
+                byte a=buffer[i];
+                argb[4 * i + 3] = (byte)((a >= 32) ? 255 : (a << 3)); // A
+            }
+            bmpBuffer.Write(position, argb, 0, 4 * count);
+        }
     }
 
     class TestMe
