@@ -26,6 +26,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using Util.IO;
+using Util.Media;
 
 namespace QQGame
 {
@@ -296,6 +297,7 @@ namespace QQGame
             }
         }
 
+#if false
         /// <summary>
         /// Decodes a frame from the given stream.
         /// </summary>
@@ -362,6 +364,7 @@ namespace QQGame
             // Return the bitmap.
             bitmap.UnlockBits(bmpData);
         }
+#endif
 
         /// <summary>
         /// Decodes a frame from the given stream.
@@ -791,6 +794,68 @@ namespace QQGame
     {
         None = 0,
         Delta = 1,
+    }
+
+#if false
+    /// <summary>
+    /// Supports accessing the pixel data in an uncompressed MIF frame as a
+    /// Stream.
+    /// 
+    /// The MIF format stores the RGB channels and alpha channels separately.
+    /// The RGB section comes first, with 2 bytes per pixel. The optional 
+    /// Alpha section follows, with 1 byte per pixel. In each section, the 
+    /// pixels are stored scanline by scanline from top to bottom, and in 
+    /// each scanline from left to right.
+    /// </summary>
+    class MifPixelStream
+    {
+    }
+#endif
+
+    /// <summary>
+    /// Supports reading and writing the (uncompressed) RGB section of a 
+    /// MIF frame. Each pixel is represented by two bytes in RGB-565 format.
+    /// </summary>
+    class MifColorBuffer : ArrayPixelBuffer<short>
+    {
+        public MifColorBuffer(short[] colorData)
+            : base(colorData, PixelFormat.Format16bppRgb565) { }
+    }
+
+    /// <summary>
+    /// Supports reading and writing the (uncompressed) Alpha section of a 
+    /// MIF frame. Each pixel is represented by one byte with value between
+    /// 0 and 32, inclusive.
+    /// </summary>
+    class MifAlphaBuffer : ArrayPixelBuffer<byte>
+    {
+        public MifAlphaBuffer(byte[] alphaData)
+            : base(alphaData, PixelFormat.Format8bppIndexed) { }
+    }
+
+    class TestMe
+    {
+        public void Test()
+        {
+            // read uncompressed bitmap from file
+            // colorData
+            // alphaData
+            // MifColorBuffer colorBuffer;
+            // colorBuffer.Write(0, colorData, 0, colorData.Length);
+
+            // read compressed bitmap from file
+            // MifColorBuffer colorBuffer;
+            // int pos = 0;
+            // ...
+            // pos += SkipLen;
+            // colorBuffer.Write(pos, colorData, 0, CopyLen);
+            // pos += CopyLen;
+            // ...
+            // MifAlphaBuffer alphaStream;
+            // similar to above
+
+            // render colorData and alphaData to MifPixelWriter.
+        }
     }
 
 #if false
