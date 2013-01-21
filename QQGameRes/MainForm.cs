@@ -8,10 +8,10 @@ using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Util.Forms;
-using Util.Media;
 using System.Threading;
 using System.Threading.Tasks;
+using Util.Forms;
+using Util.Media;
 
 namespace QQGameRes
 {
@@ -477,13 +477,45 @@ namespace QQGameRes
                         mif.Width, mif.Height,
                         (vItem as ImageFile).File.Length,
                         mif.CompressedSize);
+                    int alphaCount;
+                    int colorCount = CountColors(mif, out alphaCount);
                     txtFrames.Text = string.Format(
-                        "{0} frames ({1})",
+                        "{0} frames ({1}), {2} colors, {3} alphas",
                         mif.FrameCount,
-                        mif.Duration);
+                        mif.Duration,
+                        colorCount,
+                        alphaCount);
                 }
                 using (image as IDisposable) { }
             }
+        }
+
+        private int CountColors(QQGame.MifImage mif, out int alphaCount)
+        {
+            int count = 0;
+            byte[] pixels = new byte[mif.Width * mif.Height * 4];
+            HashSet<int> colors = new HashSet<int>();
+            HashSet<int> alphas = new HashSet<int>();
+            for (int i = 0; i < mif.FrameCount; i++)
+            {
+                colors.Clear();
+                mif.FrameIndex = i;
+                using (BitmapPixelBuffer buffer = new BitmapPixelBuffer(
+                    mif.Frame as Bitmap, PixelFormat.Format32bppArgb))
+                {
+                    buffer.Read(0, pixels, 0, pixels.Length);
+                }
+
+                for (int j = 0; j < mif.Width * mif.Height; j++)
+                {
+                    int c = BitConverter.ToInt32(pixels, j * 4);
+                    colors.Add(c);
+                    alphas.Add((c >> 24) & 0xFF);
+                }
+                count = Math.Max(count, colors.Count);
+            }
+            alphaCount = alphas.Count;
+            return count;
         }
     }
 }
