@@ -27,6 +27,7 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using Util.IO;
 using Util.Media;
+using System.IO.Compression;
 
 namespace QQGame
 {
@@ -77,6 +78,86 @@ namespace QQGame
         /// </summary>
         private int activeIndex;
 
+        private byte[] Compress(byte[] data)
+        {
+            using (MemoryStream output = new MemoryStream())
+            {
+                using (Stream stream = new DeflateStream(output, CompressionMode.Compress))
+                using (MemoryStream input = new MemoryStream(data))
+                    input.CopyTo(stream);
+                return output.ToArray();
+            }
+        }
+
+        private int TestRLE(byte[] data, int elemSize)
+        {
+            //data = new byte[] { 1, 3, 5, 5, 4, 6, 7, 9, 7, 7, 7, 5, 7, 8 };
+
+            byte[] outBytes = null;
+            using (MemoryStream input = new MemoryStream(data))
+            using (MemoryStream output = new MemoryStream())
+            using (RunLengthEncoder rle = new RunLengthEncoder(output, elemSize))
+            {
+                input.CopyTo(rle);
+                rle.Flush();
+                outBytes = output.ToArray();
+            }
+
+            int i, total=0;
+            for ( i = 0; i < outBytes.Length; )
+            {
+                byte n = outBytes[i++];
+                int repeat = (n & 0x7F) + 1;
+                if ((n & 0x80) != 0) // RLE
+                {
+                    total += repeat;
+                    i++;
+                }
+                else
+                {
+                    total += repeat;
+                    i += repeat;
+                }
+            }
+
+            using (MemoryStream input = new MemoryStream(outBytes))
+            using (MemoryStream output = new MemoryStream())
+            using (RunLengthDecoder rld = new RunLengthDecoder(input, elemSize))
+            {
+                byte[] recovered = new byte[data.Length];
+                rld.ReadFull(recovered, 0, recovered.Length);
+                if (input.Position != input.Length)
+                    throw new Exception();
+            }
+            return outBytes.Length;
+        }
+
+        private static byte[] RunLengthEncode(byte[] data, int elemSize)
+        {
+            using (MemoryStream input = new MemoryStream(data))
+            using (MemoryStream output = new MemoryStream())
+            using (RunLengthEncoder rle = new RunLengthEncoder(output, elemSize))
+            {
+                input.CopyTo(rle);
+                rle.Flush();
+                return output.ToArray();
+            }
+        }
+
+        private static int RunLengthEncodeXor(byte[] x, byte[] y, int elemSize)
+        {
+            int n = x.Length;
+            byte[] z = new byte[n];
+            for (int i = 0; i < n; i++)
+            {
+                z[i] = (byte)(x[i] ^ y[i]);
+            }
+            return RunLengthEncode(z, elemSize).Length;
+        }
+
+        private Dictionary<MifCompressionMode, int> compressedSize
+            = new Dictionary<MifCompressionMode, int>();
+
         /// <summary>
         /// Creates a MIF image from the specified stream.
         /// </summary>
@@ -90,6 +171,13 @@ namespace QQGame
         /// contain a valid MIF image format.</exception>
         public MifImage(Stream stream)
         {
+            compressedSize = new Dictionary<MifCompressionMode, int>();
+            compressedSize[MifCompressionMode.None] = 0;
+            compressedSize[MifCompressionMode.Delta] = 0;
+            compressedSize[MifCompressionMode.Deflate] = 0;
+            compressedSize[MifCompressionMode.RleFrame] = 0;
+            compressedSize[MifCompressionMode.RleDelta] = 0;
+
             // Create a MIF reader on the stream.
             using (stream)
             using (MifReader reader = new MifReader(stream))
@@ -121,19 +209,47 @@ namespace QQGame
                     if (i == 0)
                         firstFrame = thisFrame;
 
+                    // ----
+                    // Test RLE here
+                    //rleCompressedSize += TestRLE(thisFrame.alphaData, 1);
+                    //rleCompressedSize += TestRLE(thisFrame.colorData, 2);
+                    int k1, k2, k3, k4;
+                    k1 = RunLengthEncode(thisFrame.colorData, 2).Length;
+                    k2 = RunLengthEncode(thisFrame.alphaData, 1).Length;
+                    k3 = Compress(thisFrame.colorData).Length;
+                    k4 = Compress(thisFrame.alphaData).Length;
+
+                    compressedSize[MifCompressionMode.RleFrame] += k1 + k2;
+                    compressedSize[MifCompressionMode.Deflate] += k3 + k4;
+
+                    if (i == 0)
+                    {
+                        compressedSize[MifCompressionMode.RleDelta] += k1 + k2;
+                    }
+                    // ----
+
                     // Encode the difference of thisFrame from prevFrame.
                     frameDiff[i] = new MifFrameDiff();
+                    byte[] b3, b4;
                     if (prevFrame != null)
                     {
                         frameDiff[i].colorDiff = MifDeltaEncoding.EncodeAsBytes(
                             prevFrame.colorData,
-                            thisFrame.colorData);
+                            thisFrame.colorData,
+                            2);
+                        b3 = RunLengthEncode(frameDiff[i].colorDiff, 2);
+                        compressedSize[MifCompressionMode.RleDelta] += b3.Length;
+                        compressedSize[MifCompressionMode.Delta] += frameDiff[i].colorDiff.Length;
                     }
                     if (prevFrame != null && prevFrame.alphaData != null)
                     {
                         frameDiff[i].alphaDiff = MifDeltaEncoding.EncodeAsBytes(
                             prevFrame.alphaData,
-                            thisFrame.alphaData);
+                            thisFrame.alphaData,
+                            1);
+                        b4 = RunLengthEncode(frameDiff[i].alphaDiff, 1);
+                        compressedSize[MifCompressionMode.RleDelta] += b4.Length;
+                        compressedSize[MifCompressionMode.Delta] += frameDiff[i].alphaDiff.Length;
                     }
                     prevFrame = thisFrame;
                 }
@@ -143,12 +259,14 @@ namespace QQGame
                 {
                     frameDiff[0].colorDiff = MifDeltaEncoding.EncodeAsBytes(
                             prevFrame.colorData,
-                            firstFrame.colorData);
+                            firstFrame.colorData,
+                            2);
                     if (prevFrame.alphaData != null)
                     {
                         frameDiff[0].alphaDiff = MifDeltaEncoding.EncodeAsBytes(
                             prevFrame.alphaData,
-                            firstFrame.alphaData);
+                            firstFrame.alphaData,
+                            1);
                     }
                 }
 
@@ -287,10 +405,12 @@ namespace QQGame
             get { return new TimeSpan(10000L * delays.Sum()); }
         }
 
-        public int CompressedSize
+        public Dictionary<MifCompressionMode,int> CompressedSize
         {
             get
             {
+                return compressedSize;
+#if false
                 int size = header.ImageWidth * header.ImageHeight * 4;
                 if (frameDiff != null)
                 {
@@ -303,6 +423,8 @@ namespace QQGame
                     }
                 }
                 return size;
+#endif
+
             }
         }
 
@@ -628,7 +750,7 @@ namespace QQGame
         /// chunk, even if its length is zero.
         ///</remarks>
         public static void Encode(
-            byte[] oldData, byte[] newData, BinaryWriter writer)
+            byte[] oldData, byte[] newData, BinaryWriter writer, int elemSize)
         {
             if (oldData == null)
                 throw new ArgumentNullException("oldData");
@@ -636,6 +758,8 @@ namespace QQGame
                 throw new ArgumentNullException("newData");
             if (oldData.Length != newData.Length)
                 throw new ArgumentException("The buffers must have the same size.");
+            if (newData.Length % elemSize != 0)
+                throw new ArgumentException("The buffer size must be a multiple of elemSize.");
             if (writer == null)
                 throw new ArgumentNullException("writer");
 
@@ -645,7 +769,7 @@ namespace QQGame
             int index = 0;     // begin-index of the current common chunk
             while (index < newData.Length)
             {
-                int L = GetCommonLength(oldData, newData, index);
+                int L = GetCommonLength(oldData, newData, index, elemSize);
                 if (index == 0 || L > threshold) // savings > overhead
                 {
                     // Encode last distinct chunk.
@@ -659,7 +783,7 @@ namespace QQGame
                     lastIndex = index + L;
                 }
                 index += L;
-                index += GetDistinctLength(oldData, newData, index);
+                index += GetDistinctLength(oldData, newData, index, elemSize);
             }
 
             // Encode last distinct chunk.
@@ -670,30 +794,40 @@ namespace QQGame
             }
         }
 
-        public static byte[] EncodeAsBytes(byte[] oldData, byte[] newData)
+        public static byte[] EncodeAsBytes(byte[] oldData, byte[] newData, int elemSize)
         {
             using (MemoryStream memstream = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(memstream))
             {
-                Encode(oldData, newData, writer);
+                Encode(oldData, newData, writer, elemSize);
                 return memstream.ToArray();
             }
         }
 
-        private static int GetCommonLength(byte[] x, byte[] y, int startIndex)
+        private static int GetCommonLength(byte[] x, byte[] y, int startIndex, int elemSize)
         {
             int i = startIndex;
             while (i < x.Length && x[i] == y[i])
                 i++;
+            return (i - startIndex) / elemSize * elemSize;
+        }
+
+        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex, int elemSize)
+        {
+            int i = startIndex;
+            while (i < x.Length && !CompareEqual(x, i, y, i, elemSize))
+                i += elemSize;
             return (i - startIndex);
         }
 
-        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex)
+        public static bool CompareEqual(byte[] x, int index1, byte[] y, int index2, int count)
         {
-            int i = startIndex;
-            while (i < x.Length && x[i] != y[i])
-                i++;
-            return (i - startIndex);
+            for (int j = 0; j < count; j++)
+            {
+                if (x[index1 + j] != y[index2 + j])
+                    return false;
+            }
+            return true;
         }
     }
 
@@ -853,6 +987,10 @@ namespace QQGame
     {
         None = 0,
         Delta = 1,
+
+        Deflate = 256,
+        RleFrame = 257,
+        RleDelta = 258,
     }
 
 #if false

@@ -472,11 +472,16 @@ namespace QQGameRes
                 if (image is QQGame.MifImage)
                 {
                     QQGame.MifImage mif = image as QQGame.MifImage;
+                    var cs = mif.CompressedSize;
                     txtImageSize.Text = string.Format(
-                        "{0} x {1} ({2:0,0} uncompressed, {3:0,0} after compression)",
+                        "{0} x {1} ({2:0,0} original, {3:0,0} DELTA, " +
+                        "{4:0,0} RLE, {5:0,0} RLE-DELTA, {6:0,0} ZIP)",
                         mif.Width, mif.Height,
                         (vItem as ImageFile).File.Length,
-                        mif.CompressedSize);
+                        cs[QQGame.MifCompressionMode.Delta],
+                        cs[QQGame.MifCompressionMode.RleFrame],
+                        cs[QQGame.MifCompressionMode.RleDelta],
+                        cs[QQGame.MifCompressionMode.Deflate]);
                     int alphaCount;
                     int maxColorCount;
                     int totalColorCount = CountColors(mif, out alphaCount, out maxColorCount);
