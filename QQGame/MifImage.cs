@@ -233,22 +233,22 @@ namespace QQGame
                     byte[] b3, b4;
                     if (prevFrame != null)
                     {
-                        frameDiff[i].colorDiff = MifDeltaEncoding.EncodeAsBytes(
+                        frameDiff[i].colorDiff = MifDeltaEncoding.Encode(
                             prevFrame.colorData,
                             thisFrame.colorData,
-                            2);
-                        b3 = RunLengthEncode(frameDiff[i].colorDiff, 2);
-                        compressedSize[MifCompressionMode.RleDelta] += b3.Length;
+                            true);
+                        //b3 = RunLengthEncode(frameDiff[i].colorDiff, 2);
+                        //compressedSize[MifCompressionMode.RleDelta] += b3.Length;
                         compressedSize[MifCompressionMode.Delta] += frameDiff[i].colorDiff.Length;
                     }
                     if (prevFrame != null && prevFrame.alphaData != null)
                     {
-                        frameDiff[i].alphaDiff = MifDeltaEncoding.EncodeAsBytes(
+                        frameDiff[i].alphaDiff = MifDeltaEncoding.Encode(
                             prevFrame.alphaData,
                             thisFrame.alphaData,
-                            1);
-                        b4 = RunLengthEncode(frameDiff[i].alphaDiff, 1);
-                        compressedSize[MifCompressionMode.RleDelta] += b4.Length;
+                            true);
+                        //b4 = RunLengthEncode(frameDiff[i].alphaDiff, 1);
+                        //compressedSize[MifCompressionMode.RleDelta] += b4.Length;
                         compressedSize[MifCompressionMode.Delta] += frameDiff[i].alphaDiff.Length;
                     }
                     prevFrame = thisFrame;
@@ -257,16 +257,16 @@ namespace QQGame
                 // Delta-encode the first frame from the last frame.
                 if (header.FrameCount > 1)
                 {
-                    frameDiff[0].colorDiff = MifDeltaEncoding.EncodeAsBytes(
+                    frameDiff[0].colorDiff = MifDeltaEncoding.Encode(
                             prevFrame.colorData,
                             firstFrame.colorData,
-                            2);
+                            true);
                     if (prevFrame.alphaData != null)
                     {
-                        frameDiff[0].alphaDiff = MifDeltaEncoding.EncodeAsBytes(
+                        frameDiff[0].alphaDiff = MifDeltaEncoding.Encode(
                             prevFrame.alphaData,
                             firstFrame.alphaData,
-                            1);
+                            true);
                     }
                 }
 
@@ -367,12 +367,12 @@ namespace QQGame
                 do
                 {
                     oldIndex = (oldIndex + 1) % this.FrameCount;
-                    MifDeltaEncoding.DecodeFromBytes(
-                        colorData, frameDiff[oldIndex].colorDiff);
+                    MifDeltaEncoding.Decode(
+                        colorData, frameDiff[oldIndex].colorDiff, true);
                     if (alphaData != null)
                     {
-                        MifDeltaEncoding.DecodeFromBytes(
-                            alphaData, frameDiff[oldIndex].alphaDiff);
+                        MifDeltaEncoding.Decode(
+                            alphaData, frameDiff[oldIndex].alphaDiff, true);
                     }
                 }
                 while (oldIndex != newIndex);
@@ -527,47 +527,9 @@ namespace QQGame
     class MifFrame
     {
         public int delay = 0; // delay in milliseconds
-        public byte[] colorData; // 5-6-5 RGB data of the frame, uncompressed
-        public byte[] alphaData; // 6-bit alpha data of the frame, uncompressed
+        public byte[] colorData; // uncompressed 5-6-5 RGB data of the frame
+        public byte[] alphaData; // uncompressed 6-bit alpha data of the frame
     }
-
-#if false
-    struct IndexRange
-    {
-        public int BeginIndex;
-        public int EndIndex;
-    }
-
-    class MifDeltaEncoding
-    {
-        public static IEnumerable<IndexRange> FindUnchangedRanges(
-            byte[] previous, byte[] current, int threshold, int alignment)
-        {
-            yield break;
-        }
-
-        public static void SaveDeltaEncodedStream(
-            byte[] previous, byte[] current, int threshold, int alignment,
-            BinaryWriter writer)
-        {
-            int lastIndex = 0;
-            foreach (IndexRange r in FindUnchangedRanges(previous, current, threshold, alignment))
-            {
-                if (lastIndex == 0)
-                {
-                    writer.Write(0);
-                    writer.Write(r.BeginIndex - lastIndex);
-                    writer.Write(current, r.BeginIndex, r.EndIndex - r.BeginIndex);
-                }
-            }
-        }
-
-        public static IEnumerable<IndexRange> Decode<T>(T[] data)
-        {
-            yield break;
-        }
-    }
-#endif
 
 #if false
     class MifConversion
@@ -716,12 +678,14 @@ namespace QQGame
             // When we exit the loop, the remaining buffer is left unchanged.
         }
 
-        public static void DecodeFromBytes(byte[] buffer, byte[] delta)
+        public static void Decode(byte[] oldData, byte[] delta, bool use7Bit)
         {
-            using (MemoryStream memstream = new MemoryStream(delta))
-            using (BinaryReader reader = new BinaryReader(memstream))
+            using (var input = new MemoryStream(delta))
+            using (var reader = use7Bit ?
+                   new BinaryReaderWith7BitEncoding(input) :
+                   new BinaryReader(input))
             {
-                Decode(buffer, reader);
+                Decode(oldData, reader);
             }
         }
 
@@ -734,7 +698,9 @@ namespace QQGame
         /// </param>
         /// <param name="newData">Contains the data of the current buffer.
         /// </param>
-        /// <param name="writer">A stream to write the encoded difference.
+        /// <param name="output">A stream to write the encoded difference.
+        /// </param>
+        /// <param name="encodeInteger">Whether to encode integer as 7-bit.
         /// </param>
         /// <remarks>
         /// The encoding algorithm is described below.
@@ -750,7 +716,7 @@ namespace QQGame
         /// chunk, even if its length is zero.
         ///</remarks>
         public static void Encode(
-            byte[] oldData, byte[] newData, BinaryWriter writer, int elemSize)
+            byte[] oldData, byte[] newData, BinaryWriter writer, int threshold)
         {
             if (oldData == null)
                 throw new ArgumentNullException("oldData");
@@ -758,76 +724,92 @@ namespace QQGame
                 throw new ArgumentNullException("newData");
             if (oldData.Length != newData.Length)
                 throw new ArgumentException("The buffers must have the same size.");
-            if (newData.Length % elemSize != 0)
-                throw new ArgumentException("The buffer size must be a multiple of elemSize.");
             if (writer == null)
                 throw new ArgumentNullException("writer");
 
-            int threshold = 8; // only encode a common chunk if the length of
-                               // chunk is greater than 8.
-            int lastIndex = 0; // end-index of the previous common chunk
-            int index = 0;     // begin-index of the current common chunk
+            int lastCommonEnd = 0; // end-index of the previous common chunk
+            int index = 0;         // begin-index of the current common chunk
             while (index < newData.Length)
             {
-                int L = GetCommonLength(oldData, newData, index, elemSize);
-                if (index == 0 || L > threshold) // savings > overhead
+                int L = GetCommonLength(oldData, newData, index);
+
+                // Encode this common block if the block length is greater
+                // than the threshold, or if we are at the very beginning of
+                // the buffer, in which case the format requires a common
+                // block.
+                if (index == 0 || L > threshold)
                 {
                     // Encode last distinct chunk.
-                    if (index > lastIndex)
+                    if (index > lastCommonEnd)
                     {
-                        writer.Write(index - lastIndex);
-                        writer.Write(newData, lastIndex, index - lastIndex);
+                        writer.Write(index - lastCommonEnd);
+                        writer.Write(newData, lastCommonEnd, index - lastCommonEnd);
                     }
+
                     // Encode current common chunk.
                     writer.Write(L);
-                    lastIndex = index + L;
+                    lastCommonEnd = index + L;
                 }
                 index += L;
-                index += GetDistinctLength(oldData, newData, index, elemSize);
+                index += GetDistinctLength(oldData, newData, index);
             }
 
             // Encode last distinct chunk.
-            if (index > lastIndex)
+            if (index > lastCommonEnd)
             {
-                writer.Write(index - lastIndex);
-                writer.Write(newData, lastIndex, index - lastIndex);
+                writer.Write(index - lastCommonEnd);
+                writer.Write(newData, lastCommonEnd, index - lastCommonEnd);
             }
         }
 
-        public static byte[] EncodeAsBytes(byte[] oldData, byte[] newData, int elemSize)
+        public static byte[] Encode(byte[] oldData, byte[] newData, bool use7Bit)
         {
-            using (MemoryStream memstream = new MemoryStream())
-            using (BinaryWriter writer = new BinaryWriter(memstream))
+            using (var output = new MemoryStream())
+            using (var writer = use7Bit ?
+                   new BinaryWriterWith7BitEncoding(output) :
+                   new BinaryWriter(output))
             {
-                Encode(oldData, newData, writer, elemSize);
-                return memstream.ToArray();
+                Encode(oldData, newData, writer, use7Bit ? 2 : 8);
+                return output.ToArray();
             }
         }
 
-        private static int GetCommonLength(byte[] x, byte[] y, int startIndex, int elemSize)
+        private static int GetCommonLength(byte[] x, byte[] y, int startIndex)
         {
             int i = startIndex;
             while (i < x.Length && x[i] == y[i])
                 i++;
-            return (i - startIndex) / elemSize * elemSize;
-        }
-
-        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex, int elemSize)
-        {
-            int i = startIndex;
-            while (i < x.Length && !CompareEqual(x, i, y, i, elemSize))
-                i += elemSize;
             return (i - startIndex);
         }
 
-        public static bool CompareEqual(byte[] x, int index1, byte[] y, int index2, int count)
+        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex)
         {
-            for (int j = 0; j < count; j++)
-            {
-                if (x[index1 + j] != y[index2 + j])
-                    return false;
-            }
-            return true;
+            int i = startIndex;
+            while (i < x.Length && x[i] != y[i])
+                i++;
+            return (i - startIndex);
+        }
+    }
+
+    class BinaryWriterWith7BitEncoding : BinaryWriter
+    {
+        public BinaryWriterWith7BitEncoding(Stream stream)
+            : base(stream) { }
+
+        public override void Write(int value)
+        {
+            base.Write7BitEncodedInt(value);
+        }
+    }
+
+    class BinaryReaderWith7BitEncoding : BinaryReader
+    {
+        public BinaryReaderWith7BitEncoding(Stream stream)
+            : base(stream) { }
+
+        public override int ReadInt32()
+        {
+            return base.Read7BitEncodedInt();
         }
     }
 
