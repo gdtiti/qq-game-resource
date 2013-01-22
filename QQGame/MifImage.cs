@@ -89,72 +89,6 @@ namespace QQGame
             }
         }
 
-        private int TestRLE(byte[] data, int elemSize)
-        {
-            //data = new byte[] { 1, 3, 5, 5, 4, 6, 7, 9, 7, 7, 7, 5, 7, 8 };
-
-            byte[] outBytes = null;
-            using (MemoryStream input = new MemoryStream(data))
-            using (MemoryStream output = new MemoryStream())
-            using (RunLengthEncoder rle = new RunLengthEncoder(output, elemSize))
-            {
-                input.CopyTo(rle);
-                rle.Flush();
-                outBytes = output.ToArray();
-            }
-
-            int i, total=0;
-            for ( i = 0; i < outBytes.Length; )
-            {
-                byte n = outBytes[i++];
-                int repeat = (n & 0x7F) + 1;
-                if ((n & 0x80) != 0) // RLE
-                {
-                    total += repeat;
-                    i++;
-                }
-                else
-                {
-                    total += repeat;
-                    i += repeat;
-                }
-            }
-
-            using (MemoryStream input = new MemoryStream(outBytes))
-            using (MemoryStream output = new MemoryStream())
-            using (RunLengthDecoder rld = new RunLengthDecoder(input, elemSize))
-            {
-                byte[] recovered = new byte[data.Length];
-                rld.ReadFull(recovered, 0, recovered.Length);
-                if (input.Position != input.Length)
-                    throw new Exception();
-            }
-            return outBytes.Length;
-        }
-
-        private static byte[] RunLengthEncode(byte[] data, int elemSize)
-        {
-            using (MemoryStream input = new MemoryStream(data))
-            using (MemoryStream output = new MemoryStream())
-            using (RunLengthEncoder rle = new RunLengthEncoder(output, elemSize))
-            {
-                input.CopyTo(rle);
-                rle.Flush();
-                return output.ToArray();
-            }
-        }
-
-        private static int RunLengthEncodeXor(byte[] x, byte[] y, int elemSize)
-        {
-            int n = x.Length;
-            byte[] z = new byte[n];
-            for (int i = 0; i < n; i++)
-            {
-                z[i] = (byte)(x[i] ^ y[i]);
-            }
-            return RunLengthEncode(z, elemSize).Length;
-        }
-
         private Dictionary<MifCompressionMode, int> compressedSize
             = new Dictionary<MifCompressionMode, int>();
 
@@ -173,10 +107,12 @@ namespace QQGame
         {
             compressedSize = new Dictionary<MifCompressionMode, int>();
             compressedSize[MifCompressionMode.None] = 0;
-            compressedSize[MifCompressionMode.Delta] = 0;
             compressedSize[MifCompressionMode.Deflate] = 0;
             compressedSize[MifCompressionMode.RleFrame] = 0;
+            compressedSize[MifCompressionMode.Delta] = 0;
             compressedSize[MifCompressionMode.RleDelta] = 0;
+            compressedSize[MifCompressionMode.DeflateDelta] = 0;
+            compressedSize[MifCompressionMode.Png] = 0;
 
             // Create a MIF reader on the stream.
             using (stream)
@@ -211,35 +147,55 @@ namespace QQGame
 
                     // ----
                     // Test RLE here
-                    //rleCompressedSize += TestRLE(thisFrame.alphaData, 1);
-                    //rleCompressedSize += TestRLE(thisFrame.colorData, 2);
                     int k1, k2, k3, k4;
-                    k1 = RunLengthEncode(thisFrame.colorData, 2).Length;
-                    k2 = RunLengthEncode(thisFrame.alphaData, 1).Length;
+                    k1 = MifRunLengthEncoding.Encode(thisFrame.colorData, 2).Length;
+                    k2 = MifRunLengthEncoding.Encode(thisFrame.alphaData, 1).Length;
                     k3 = Compress(thisFrame.colorData).Length;
                     k4 = Compress(thisFrame.alphaData).Length;
 
                     compressedSize[MifCompressionMode.RleFrame] += k1 + k2;
                     compressedSize[MifCompressionMode.Deflate] += k3 + k4;
 
+                    // What's the size if we save it as png?
+                    if (true)
+                    {
+                        int[] tmp=new int[header.ImageWidth*header.ImageHeight];
+                        GCHandle hh=GCHandle.Alloc(tmp, GCHandleType.Pinned);
+                        ConvertFrameToBitmap(thisFrame.colorData, thisFrame.alphaData, tmp);
+                        Bitmap bmp = new Bitmap(
+                            header.ImageWidth,
+                            header.ImageHeight,
+                            header.ImageWidth * 4,
+                            PixelFormat.Format32bppArgb,
+                            hh.AddrOfPinnedObject());
+                        int pngLen = 0;
+                        using (MemoryStream pngStream = new MemoryStream())
+                        {
+                            bmp.Save(pngStream, ImageFormat.Png);
+                            pngLen =(int) pngStream.Length;
+                        }
+                        bmp.Dispose();
+                        hh.Free();
+                        compressedSize[MifCompressionMode.Png] += pngLen;
+                    }
+
                     if (i == 0)
                     {
-                        compressedSize[MifCompressionMode.RleDelta] += k1 + k2;
+                        compressedSize[MifCompressionMode.Delta] =
+                            thisFrame.colorData.Length + thisFrame.alphaData.Length;
+                        compressedSize[MifCompressionMode.RleDelta] = (k1 + k2);
+                        compressedSize[MifCompressionMode.DeflateDelta] = (k3 + k4);
                     }
                     // ----
 
                     // Encode the difference of thisFrame from prevFrame.
                     frameDiff[i] = new MifFrameDiff();
-                    byte[] b3, b4;
                     if (prevFrame != null)
                     {
                         frameDiff[i].colorDiff = MifDeltaEncoding.Encode(
                             prevFrame.colorData,
                             thisFrame.colorData,
                             true);
-                        //b3 = RunLengthEncode(frameDiff[i].colorDiff, 2);
-                        //compressedSize[MifCompressionMode.RleDelta] += b3.Length;
-                        compressedSize[MifCompressionMode.Delta] += frameDiff[i].colorDiff.Length;
                     }
                     if (prevFrame != null && prevFrame.alphaData != null)
                     {
@@ -247,9 +203,6 @@ namespace QQGame
                             prevFrame.alphaData,
                             thisFrame.alphaData,
                             true);
-                        //b4 = RunLengthEncode(frameDiff[i].alphaDiff, 1);
-                        //compressedSize[MifCompressionMode.RleDelta] += b4.Length;
-                        compressedSize[MifCompressionMode.Delta] += frameDiff[i].alphaDiff.Length;
                     }
                     prevFrame = thisFrame;
                 }
@@ -306,6 +259,28 @@ namespace QQGame
                     //activeFrame = null;
                     frameDiff = null;
                 }
+            }
+
+            // Test various compression methods.
+            if (frameDiff == null)
+                return;
+            foreach (var f in frameDiff)
+            {
+                byte[] data = f.colorDiff;
+
+                byte[] b1 = MifRunLengthEncoding.Encode(data, 2);
+                compressedSize[MifCompressionMode.Delta] += data.Length;
+                compressedSize[MifCompressionMode.RleDelta] += b1.Length;
+                compressedSize[MifCompressionMode.DeflateDelta] += Compress(data).Length;
+
+                data = f.alphaDiff;
+                if (data == null)
+                    continue;
+
+                byte[] b2 = MifRunLengthEncoding.Encode(data, 1);
+                compressedSize[MifCompressionMode.Delta] += data.Length;
+                compressedSize[MifCompressionMode.RleDelta] += b2.Length;
+                compressedSize[MifCompressionMode.DeflateDelta] += Compress(data).Length;
             }
         }
 
@@ -861,9 +836,9 @@ namespace QQGame
         /// <summary>
         /// We build run-length encoder on top of delta encoder.
         /// 
-        /// Let a = [a0, a2, ..., a9] be a byte array. To run-length encode it
-        /// with a lookback value of 2, (suitable for Int16), we shift the array
-        /// by 2 bytes:
+        /// Let a = [a0, a2, ..., a9] be a byte array. To run-length encode
+        /// it with a lookahead value of 2, (suitable for Int16), we shift
+        /// the array by 2 bytes:
         /// 
         ///   a0  a1  a2  a3  a4  a5  a6  a7  a8  a9  
         ///           a0  a1  a2  a3  a4  a5  a6  a7  a8  a9
@@ -874,12 +849,44 @@ namespace QQGame
         ///    
         /// This works as long as the encoder moves from begin to end.
         /// </summary>
-        /// <param name="data"></param>
         /// <returns></returns>
-        //public byte[] Encode(byte[] data)
-        //{
+        public static void Encode(
+            byte[] data, int offset, int count,
+            int lookahead, BinaryWriter writer, int threshold)
+        {
+            if (data == null || writer == null)
+                throw new ArgumentNullException();
+            if (offset < 0 || count < 0)
+                throw new ArgumentOutOfRangeException();
+            if (offset + count > data.Length)
+                throw new ArgumentOutOfRangeException();
+            if (lookahead <= 0)
+                throw new ArgumentException("lookback must be greater than or equal to 1.");
 
-        //}
+            // Output 'lookahead' number of bytes as is.
+            writer.Write(data, offset, lookahead);
+
+            // TODO: what if count <= lookahead?
+            // Encode the remaining data using delta encoding.
+            MifDeltaEncoding.Encode(
+                data, offset, data, offset + lookahead,
+                count - lookahead - offset, writer, threshold);
+        }
+
+        public static byte[] Encode(byte[] data, int offset, int count, int lookahead)
+        {
+            using (MemoryStream output = new MemoryStream())
+            using (BinaryWriter writer = new BinaryWriterWith7BitEncoding(output))
+            {
+                Encode(data, offset, count, lookahead, writer, 2);
+                return output.ToArray();
+            }
+        }
+
+        public static byte[] Encode(byte[] data, int lookahead)
+        {
+            return Encode(data, 0, data.Length, lookahead);
+        }
     }
 
     /// <summary>
@@ -1040,8 +1047,10 @@ namespace QQGame
         Delta = 1,
 
         Deflate = 256,
-        RleFrame = 257,
-        RleDelta = 258,
+        DeflateDelta = 257,
+        RleFrame = 258,
+        RleDelta = 259,
+        Png=260,
     }
 
 #if false
