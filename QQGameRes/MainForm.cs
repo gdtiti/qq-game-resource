@@ -165,6 +165,7 @@ namespace QQGameRes
             // image quality.
             btnChooseDirectory.Image = Properties.Resources.Folder_Icon_16;
             btnChoosePackage.Image = Properties.Resources.Package_Icon_16;
+            btnAbout.Image = Properties.Resources.Tips_Icon_16;
 
             // Load the root path of QQ Game.
             string rootPath = Repository.GetInstallationPath();
