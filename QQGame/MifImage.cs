@@ -105,9 +105,6 @@ namespace QQGame
         }
 #endif
 
-        private Dictionary<MifCompressionMode, int> compressedSize
-            = new Dictionary<MifCompressionMode, int>();
-
         /// <summary>
         /// Creates a MIF image from the specified stream.
         /// </summary>
@@ -121,13 +118,6 @@ namespace QQGame
         /// contain a valid MIF image format.</exception>
         public MifImage(Stream stream)
         {
-            compressedSize = new Dictionary<MifCompressionMode, int>();
-            compressedSize[MifCompressionMode.None] = 0;
-            compressedSize[MifCompressionMode.RleFrame] = 0;
-            compressedSize[MifCompressionMode.Delta] = 0;
-            compressedSize[MifCompressionMode.RleDelta] = 0;
-            compressedSize[MifCompressionMode.Png] = 0;
-            compressedSize[MifCompressionMode.PngDelta] = 0;
 
 #if false
             byte[] test = new byte[] { 1, 3, 5, 5, 4, 6, 7, 9, 7, 7, 7, 5, 7, 8 };
@@ -191,10 +181,10 @@ namespace QQGame
                         }
 #endif
 
-                        compressedSize[MifCompressionMode.Delta] =
-                            thisFrame.colorData.Length + thisFrame.alphaData.Length;
+                        //compressedSize[MifCompressionMode.Delta] =
+                        //    thisFrame.colorData.Length + thisFrame.alphaData.Length;
                         //compressedSize[MifCompressionMode.RleDelta] = (k1 + k2);
-                        compressedSize[MifCompressionMode.PngDelta] = compressedSize[MifCompressionMode.Png];
+                        //compressedSize[MifCompressionMode.PngDelta] = compressedSize[MifCompressionMode.Png];
                     }
 
                     // Store the difference of thisFrame from prevFrame using
@@ -270,6 +260,7 @@ namespace QQGame
 #endif
             }
 
+#if false
             // Display compression info.
             System.Diagnostics.Debug.WriteLine(string.Format(
                 "RLE={0,8:0,0}, PNG={1,8:0,0}, PNG/RLE={2,4:00.0}%",
@@ -278,6 +269,7 @@ namespace QQGame
                 (double)compressedSize[MifCompressionMode.PngDelta]/
                 compressedSize[MifCompressionMode.RleDelta]*100
                 ));
+#endif
         }
 
         protected override void Dispose(bool disposing)
@@ -371,29 +363,18 @@ namespace QQGame
             get { return new TimeSpan(10000L * delays.Sum()); }
         }
 
-        public Dictionary<MifCompressionMode,int> CompressedSize
+        public int CompressedSize
         {
             get
             {
-                return compressedSize;
-#if false
                 int size = header.ImageWidth * header.ImageHeight * 4;
                 if (frameDiff != null)
                 {
-                    foreach (MifFrameDiff diff in frameDiff)
-                    {
-                        if (diff.colorDiff != null)
-                            size += diff.colorDiff.Length;
-                        if (diff.alphaDiff != null)
-                            size += diff.alphaDiff.Length;
-                    }
+                    size += frameDiff.Select(f => f.CompressedSize).Sum();
                 }
                 return size;
-#endif
-
             }
         }
-
 
 #if false
         /// <summary>
@@ -656,6 +637,15 @@ namespace QQGame
             {
                 byte[] actualAlphaDiff = MifRunLengthEncoding.Decode(this.alphaDiff, 1);
                 MifDeltaEncoding.Decode(frame.alphaData, actualAlphaDiff, true);
+            }
+        }
+
+        public int CompressedSize
+        {
+            get
+            {
+                return (colorDiff == null ? 0 : colorDiff.Length)
+                     + (alphaDiff == null ? 0 : alphaDiff.Length);
             }
         }
     }
