@@ -647,6 +647,57 @@ namespace QQGame
     class MifDeltaEncoding
     {
         /// <summary>
+        /// Decodes a stream encoded by MifDeltaEncoding.Encode().
+        /// </summary>
+        /// <param name="oldData">Old data.</param>
+        /// <param name="oldIndex">Start index of old data.</param>
+        /// <param name="newData">New data. This may be the same as OldData.
+        /// </param>
+        /// <param name="newIndex">Start index of the new data. If OldData
+        /// and NewData are the same, then newIndex should be >= oldIndex
+        /// for the method to work properly.</param>
+        /// <param name="delta">A reader containing the encoded difference
+        /// from the old buffer to the new buffer.</param>
+        public static void Decode(
+            byte[] oldData, int oldIndex,
+            byte[] newData, int newIndex,
+            BinaryReader delta)
+        {
+            bool expectCopyPacket = false;
+            while (delta.BaseStream.Position < delta.BaseStream.Length)
+            {
+                int len = delta.ReadInt32();
+                if (len < 0)
+                    throw new InvalidDataException("Packet length must be greater than or equal to zero.");
+                if (oldIndex + len > oldData.Length)
+                    throw new InvalidDataException("Packet length must not exceed old buffer.");
+                if (newIndex + len > newData.Length)
+                    throw new InvalidDataException("Packet length must not exceed new buffer.");
+
+                if (expectCopyPacket) // copy from delta
+                {
+                    delta.ReadFull(newData, newIndex, len);
+                }
+                else // copy from old data
+                {
+                    if (!(oldData == newData && oldIndex == newIndex))
+                    {
+                        // We MUST copy byte by byte from the beginning; this
+                        // allows RunLengthEncoding to work correctly. Do not
+                        // use Array.Copy() or Buffer.BlockCopy().
+                        for (int i = 0; i < len; i++)
+                            newData[newIndex + i] = oldData[oldIndex + i];
+                    }
+                }
+                oldIndex += len;
+                newIndex += len;
+                expectCopyPacket = !expectCopyPacket;
+            }
+
+            // When we exit the loop, the remaining buffer is left unchanged.
+        }
+
+        /// <summary>
         /// Decodes a buffer that is delta encoded.
         /// </summary>
         /// <param name="buffer">On input, this contains the data of the
@@ -656,26 +707,7 @@ namespace QQGame
         /// from the previous buffer to the new buffer.</param>
         public static void Decode(byte[] buffer, BinaryReader delta)
         {
-            // Read packets until InputSize number of bytes are consumed.
-            int index = 0; // buffer[index] is the next byte to output
-            bool expectCopyPacket = false;
-            while (delta.BaseStream.Position < delta.BaseStream.Length)
-            {
-                int len = delta.ReadInt32();
-                if (len < 0)
-                    throw new InvalidDataException("Packet length must be greater than or equal to zero.");
-                if (index + len > buffer.Length)
-                    throw new InvalidDataException("Packet length must not exceed output buffer size.");
-
-                if (expectCopyPacket) // copy packet
-                {
-                    delta.ReadFull(buffer, index, len);
-                }
-                index += len;
-                expectCopyPacket = !expectCopyPacket;
-            }
-
-            // When we exit the loop, the remaining buffer is left unchanged.
+            Decode(buffer, 0, buffer, 0, delta);
         }
 
         public static void Decode(byte[] oldData, byte[] delta, bool use7Bit)
@@ -716,22 +748,26 @@ namespace QQGame
         /// chunk, even if its length is zero.
         ///</remarks>
         public static void Encode(
-            byte[] oldData, byte[] newData, BinaryWriter writer, int threshold)
+            byte[] oldData, int oldOffset,
+            byte[] newData, int newOffset,
+            int length, BinaryWriter writer, int threshold)
         {
-            if (oldData == null)
-                throw new ArgumentNullException("oldData");
-            if (newData == null)
-                throw new ArgumentNullException("newData");
-            if (oldData.Length != newData.Length)
-                throw new ArgumentException("The buffers must have the same size.");
-            if (writer == null)
-                throw new ArgumentNullException("writer");
+            if (oldData == null || newData == null || writer == null)
+                throw new ArgumentNullException();
+            if (oldOffset < 0 || newOffset < 0 || length < 0)
+                throw new ArgumentOutOfRangeException();
+            if (oldOffset + length > oldData.Length ||
+                newOffset + length > newData.Length)
+                throw new ArgumentOutOfRangeException();
 
             int lastCommonEnd = 0; // end-index of the previous common chunk
             int index = 0;         // begin-index of the current common chunk
-            while (index < newData.Length)
+            while (index < length)
             {
-                int L = GetCommonLength(oldData, newData, index);
+                int L = GetCommonLength(
+                    oldData, oldOffset + index,
+                    newData, newOffset + index,
+                    length - index);
 
                 // Encode this common block if the block length is greater
                 // than the threshold, or if we are at the very beginning of
@@ -743,7 +779,7 @@ namespace QQGame
                     if (index > lastCommonEnd)
                     {
                         writer.Write(index - lastCommonEnd);
-                        writer.Write(newData, lastCommonEnd, index - lastCommonEnd);
+                        writer.Write(newData, newOffset + lastCommonEnd, index - lastCommonEnd);
                     }
 
                     // Encode current common chunk.
@@ -751,7 +787,10 @@ namespace QQGame
                     lastCommonEnd = index + L;
                 }
                 index += L;
-                index += GetDistinctLength(oldData, newData, index);
+                index += GetDistinctLength(
+                    oldData, oldOffset + index,
+                    newData, newOffset + index,
+                    length - index);
             }
 
             // Encode last distinct chunk.
@@ -769,25 +808,29 @@ namespace QQGame
                    new BinaryWriterWith7BitEncoding(output) :
                    new BinaryWriter(output))
             {
-                Encode(oldData, newData, writer, use7Bit ? 2 : 8);
+                Encode(oldData, 0, newData, 0, newData.Length, writer, use7Bit ? 2 : 8);
                 return output.ToArray();
             }
         }
 
-        private static int GetCommonLength(byte[] x, byte[] y, int startIndex)
+        private static int GetCommonLength(
+            byte[] x, int index1,
+            byte[] y, int index2,
+            int count)
         {
-            int i = startIndex;
-            while (i < x.Length && x[i] == y[i])
-                i++;
-            return (i - startIndex);
+            int i;
+            for (i = 0; i < count && x[index1 + i] == y[index2 + i]; i++) ;
+            return i;
         }
 
-        private static int GetDistinctLength(byte[] x, byte[] y, int startIndex)
+        private static int GetDistinctLength(
+            byte[] x, int index1,
+            byte[] y, int index2,
+            int count)
         {
-            int i = startIndex;
-            while (i < x.Length && x[i] != y[i])
-                i++;
-            return (i - startIndex);
+            int i;
+            for (i = 0; i < count && x[index1 + i] != y[index2 + i]; i++) ;
+            return i;
         }
     }
 
@@ -811,6 +854,32 @@ namespace QQGame
         {
             return base.Read7BitEncodedInt();
         }
+    }
+
+    class MifRunLengthEncoding
+    {
+        /// <summary>
+        /// We build run-length encoder on top of delta encoder.
+        /// 
+        /// Let a = [a0, a2, ..., a9] be a byte array. To run-length encode it
+        /// with a lookback value of 2, (suitable for Int16), we shift the array
+        /// by 2 bytes:
+        /// 
+        ///   a0  a1  a2  a3  a4  a5  a6  a7  a8  a9  
+        ///           a0  a1  a2  a3  a4  a5  a6  a7  a8  a9
+        /// 
+        /// We first write a0, a1 to the output. Then we delta-encode
+        ///    [a2 .. a9] := newData
+        ///    [a0 .. a7] := oldData
+        ///    
+        /// This works as long as the encoder moves from begin to end.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        //public byte[] Encode(byte[] data)
+        //{
+
+        //}
     }
 
     /// <summary>
