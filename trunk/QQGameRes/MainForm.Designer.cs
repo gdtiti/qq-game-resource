@@ -45,13 +45,8 @@
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.timerLoadProgress = new System.Windows.Forms.Timer(this.components);
-            this.btnExport = new System.Windows.Forms.ToolStripButton();
-            this.btnAbout = new System.Windows.Forms.ToolStripButton();
-            this.toolStripDropDownButton1 = new System.Windows.Forms.ToolStripDropDownButton();
-            this.btnPlayAll = new System.Windows.Forms.ToolStripMenuItem();
-            this.btnPlaySelected = new System.Windows.Forms.ToolStripMenuItem();
-            this.btnPlayNone = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
+            this.viewList = new QQGameRes.ResourceListView();
             this.toolStripDropDownButton2 = new System.Windows.Forms.ToolStripDropDownButton();
             this.btnChooseDirectory = new System.Windows.Forms.ToolStripMenuItem();
             this.btnChoosePackage = new System.Windows.Forms.ToolStripMenuItem();
@@ -62,10 +57,15 @@
             this.btnExportEachFrame = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
             this.btnExportOriginal = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripDropDownButton1 = new System.Windows.Forms.ToolStripDropDownButton();
             this.预览模式ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem3 = new System.Windows.Forms.ToolStripSeparator();
             this.详细信息ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.viewList = new QQGameRes.ResourceListView();
+            this.toolStripMenuItem3 = new System.Windows.Forms.ToolStripSeparator();
+            this.btnPlayAll = new System.Windows.Forms.ToolStripMenuItem();
+            this.btnPlaySelected = new System.Windows.Forms.ToolStripMenuItem();
+            this.btnPlayNone = new System.Windows.Forms.ToolStripMenuItem();
+            this.btnAbout = new System.Windows.Forms.ToolStripButton();
+            this.btnExport = new System.Windows.Forms.ToolStripButton();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -191,63 +191,6 @@
             // 
             this.timerLoadProgress.Tick += new System.EventHandler(this.timerLoadProgress_Tick);
             // 
-            // btnExport
-            // 
-            this.btnExport.Enabled = false;
-            this.btnExport.Image = ((System.Drawing.Image)(resources.GetObject("btnExport.Image")));
-            this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnExport.Name = "btnExport";
-            this.btnExport.Size = new System.Drawing.Size(85, 23);
-            this.btnExport.Text = "保存素材";
-            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
-            // 
-            // btnAbout
-            // 
-            this.btnAbout.Image = ((System.Drawing.Image)(resources.GetObject("btnAbout.Image")));
-            this.btnAbout.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnAbout.Name = "btnAbout";
-            this.btnAbout.Size = new System.Drawing.Size(85, 23);
-            this.btnAbout.Text = "版本信息";
-            this.btnAbout.Click += new System.EventHandler(this.btnAbout_Click);
-            // 
-            // toolStripDropDownButton1
-            // 
-            this.toolStripDropDownButton1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.预览模式ToolStripMenuItem,
-            this.详细信息ToolStripMenuItem,
-            this.toolStripMenuItem3,
-            this.btnPlayAll,
-            this.btnPlaySelected,
-            this.btnPlayNone});
-            this.toolStripDropDownButton1.Image = ((System.Drawing.Image)(resources.GetObject("toolStripDropDownButton1.Image")));
-            this.toolStripDropDownButton1.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.toolStripDropDownButton1.Name = "toolStripDropDownButton1";
-            this.toolStripDropDownButton1.Size = new System.Drawing.Size(94, 23);
-            this.toolStripDropDownButton1.Text = "显示方式";
-            // 
-            // btnPlayAll
-            // 
-            this.btnPlayAll.Checked = true;
-            this.btnPlayAll.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.btnPlayAll.Name = "btnPlayAll";
-            this.btnPlayAll.Size = new System.Drawing.Size(190, 24);
-            this.btnPlayAll.Text = "自动播放动画";
-            this.btnPlayAll.Click += new System.EventHandler(this.btnPlayMode_Click);
-            // 
-            // btnPlaySelected
-            // 
-            this.btnPlaySelected.Name = "btnPlaySelected";
-            this.btnPlaySelected.Size = new System.Drawing.Size(190, 24);
-            this.btnPlaySelected.Text = "仅播放选中的动画";
-            this.btnPlaySelected.Click += new System.EventHandler(this.btnPlayMode_Click);
-            // 
-            // btnPlayNone
-            // 
-            this.btnPlayNone.Name = "btnPlayNone";
-            this.btnPlayNone.Size = new System.Drawing.Size(190, 24);
-            this.btnPlayNone.Text = "不播放动画";
-            this.btnPlayNone.Click += new System.EventHandler(this.btnPlayMode_Click);
-            // 
             // toolStrip3
             // 
             this.toolStrip3.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
@@ -263,6 +206,17 @@
             this.toolStrip3.Size = new System.Drawing.Size(788, 30);
             this.toolStrip3.TabIndex = 11;
             this.toolStrip3.Text = "toolStrip3";
+            // 
+            // viewList
+            // 
+            this.viewList.Dock = System.Windows.Forms.DockStyle.Top;
+            this.viewList.Location = new System.Drawing.Point(0, 0);
+            this.viewList.Margin = new System.Windows.Forms.Padding(4);
+            this.viewList.Name = "viewList";
+            this.viewList.ResourceFolder = null;
+            this.viewList.Size = new System.Drawing.Size(573, 200);
+            this.viewList.TabIndex = 0;
+            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
             // toolStripDropDownButton2
             // 
@@ -339,16 +293,26 @@
             this.btnExportOriginal.Size = new System.Drawing.Size(162, 24);
             this.btnExportOriginal.Text = "导出原始文件";
             // 
+            // toolStripDropDownButton1
+            // 
+            this.toolStripDropDownButton1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.预览模式ToolStripMenuItem,
+            this.详细信息ToolStripMenuItem,
+            this.toolStripMenuItem3,
+            this.btnPlayAll,
+            this.btnPlaySelected,
+            this.btnPlayNone});
+            this.toolStripDropDownButton1.Image = ((System.Drawing.Image)(resources.GetObject("toolStripDropDownButton1.Image")));
+            this.toolStripDropDownButton1.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripDropDownButton1.Name = "toolStripDropDownButton1";
+            this.toolStripDropDownButton1.Size = new System.Drawing.Size(94, 23);
+            this.toolStripDropDownButton1.Text = "显示方式";
+            // 
             // 预览模式ToolStripMenuItem
             // 
             this.预览模式ToolStripMenuItem.Name = "预览模式ToolStripMenuItem";
             this.预览模式ToolStripMenuItem.Size = new System.Drawing.Size(190, 24);
             this.预览模式ToolStripMenuItem.Text = "预览模式";
-            // 
-            // toolStripMenuItem3
-            // 
-            this.toolStripMenuItem3.Name = "toolStripMenuItem3";
-            this.toolStripMenuItem3.Size = new System.Drawing.Size(187, 6);
             // 
             // 详细信息ToolStripMenuItem
             // 
@@ -356,16 +320,51 @@
             this.详细信息ToolStripMenuItem.Size = new System.Drawing.Size(190, 24);
             this.详细信息ToolStripMenuItem.Text = "详细信息";
             // 
-            // viewList
+            // toolStripMenuItem3
             // 
-            this.viewList.Dock = System.Windows.Forms.DockStyle.Top;
-            this.viewList.Location = new System.Drawing.Point(0, 0);
-            this.viewList.Margin = new System.Windows.Forms.Padding(4);
-            this.viewList.Name = "viewList";
-            this.viewList.ResourceFolder = null;
-            this.viewList.Size = new System.Drawing.Size(573, 200);
-            this.viewList.TabIndex = 0;
-            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
+            this.toolStripMenuItem3.Name = "toolStripMenuItem3";
+            this.toolStripMenuItem3.Size = new System.Drawing.Size(187, 6);
+            // 
+            // btnPlayAll
+            // 
+            this.btnPlayAll.Checked = true;
+            this.btnPlayAll.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.btnPlayAll.Name = "btnPlayAll";
+            this.btnPlayAll.Size = new System.Drawing.Size(190, 24);
+            this.btnPlayAll.Text = "自动播放动画";
+            this.btnPlayAll.Click += new System.EventHandler(this.btnPlayMode_Click);
+            // 
+            // btnPlaySelected
+            // 
+            this.btnPlaySelected.Name = "btnPlaySelected";
+            this.btnPlaySelected.Size = new System.Drawing.Size(190, 24);
+            this.btnPlaySelected.Text = "仅播放选中的动画";
+            this.btnPlaySelected.Click += new System.EventHandler(this.btnPlayMode_Click);
+            // 
+            // btnPlayNone
+            // 
+            this.btnPlayNone.Name = "btnPlayNone";
+            this.btnPlayNone.Size = new System.Drawing.Size(190, 24);
+            this.btnPlayNone.Text = "不播放动画";
+            this.btnPlayNone.Click += new System.EventHandler(this.btnPlayMode_Click);
+            // 
+            // btnAbout
+            // 
+            this.btnAbout.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnAbout.Name = "btnAbout";
+            this.btnAbout.Size = new System.Drawing.Size(69, 23);
+            this.btnAbout.Text = "版本信息";
+            this.btnAbout.Click += new System.EventHandler(this.btnAbout_Click);
+            // 
+            // btnExport
+            // 
+            this.btnExport.Enabled = false;
+            this.btnExport.Image = ((System.Drawing.Image)(resources.GetObject("btnExport.Image")));
+            this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnExport.Name = "btnExport";
+            this.btnExport.Size = new System.Drawing.Size(85, 23);
+            this.btnExport.Text = "保存素材";
+            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
             // 
             // MainForm
             // 

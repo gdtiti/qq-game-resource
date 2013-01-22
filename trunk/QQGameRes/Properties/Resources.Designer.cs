@@ -119,5 +119,15 @@ namespace QQGameRes.Properties {
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap Tips_Icon_16 {
+            get {
+                object obj = ResourceManager.GetObject("Tips_Icon_16", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }
