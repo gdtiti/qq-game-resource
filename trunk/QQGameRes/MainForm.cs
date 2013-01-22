@@ -160,6 +160,12 @@ namespace QQGameRes
         {
             StopLoadingRepository();
 
+            // Add icons for toolbar items. We need to do this manually
+            // because adding icons in the IDE somehow deteroriates the
+            // image quality.
+            btnChooseDirectory.Image = Properties.Resources.Folder_Icon_16;
+            btnChoosePackage.Image = Properties.Resources.Package_Icon_16;
+
             // Load the root path of QQ Game.
             string rootPath = Repository.GetInstallationPath();
             if (rootPath == null)
@@ -188,8 +194,8 @@ namespace QQGameRes
                     System.Diagnostics.Debug.WriteLine(filename);
             }
         }
-        
-        private void btnOpenPackage_Click(object sender, EventArgs e)
+
+        private void btnChoosePackage_Click(object sender, EventArgs e)
         {
             if (openFileDialog1.ShowDialog(this) == DialogResult.OK)
             {
@@ -391,7 +397,7 @@ namespace QQGameRes
         }
 #endif
 
-        private void btnOpenFolder_Click(object sender, EventArgs e)
+        private void btnChooseDirectory_Click(object sender, EventArgs e)
         {
             string path = Repository.GetInstallationPath();
             if (path != null)
@@ -455,6 +461,9 @@ namespace QQGameRes
         private void vFolderListView_ActiveItemChanged(object sender, EventArgs e)
         {
             IVirtualItem vItem = vFolderListView.ActiveItem;
+            btnExport.Enabled = (vItem != null);
+            btnExportGroup.Enabled = (vItem != null);
+
             if (vItem == null)
             {
                 ImageFolder f = vFolderListView.Folder as ImageFolder;
@@ -467,18 +476,16 @@ namespace QQGameRes
 
             if (vItem is ImageFile)
             {
-                object image = (vItem as IExtractIcon).ExtractIcon(
-                    ExtractIconType.Thumbnail, Size.Empty);
-                if (image is QQGame.MifImage)
+                var mif = vFolderListView.GetLoadedThumbnail(vItem) as QQGame.MifImage;
+                if (mif != null)
                 {
-                    QQGame.MifImage mif = image as QQGame.MifImage;
                     txtImageSize.Text = string.Format(
                         "{0} x {1} （文件大小 {2:#,0} 字节, 压缩后 {3:#,0} 字节）",
                         mif.Width, 
                         mif.Height,
                         (vItem as ImageFile).File.Length,
                         mif.CompressedSize);
-
+#if false
                     int alphaCount;
                     int maxColorCount;
                     int totalColorCount = CountColors(mif, out alphaCount, out maxColorCount);
@@ -489,8 +496,8 @@ namespace QQGameRes
                         maxColorCount,
                         totalColorCount,
                         alphaCount);
+#endif
                 }
-                using (image as IDisposable) { }
             }
         }
 
@@ -522,6 +529,24 @@ namespace QQGameRes
             }
             alphaCount = alphas.Count;
             return colors.Count;
+        }
+
+        private void btnPlayMode_Click(object sender, EventArgs e)
+        {
+            btnPlayAll.Checked = (sender == btnPlayAll);
+            btnPlaySelected.Checked = (sender == btnPlaySelected);
+            btnPlayNone.Checked = (sender == btnPlayNone);
+
+            if (sender == btnPlayAll)
+            {
+                
+            }
+            if (sender == btnPlaySelected)
+            {
+            }
+            if (sender == btnPlayNone)
+            {
+            }
         }
     }
 }
