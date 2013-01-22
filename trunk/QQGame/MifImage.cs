@@ -18,6 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+#define TEST_PNG_COMPRESSION
+
 using System;
 using System.IO;
 using System.Linq;
@@ -28,6 +30,7 @@ using System.Collections.Generic;
 using Util.IO;
 using Util.Media;
 using System.IO.Compression;
+
 
 namespace QQGame
 {
@@ -78,6 +81,7 @@ namespace QQGame
         /// </summary>
         private int activeIndex;
 
+#if TEST_PNG_COMPRESSION
         private int GetPngLength(byte[] colorData, byte[] alphaData)
         {
             int[] tmp = new int[header.ImageWidth * header.ImageHeight];
@@ -99,6 +103,7 @@ namespace QQGame
             hh.Free();
             return pngLen;
         }
+#endif
 
         private Dictionary<MifCompressionMode, int> compressedSize
             = new Dictionary<MifCompressionMode, int>();
@@ -155,54 +160,42 @@ namespace QQGame
                     if (i == 0)
                         firstFrame = thisFrame;
 
-                    // ----
-                    // Test RLE here
-                    int k1, k2;
-                    k1 = MifRunLengthEncoding.Encode(thisFrame.colorData, 2).Length;
-                    k2 = MifRunLengthEncoding.Encode(thisFrame.alphaData, 1).Length;
-
-                    compressedSize[MifCompressionMode.RleFrame] += k1 + k2;
-
-                    // What's the size if we save it as png?
-                    compressedSize[MifCompressionMode.Png] += GetPngLength(thisFrame.colorData, thisFrame.alphaData);
-
-                    // What if we save it after XOR?
-                    if (prevFrame != null)
-                    {
-                        byte[] aa = (byte[])thisFrame.colorData.Clone();
-                        byte[] bb = (byte[])thisFrame.alphaData.Clone();
-                        for (int j = 0; j < aa.Length; j++)
-                            aa[j] = (aa[j] == prevFrame.colorData[j]) ? (byte)0 : aa[j];
-                        for (int j = 0; j < bb.Length; j++)
-                            bb[j] = (bb[j] == prevFrame.alphaData[j]) ? (byte)0 : bb[j];
-                        compressedSize[MifCompressionMode.PngDelta] 
-                            += GetPngLength(aa, bb);
-                    }
-
+                    // Test compression of the first frame.
                     if (i == 0)
                     {
+                        //int k1, k2;
+                        //k1 = MifRunLengthEncoding.Encode(thisFrame.colorData, 2).Length;
+                        //k2 = MifRunLengthEncoding.Encode(thisFrame.alphaData, 1).Length;
+                        //compressedSize[MifCompressionMode.RleFrame] += k1 + k2;
+                        // What's the size if we save it as png?
+                        //compressedSize[MifCompressionMode.Png] += GetPngLength(thisFrame.colorData, thisFrame.alphaData);
+
+#if TEST_PNG_COMPRESSION
+                        // What if we save it after XOR?
+                        if (prevFrame != null)
+                        {
+                            byte[] aa = (byte[])thisFrame.colorData.Clone();
+                            byte[] bb = (byte[])thisFrame.alphaData.Clone();
+                            for (int j = 0; j < aa.Length; j++)
+                                aa[j] = (aa[j] == prevFrame.colorData[j]) ? (byte)0 : aa[j];
+                            for (int j = 0; j < bb.Length; j++)
+                                bb[j] = (bb[j] == prevFrame.alphaData[j]) ? (byte)0 : bb[j];
+                            compressedSize[MifCompressionMode.PngDelta]
+                                += GetPngLength(aa, bb);
+                        }
+#endif
+
                         compressedSize[MifCompressionMode.Delta] =
                             thisFrame.colorData.Length + thisFrame.alphaData.Length;
-                        compressedSize[MifCompressionMode.RleDelta] = (k1 + k2);
+                        //compressedSize[MifCompressionMode.RleDelta] = (k1 + k2);
                         compressedSize[MifCompressionMode.PngDelta] = compressedSize[MifCompressionMode.Png];
                     }
-                    // ----
 
-                    // Encode the difference of thisFrame from prevFrame.
-                    frameDiff[i] = new MifFrameDiff();
-                    if (prevFrame != null)
+                    // Store the difference of thisFrame from prevFrame using
+                    // delta encoding.
+                    if (i > 0)
                     {
-                        frameDiff[i].colorDiff = MifDeltaEncoding.Encode(
-                            prevFrame.colorData,
-                            thisFrame.colorData,
-                            true);
-                    }
-                    if (prevFrame != null && prevFrame.alphaData != null)
-                    {
-                        frameDiff[i].alphaDiff = MifDeltaEncoding.Encode(
-                            prevFrame.alphaData,
-                            thisFrame.alphaData,
-                            true);
+                        frameDiff[i] = new MifFrameDiff(prevFrame, thisFrame);
                     }
                     prevFrame = thisFrame;
                 }
@@ -210,17 +203,7 @@ namespace QQGame
                 // Delta-encode the first frame from the last frame.
                 if (header.FrameCount > 1)
                 {
-                    frameDiff[0].colorDiff = MifDeltaEncoding.Encode(
-                            prevFrame.colorData,
-                            firstFrame.colorData,
-                            true);
-                    if (prevFrame.alphaData != null)
-                    {
-                        frameDiff[0].alphaDiff = MifDeltaEncoding.Encode(
-                            prevFrame.alphaData,
-                            firstFrame.alphaData,
-                            true);
-                    }
+                    frameDiff[0] = new MifFrameDiff(prevFrame, firstFrame);
                 }
 
                 // Create a bitmap to store the converted frames. This bitmap
@@ -247,7 +230,6 @@ namespace QQGame
 
                 // Render the first frame in the bitmap buffer.
                 this.activeIndex = 0;
-                //this.activeFrame = firstFrame;
                 ConvertFrameToBitmap(
                     firstFrame.colorData,
                     firstFrame.alphaData,
@@ -256,7 +238,6 @@ namespace QQGame
                 // If there's only one frame, we don't need frames[] array.
                 if (frameDiff.Length == 1)
                 {
-                    //activeFrame = null;
                     frameDiff = null;
                 }
             }
@@ -266,6 +247,7 @@ namespace QQGame
                 return;
             foreach (var f in frameDiff)
             {
+#if false
                 byte[] data = f.colorDiff;
 
                 byte[] b1 = MifRunLengthEncoding.Encode(data, 2);
@@ -279,6 +261,7 @@ namespace QQGame
                 byte[] b2 = MifRunLengthEncoding.Encode(data, 1);
                 compressedSize[MifCompressionMode.Delta] += data.Length;
                 compressedSize[MifCompressionMode.RleDelta] += b2.Length;
+#endif
             }
 
             // Display compression info.
@@ -341,27 +324,22 @@ namespace QQGame
                     return;
 
                 // Get MIF frame from Bitmap buffer.
-                byte[] colorData = new byte[2 * header.ImageWidth * header.ImageHeight];
-                byte[] alphaData = new byte[header.ImageWidth * header.ImageHeight];
-                ConvertBitmapToFrame(bmpBuffer, colorData, alphaData);
+                MifFrame frame = new MifFrame();
+                frame.colorData = new byte[2 * header.ImageWidth * header.ImageHeight];
+                frame.alphaData = new byte[header.ImageWidth * header.ImageHeight];
+                ConvertBitmapToFrame(bmpBuffer, frame.colorData, frame.alphaData);
 
                 // Delta-decode the frames.
                 do
                 {
                     oldIndex = (oldIndex + 1) % this.FrameCount;
-                    MifDeltaEncoding.Decode(
-                        colorData, frameDiff[oldIndex].colorDiff, true);
-                    if (alphaData != null)
-                    {
-                        MifDeltaEncoding.Decode(
-                            alphaData, frameDiff[oldIndex].alphaDiff, true);
-                    }
+                    frameDiff[oldIndex].UpdateFrame(frame);
                 }
                 while (oldIndex != newIndex);
 
                 // Render the requested frame.
                 this.activeIndex = newIndex;
-                ConvertFrameToBitmap(colorData, alphaData, bmpBuffer);
+                ConvertFrameToBitmap(frame.colorData, frame.alphaData, bmpBuffer);
             }
         }
 
@@ -622,8 +600,47 @@ namespace QQGame
     /// </summary>
     class MifFrameDiff
     {
-        public byte[] colorDiff; // delta-encoded change in color
-        public byte[] alphaDiff; // delta-encoded change in alpha
+        private byte[] colorDiff; // delta-encoded change in color
+        private byte[] alphaDiff; // delta-encoded change in alpha
+
+        /// <summary>
+        /// Creates a FrameDiff object as the difference between two frames.
+        /// </summary>
+        /// <param name="oldFrame"></param>
+        /// <param name="newFrame"></param>
+        public MifFrameDiff(MifFrame oldFrame, MifFrame newFrame)
+        {
+            if (oldFrame == null)
+                throw new ArgumentNullException("oldFrame");
+            if (newFrame == null)
+                throw new ArgumentNullException("newFrame");
+
+            if (oldFrame.colorData != null && newFrame.colorData != null)
+            {
+                this.colorDiff = MifDeltaEncoding.Encode(
+                    oldFrame.colorData, newFrame.colorData, true);
+            }
+            if (oldFrame.alphaData != null && newFrame.alphaData != null)
+            {
+                this.alphaDiff = MifDeltaEncoding.Encode(
+                    oldFrame.alphaData, newFrame.alphaData, true);
+            }
+        }
+
+        public void UpdateFrame(MifFrame frame)
+        {
+            if (frame == null)
+                throw new ArgumentNullException("frame");
+
+            if (frame.colorData != null && this.colorDiff != null)
+            {
+                MifDeltaEncoding.Decode(frame.colorData, this.colorDiff, true);
+            }
+            if (frame.alphaData != null && this.alphaDiff != null)
+            {
+                MifDeltaEncoding.Decode(frame.alphaData, this.alphaDiff, true);
+            }
+        }
     }
 
     class MifDeltaEncoding
