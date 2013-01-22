@@ -604,8 +604,11 @@ namespace QQGame
     /// <summary>
     /// Contains information about the change from one frame to the next.
     /// </summary>
-    class MifFrameDiff
+    public class MifFrameDiff
     {
+        public static int memoryUsed1 = 0;
+        public static int memoryUsed2 = 0;
+
         private byte[] colorDiff; // delta-encoded change in color, then RL-encoded
         private byte[] alphaDiff; // delta-encoded change in alpha, then RL-encoded
 
@@ -614,7 +617,7 @@ namespace QQGame
         /// </summary>
         /// <param name="oldFrame"></param>
         /// <param name="newFrame"></param>
-        public MifFrameDiff(MifFrame oldFrame, MifFrame newFrame)
+        internal MifFrameDiff(MifFrame oldFrame, MifFrame newFrame)
         {
             if (oldFrame == null)
                 throw new ArgumentNullException("oldFrame");
@@ -625,17 +628,21 @@ namespace QQGame
             {
                 this.colorDiff = MifDeltaEncoding.Encode(
                     oldFrame.colorData, newFrame.colorData, true);
+                memoryUsed1 += colorDiff.Length;
                 this.colorDiff = MifRunLengthEncoding.Encode(colorDiff, 2);
+                memoryUsed2 += colorDiff.Length;
             }
             if (oldFrame.alphaData != null && newFrame.alphaData != null)
             {
                 this.alphaDiff = MifDeltaEncoding.Encode(
                     oldFrame.alphaData, newFrame.alphaData, true);
+                memoryUsed1 += alphaDiff.Length;
                 this.alphaDiff = MifRunLengthEncoding.Encode(alphaDiff, 1);
+                memoryUsed2 += alphaDiff.Length;
             }
         }
 
-        public void UpdateFrame(MifFrame frame)
+        internal void UpdateFrame(MifFrame frame)
         {
             if (frame == null)
                 throw new ArgumentNullException("frame");
