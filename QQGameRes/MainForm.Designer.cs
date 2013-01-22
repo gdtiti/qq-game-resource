@@ -46,7 +46,6 @@
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.timerLoadProgress = new System.Windows.Forms.Timer(this.components);
             this.toolStrip3 = new System.Windows.Forms.ToolStrip();
-            this.viewList = new QQGameRes.ResourceListView();
             this.toolStripDropDownButton2 = new System.Windows.Forms.ToolStripDropDownButton();
             this.btnChooseDirectory = new System.Windows.Forms.ToolStripMenuItem();
             this.btnChoosePackage = new System.Windows.Forms.ToolStripMenuItem();
@@ -99,10 +98,9 @@
             // splitContainer1.Panel2
             // 
             this.splitContainer1.Panel2.Controls.Add(this.vFolderListView);
-            this.splitContainer1.Panel2.Controls.Add(this.viewList);
             this.splitContainer1.Panel2.Cursor = System.Windows.Forms.Cursors.Default;
-            this.splitContainer1.Size = new System.Drawing.Size(788, 404);
-            this.splitContainer1.SplitterDistance = 211;
+            this.splitContainer1.Size = new System.Drawing.Size(810, 404);
+            this.splitContainer1.SplitterDistance = 243;
             this.splitContainer1.TabIndex = 8;
             // 
             // vFolderTreeView
@@ -111,7 +109,7 @@
             this.vFolderTreeView.Location = new System.Drawing.Point(0, 0);
             this.vFolderTreeView.Margin = new System.Windows.Forms.Padding(4);
             this.vFolderTreeView.Name = "vFolderTreeView";
-            this.vFolderTreeView.Size = new System.Drawing.Size(211, 404);
+            this.vFolderTreeView.Size = new System.Drawing.Size(243, 404);
             this.vFolderTreeView.TabIndex = 11;
             this.vFolderTreeView.ActiveFolderChanged += new System.EventHandler(this.vFolderTreeView_ActiveFolderChanged);
             // 
@@ -119,10 +117,10 @@
             // 
             this.vFolderListView.Dock = System.Windows.Forms.DockStyle.Fill;
             this.vFolderListView.Folder = null;
-            this.vFolderListView.Location = new System.Drawing.Point(0, 200);
+            this.vFolderListView.Location = new System.Drawing.Point(0, 0);
             this.vFolderListView.Margin = new System.Windows.Forms.Padding(4);
             this.vFolderListView.Name = "vFolderListView";
-            this.vFolderListView.Size = new System.Drawing.Size(573, 204);
+            this.vFolderListView.Size = new System.Drawing.Size(563, 404);
             this.vFolderListView.TabIndex = 1;
             this.vFolderListView.ThumbnailFrameColor = System.Drawing.Color.DarkGray;
             this.vFolderListView.ThumbnailFrameMargin = 4;
@@ -139,7 +137,7 @@
             this.txtFrames});
             this.statusStrip1.Location = new System.Drawing.Point(0, 434);
             this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Size = new System.Drawing.Size(788, 28);
+            this.statusStrip1.Size = new System.Drawing.Size(810, 28);
             this.statusStrip1.TabIndex = 10;
             this.statusStrip1.Text = "statusStrip1";
             // 
@@ -203,20 +201,9 @@
             this.toolStrip3.Location = new System.Drawing.Point(0, 0);
             this.toolStrip3.Name = "toolStrip3";
             this.toolStrip3.Padding = new System.Windows.Forms.Padding(4, 2, 2, 2);
-            this.toolStrip3.Size = new System.Drawing.Size(788, 30);
+            this.toolStrip3.Size = new System.Drawing.Size(810, 30);
             this.toolStrip3.TabIndex = 11;
             this.toolStrip3.Text = "toolStrip3";
-            // 
-            // viewList
-            // 
-            this.viewList.Dock = System.Windows.Forms.DockStyle.Top;
-            this.viewList.Location = new System.Drawing.Point(0, 0);
-            this.viewList.Margin = new System.Windows.Forms.Padding(4);
-            this.viewList.Name = "viewList";
-            this.viewList.ResourceFolder = null;
-            this.viewList.Size = new System.Drawing.Size(573, 200);
-            this.viewList.TabIndex = 0;
-            this.viewList.ActiveEntryChanged += new System.EventHandler(this.viewList_ActiveEntryChanged);
             // 
             // toolStripDropDownButton2
             // 
@@ -232,14 +219,14 @@
             // btnChooseDirectory
             // 
             this.btnChooseDirectory.Name = "btnChooseDirectory";
-            this.btnChooseDirectory.Size = new System.Drawing.Size(152, 24);
+            this.btnChooseDirectory.Size = new System.Drawing.Size(143, 24);
             this.btnChooseDirectory.Text = "选择目录...";
             this.btnChooseDirectory.Click += new System.EventHandler(this.btnChooseDirectory_Click);
             // 
             // btnChoosePackage
             // 
             this.btnChoosePackage.Name = "btnChoosePackage";
-            this.btnChoosePackage.Size = new System.Drawing.Size(152, 24);
+            this.btnChoosePackage.Size = new System.Drawing.Size(143, 24);
             this.btnChoosePackage.Text = "选择文件...";
             this.btnChoosePackage.Click += new System.EventHandler(this.btnChoosePackage_Click);
             // 
@@ -370,7 +357,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(788, 462);
+            this.ClientSize = new System.Drawing.Size(810, 462);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.toolStrip3);
             this.Controls.Add(this.statusStrip1);
@@ -379,7 +366,6 @@
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "MainForm";
             this.Text = "QQ游戏资源浏览器";
-            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.MainForm_DragDrop);
             this.DragOver += new System.Windows.Forms.DragEventHandler(this.MainForm_DragOver);
@@ -409,7 +395,6 @@
         private System.Windows.Forms.ToolStripStatusLabel txtImageSize;
         private System.Windows.Forms.ToolStripStatusLabel txtStatus;
         private System.Windows.Forms.FolderBrowserDialog folderBrowserDialog1;
-        private ResourceListView viewList;
         private System.Windows.Forms.ToolStripProgressBar progLoadDirectory;
         private System.Windows.Forms.Timer timerLoadProgress;
         private Util.Forms.VirtualFolderTreeView vFolderTreeView;
