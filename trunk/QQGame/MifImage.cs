@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#define TEST_PNG_COMPRESSION
+#undef TEST_PNG_COMPRESSION
 
 using System;
 using System.IO;
@@ -128,6 +128,12 @@ namespace QQGame
             compressedSize[MifCompressionMode.RleDelta] = 0;
             compressedSize[MifCompressionMode.Png] = 0;
             compressedSize[MifCompressionMode.PngDelta] = 0;
+
+#if false
+            byte[] test = new byte[] { 1, 3, 5, 5, 4, 6, 7, 9, 7, 7, 7, 5, 7, 8 };
+            byte[] aa = MifRunLengthEncoding.Encode(test, 1);
+            byte[] bb = MifRunLengthEncoding.Decode(aa, 1);
+#endif
 
             // Create a MIF reader on the stream.
             using (stream)
@@ -600,8 +606,8 @@ namespace QQGame
     /// </summary>
     class MifFrameDiff
     {
-        private byte[] colorDiff; // delta-encoded change in color
-        private byte[] alphaDiff; // delta-encoded change in alpha
+        private byte[] colorDiff; // delta-encoded change in color, then RL-encoded
+        private byte[] alphaDiff; // delta-encoded change in alpha, then RL-encoded
 
         /// <summary>
         /// Creates a FrameDiff object as the difference between two frames.
@@ -619,11 +625,13 @@ namespace QQGame
             {
                 this.colorDiff = MifDeltaEncoding.Encode(
                     oldFrame.colorData, newFrame.colorData, true);
+                this.colorDiff = MifRunLengthEncoding.Encode(colorDiff, 2);
             }
             if (oldFrame.alphaData != null && newFrame.alphaData != null)
             {
                 this.alphaDiff = MifDeltaEncoding.Encode(
                     oldFrame.alphaData, newFrame.alphaData, true);
+                this.alphaDiff = MifRunLengthEncoding.Encode(alphaDiff, 1);
             }
         }
 
@@ -634,11 +642,13 @@ namespace QQGame
 
             if (frame.colorData != null && this.colorDiff != null)
             {
-                MifDeltaEncoding.Decode(frame.colorData, this.colorDiff, true);
+                byte[] actualColorDiff = MifRunLengthEncoding.Decode(this.colorDiff, 2);
+                MifDeltaEncoding.Decode(frame.colorData, actualColorDiff, true);
             }
             if (frame.alphaData != null && this.alphaDiff != null)
             {
-                MifDeltaEncoding.Decode(frame.alphaData, this.alphaDiff, true);
+                byte[] actualAlphaDiff = MifRunLengthEncoding.Decode(this.alphaDiff, 1);
+                MifDeltaEncoding.Decode(frame.alphaData, actualAlphaDiff, true);
             }
         }
     }
@@ -796,7 +806,7 @@ namespace QQGame
             if (index > lastCommonEnd)
             {
                 writer.Write(index - lastCommonEnd);
-                writer.Write(newData, lastCommonEnd, index - lastCommonEnd);
+                writer.Write(newData, newOffset + lastCommonEnd, index - lastCommonEnd);
             }
         }
 
@@ -867,7 +877,8 @@ namespace QQGame
         ///   a0  a1  a2  a3  a4  a5  a6  a7  a8  a9  
         ///           a0  a1  a2  a3  a4  a5  a6  a7  a8  a9
         /// 
-        /// We first write a0, a1 to the output. Then we delta-encode
+        /// We first write the length of the byte array to the output.
+        /// Next we write a0, a1 to the output. Then we delta-encode
         ///    [a2 .. a9] := newData
         ///    [a0 .. a7] := oldData
         ///    
@@ -886,6 +897,9 @@ namespace QQGame
                 throw new ArgumentOutOfRangeException();
             if (lookahead <= 0)
                 throw new ArgumentException("lookback must be greater than or equal to 1.");
+
+            // Output array length.
+            writer.Write((int)data.Length);
 
             // Output 'lookahead' number of bytes as is.
             writer.Write(data, offset, lookahead);
@@ -910,6 +924,24 @@ namespace QQGame
         public static byte[] Encode(byte[] data, int lookahead)
         {
             return Encode(data, 0, data.Length, lookahead);
+        }
+
+        public static byte[] Decode(byte[] data, int lookahead)
+        {
+            using (MemoryStream input = new MemoryStream(data))
+            using (BinaryReader reader = new BinaryReaderWith7BitEncoding(input))
+            {
+                // Read length field.
+                int len = reader.ReadInt32();
+                byte[] result = new byte[len];
+
+                // Read first 'lookahead' elements.
+                reader.ReadFull(result, 0, lookahead);
+
+                // Delta-decode the remaining.
+                MifDeltaEncoding.Decode(result, 0, result, lookahead, reader);
+                return result;
+            }
         }
     }
 
