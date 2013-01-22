@@ -148,7 +148,7 @@ namespace QQGameRes
 
         IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
         {
-            if ((type & VirtualItemType.Folder) != 0)
+            if (type.HasFlag(VirtualItemType.Folder))
                 return imageFolders;
             else
                 return null;
@@ -242,7 +242,10 @@ namespace QQGameRes
                 System.Threading.Thread.Sleep(100);
             }
 #else
-            return files;
+            if (type.HasFlag(VirtualItemType.NonFolder))
+                return files;
+            else
+                return null;
 #endif
         }
 
