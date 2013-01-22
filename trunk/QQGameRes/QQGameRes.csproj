@@ -96,17 +96,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AnimationPlayer.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="ListViewItemDrawer.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="PerFrameAnimator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
@@ -115,15 +110,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <Compile Include="Repository.cs" />
-    <Compile Include="ResourceListView.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ResourceListView.Designer.cs">
-      <DependentUpon>ResourceListView.cs</DependentUpon>
-    </Compile>
-    <Compile Include="ResourceListViewEntry.cs" />
     <Compile Include="ResourceViewModel.cs" />
-    <Compile Include="ThumbnailLoader.cs" />
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -131,9 +118,6 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <SubType>Designer</SubType>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ResourceListView.resx">
-      <DependentUpon>ResourceListView.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
