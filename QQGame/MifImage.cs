@@ -206,7 +206,7 @@ namespace QQGame
                 // is not changed when we change frame to frame. The pixel
                 // format of the bitmap is 16bpp if no alpha channel is
                 // present, or 32bpp otherwise.
-                bool alphaPresent = true; // frames.Any(x => x.alphaData != null);
+                //bool alphaPresent = true; // frames.Any(x => x.alphaData != null);
 #if false
                 bitmap = new Bitmap(
                     header.ImageWidth,

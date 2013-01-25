@@ -302,7 +302,9 @@ namespace QQGameRes
                     }
 #else
                     Stream stream = base.File.OpenRead();
-                    return new QQGame.MifImage(stream);
+                    QQGame.MifImage mif = new QQGame.MifImage(stream);
+                    mif.Name = base.File.Name;
+                    return mif;
 #endif
                 }
                 else if (ext == ".bmp")
