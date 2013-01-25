@@ -218,8 +218,70 @@ namespace QQGameRes
                 "-" + number.ToString(numberFormat) + ext;
         }
 
+        private void NewSafeImage()
+        {
+            IVirtualItem vItem = vFolderListView.ActiveItem;
+            if (vItem == null || !(vItem is IExtractIcon) || !(vItem is IVirtualFile))
+            {
+                MessageBox.Show("No entry selected.");
+                return;
+            }
+
+            IExtractIcon vIcon = vItem as IExtractIcon;
+            object icon = vIcon.ExtractIcon(ExtractIconType.Thumbnail, Size.Empty);
+            MultiFrameImage image;
+            if (icon is MultiFrameImage)
+                image = icon as MultiFrameImage;
+            else if (icon is Image)
+                image = new GdiImage(icon as Image);
+            else
+            {
+                using (icon as IDisposable) { }
+                return;
+            }
+
+#if false
+            string ext = Path.GetExtension(vItem.Name).ToLowerInvariant();
+            string filter = "原始格式|*" + ext;
+
+            // If the selected item is a multi-frame image, export as SVG.
+            if (image.FrameCount > 1)
+            {
+                filter += "|SVG 动画|*.svg";
+            }
+
+            // If the selected item is an image, display additional format
+            // conversion options in the save dialog.
+            if (true)
+            {
+                filter += "|PNG 图片|*.png";
+                filter += "|BMP 图片|*.bmp";
+                filter += "|JPEG 图片|*.jpg";
+                filter += "|TIFF 图片|*.tif";
+            }
+#endif
+            string filter = "Flash 动画|*.swf";
+            saveFileDialog1.Filter = filter;
+            saveFileDialog1.FilterIndex = 1;
+            //if (image.FrameCount > 1)
+            //{
+            //    saveFileDialog1.FilterIndex = 2;
+            //}
+            saveFileDialog1.FileName = Path.GetFileNameWithoutExtension(
+                vItem.Name);
+
+            // Show the dialog.
+            if (saveFileDialog1.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            SwfImageEncoder.Encode(image, saveFileDialog1.FileName);
+        }
+
         private void btnExport_Click(object sender, EventArgs e)
         {
+            NewSafeImage();
+            return;
+
             IVirtualItem vItem = vFolderListView.ActiveItem;
             if (vItem == null || !(vItem is IExtractIcon) || !(vItem is IVirtualFile))
             {
@@ -541,11 +603,6 @@ namespace QQGameRes
             if (sender == btnPlayNone)
             {
             }
-        }
-
-        private void viewList_ActiveEntryChanged(object sender, EventArgs e)
-        {
-
         }
     }
 }
