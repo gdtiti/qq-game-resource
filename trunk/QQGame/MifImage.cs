@@ -866,8 +866,8 @@ namespace QQGame
                 throw new InvalidDataException("InputSize must be greater than or equal to zero.");
 
             // Create a stream view to cover the range.
-            using (StreamView view = new StreamView(
-                this.BaseStream, this.BaseStream.Position, inputSize))
+            using (LimitedLengthStream view = new LimitedLengthStream(
+                   this.BaseStream, inputSize, true))
             using (BinaryReader reader = new BinaryReader(view))
             {
                 MifDeltaEncoding.Decode(buffer, reader);
@@ -950,22 +950,6 @@ namespace QQGame
         None = 0,
         Delta = 1,
     }
-
-#if false
-    /// <summary>
-    /// Supports accessing the pixel data in an uncompressed MIF frame as a
-    /// Stream.
-    /// 
-    /// The MIF format stores the RGB channels and alpha channels separately.
-    /// The RGB section comes first, with 2 bytes per pixel. The optional 
-    /// Alpha section follows, with 1 byte per pixel. In each section, the 
-    /// pixels are stored scanline by scanline from top to bottom, and in 
-    /// each scanline from left to right.
-    /// </summary>
-    class MifPixelStream
-    {
-    }
-#endif
 
     /// <summary>
     /// Provides methods to read and write the RGB channels in a 32-bpp ARGB
@@ -1151,29 +1135,6 @@ namespace QQGame
         }
     }
 
-#if false
-    /// <summary>
-    /// Supports reading and writing the (uncompressed) RGB section of a 
-    /// MIF frame. Each pixel is represented by two bytes in RGB-565 format.
-    /// </summary>
-    class MifColorBuffer : ArrayPixelBuffer<short>
-    {
-        public MifColorBuffer(short[] colorData)
-            : base(colorData, PixelFormat.Format16bppRgb565) { }
-    }
-
-    /// <summary>
-    /// Supports reading and writing the (uncompressed) Alpha section of a 
-    /// MIF frame. Each pixel is represented by one byte with value between
-    /// 0 and 32, inclusive.
-    /// </summary>
-    class MifAlphaBuffer : ArrayPixelBuffer<byte>
-    {
-        public MifAlphaBuffer(byte[] alphaData)
-            : base(alphaData, PixelFormat.Format8bppIndexed) { }
-    }
-#endif
-    
 #if false
 
     public class PixelBuffer
