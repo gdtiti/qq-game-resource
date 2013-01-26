@@ -530,12 +530,15 @@ namespace QQGameRes
                 var mif = vFolderListView.GetLoadedThumbnail(vItem) as QQGame.MifImage;
                 if (mif != null)
                 {
+                    bool is16bit = (mif.Frame.PixelFormat == PixelFormat.Format16bppRgb565);
+
                     txtImageSize.Text = string.Format(
-                        "{0} x {1} （文件大小 {2:#,0} 字节, 压缩后 {3:#,0} 字节）",
-                        mif.Width, 
+                        "{0} x {1} 像素 / {2} 位 / 原始 {3:#,0} KB / 占用 {4:#,0} KB",
+                        mif.Width,
                         mif.Height,
-                        (vItem as ImageFile).File.Length,
-                        mif.CompressedSize);
+                        is16bit ? 16 : 32,
+                        ((vItem as ImageFile).File.Length + 1023) / 1024,
+                        (mif.CompressedSize + 1023) / 1024);
 #if true
                     txtFrames.Text = string.Format(
                         "共 {0} 帧，{1:0.0} 秒",

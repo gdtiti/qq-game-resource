@@ -18,8 +18,6 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#undef TEST_PNG_COMPRESSION
-
 using System;
 using System.IO;
 using System.Linq;
@@ -62,6 +60,18 @@ namespace QQGame
         /// Otherwise, the pixel format is Format32bppArgb.
         /// </summary>
         private Bitmap bitmap;
+
+        /// <summary>
+        /// Pixel stream that encapsulates the RGB channel of the underlying
+        /// bitmap as RGB-565 format.
+        /// </summary>
+        private PixelStream colorStream;
+
+        /// <summary>
+        /// Pixel stream that encapsulates the alpha channel of the underying
+        /// bitmap as 6-bit.
+        /// </summary>
+        private PixelStream alphaStream;
 
         /// <summary>
         /// Contains compressed data of the change from one frame to the next.
@@ -121,6 +131,7 @@ namespace QQGame
                 frameDiff = new MifFrameDiff[header.FrameCount];
                 delays = new int[header.FrameCount];
                 MifFrame firstFrame = null, prevFrame = null;
+                bool alphaPresent = false;
                 for (int i = 0; i < header.FrameCount; i++)
                 {
                     // Read the next frame in uncompressed format.
@@ -128,6 +139,12 @@ namespace QQGame
                     delays[i] = thisFrame.delay;
                     if (i == 0)
                         firstFrame = thisFrame;
+
+                    // Check whether this frame contains non-opaque alpha.
+                    if (!alphaPresent && thisFrame.alphaData != null)
+                    {
+                        alphaPresent = thisFrame.alphaData.Any(a => (a < 0x20));
+                    }
 
                     // Store the difference of thisFrame from prevFrame using
                     // delta encoding.
@@ -144,36 +161,60 @@ namespace QQGame
                     frameDiff[0] = new MifFrameDiff(prevFrame, firstFrame);
                 }
 
-                // Create a bitmap to store the converted frames. This bitmap
-                // is not changed when we change frame to frame. The pixel
-                // format of the bitmap is 16bpp if no alpha channel is
-                // present, or 32bpp otherwise.
-                //bool alphaPresent = true; // frames.Any(x => x.alphaData != null);
-#if false
-                bitmap = new Bitmap(
-                    header.ImageWidth,
-                    header.ImageHeight,
-                    alphaPresent ? PixelFormat.Format32bppArgb :
-                                   PixelFormat.Format16bppRgb565);
-#else
-                bmpBuffer = new int[header.ImageWidth * header.ImageHeight];
-                bmpBufferHandle = GCHandle.Alloc(bmpBuffer, GCHandleType.Pinned);
-                bitmap = new Bitmap(
-                    header.ImageWidth,
-                    header.ImageHeight,
-                    header.ImageWidth * 4,
-                    PixelFormat.Format32bppArgb,
-                    bmpBufferHandle.AddrOfPinnedObject());
+                // If no frame contains a non-opaque alpha, then we don't need
+                // to store the alpha channel at all. In this case, the bitmap
+                // is 16 bpp. Otherwise, we create a 32-bpp bitmap.
+#if true
+                if (!alphaPresent)
+                {
+                    int stride = (header.ImageWidth * 2 + 3) / 4 * 4;
+                    bmpBuffer = new int[stride / 4 * header.ImageHeight];
+                    bmpBufferHandle = GCHandle.Alloc(bmpBuffer, GCHandleType.Pinned);
+                    bitmap = new Bitmap(
+                        header.ImageWidth,
+                        header.ImageHeight,
+                        stride,
+                        PixelFormat.Format16bppRgb565,
+                        bmpBufferHandle.AddrOfPinnedObject());
+                    colorStream = new ArrayPixelStream<int>(
+                        bmpBuffer,
+                        PixelFormat.Format16bppRgb565,
+                        stride,
+                        header.ImageWidth * 2);
+                    alphaStream = null;
+                }
+                else // 32-bpp with alpha channel
 #endif
+                {
+                    bmpBuffer = new int[header.ImageWidth * header.ImageHeight];
+                    bmpBufferHandle = GCHandle.Alloc(bmpBuffer, GCHandleType.Pinned);
+                    bitmap = new Bitmap(
+                        header.ImageWidth,
+                        header.ImageHeight,
+                        header.ImageWidth * 4,
+                        PixelFormat.Format32bppArgb,
+                        bmpBufferHandle.AddrOfPinnedObject());
+                    colorStream = new MifColorStream32(bmpBuffer);
+                    alphaStream = new MifAlphaStream32(bmpBuffer);
+                }
 
                 // Render the first frame in the bitmap buffer.
                 this.activeIndex = 0;
-                firstFrame.UpdateBitmap(bmpBuffer);
+                firstFrame.UpdateBitmap(colorStream, alphaStream);
 
                 // If there's only one frame, we don't need frames[] array.
                 if (frameDiff.Length == 1)
                 {
                     frameDiff = null;
+                }
+
+                // If there's no alpha, we don't need to store alpha diff,
+                // although this won't really save much memory as we're
+                // run-length encoded.
+                if (!alphaPresent && frameDiff != null)
+                {
+                    foreach (MifFrameDiff f in frameDiff)
+                        f.RemoveAlpha();
                 }
             }
         }
@@ -232,7 +273,7 @@ namespace QQGame
                 do
                 {
                     oldIndex = (oldIndex + 1) % this.FrameCount;
-                    frameDiff[oldIndex].UpdateBitmap(bmpBuffer);
+                    frameDiff[oldIndex].UpdateBitmap(colorStream, alphaStream);
                 }
                 while (oldIndex != newIndex);
 
@@ -266,7 +307,7 @@ namespace QQGame
         {
             get
             {
-                int size = header.ImageWidth * header.ImageHeight * 4;
+                int size = bmpBuffer.Length * 4;
                 if (frameDiff != null)
                 {
                     size += frameDiff.Select(f => f.CompressedSize).Sum();
@@ -274,25 +315,6 @@ namespace QQGame
                 return size;
             }
         }
-
-#if false
-        /// <summary>
-        /// Converts MIF pixel format to 16-bpp RGB-565 format.
-        /// </summary>
-        private static void ConvertFrameToBitmap16(
-            byte[] colorData, byte[] alphaData, int[] bmpBuffer)
-        {
-            if (bmpBuffer == null)
-                throw new ArgumentNullException("bmpBuffer");
-            if (colorData == null)
-                throw new ArgumentNullException("colorData");
-            if (alphaData!=null)
-                throw new ArgumentException("alphaData is not supported for 16 bpp bitmaps.");
-
-        // STRIDE!!!
-            Buffer.BlockCopy(colorData, 0, bmpBuffer, 0, colorData.Length);
-        }
-#endif
 
 #if false
         /// <summary>
@@ -342,21 +364,16 @@ namespace QQGame
         public byte[] colorData; // uncompressed 5-6-5 RGB data of the frame
         public byte[] alphaData; // uncompressed 6-bit alpha data of the frame
 
-        public void UpdateBitmap(int[] bmpBuffer)
+        public void UpdateBitmap(PixelStream colorStream, PixelStream alphaStream)
         {
-            if (bmpBuffer == null)
-                throw new ArgumentNullException("bmpBuffer");
-            if (colorData != null && colorData.Length != bmpBuffer.Length * 2)
-                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
-            if (alphaData != null && alphaData.Length != bmpBuffer.Length)
-                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
-
-            using (MifColorStream32 colorStream = new MifColorStream32(bmpBuffer))
+            if (colorStream != null && colorData != null)
             {
+                colorStream.Position = 0;
                 colorStream.Write(colorData, 0, colorData.Length);
             }
-            using (MifAlphaStream32 alphaStream = new MifAlphaStream32(bmpBuffer))
+            if (alphaStream != null && alphaData != null)
             {
+                alphaStream.Position = 0;
                 alphaStream.Write(alphaData, 0, alphaData.Length);
             }
         }
@@ -403,6 +420,11 @@ namespace QQGame
             }
         }
 
+        public void RemoveAlpha()
+        {
+            this.alphaDiff = null;
+        }
+
         internal void UpdateFrame(MifFrame frame)
         {
             if (frame == null)
@@ -420,33 +442,24 @@ namespace QQGame
             }
         }
 
-        internal void UpdateBitmap(int[] bmpBuffer)
+        internal void UpdateBitmap(PixelStream colorStream, PixelStream alphaStream)
         {
-            if (bmpBuffer == null)
-                throw new ArgumentNullException("frame");
-
-            if (this.colorDiff != null)
+            if (colorStream != null && this.colorDiff != null)
             {
                 byte[] actualColorDiff = MifRunLengthEncoding.Decode(this.colorDiff, 2);
-                using (MifColorStream32 colorStream = new MifColorStream32(bmpBuffer))
+                foreach (var change in MifDeltaEncoding.GetChanges(actualColorDiff, true))
                 {
-                    foreach (var change in MifDeltaEncoding.GetChanges(actualColorDiff, true))
-                    {
-                        colorStream.Seek(change.StartIndex, SeekOrigin.Begin);
-                        colorStream.Write(change.NewData, change.NewDataOffset, change.Length);
-                    }
+                    colorStream.Seek(change.StartIndex, SeekOrigin.Begin);
+                    colorStream.Write(change.NewData, change.NewDataOffset, change.Length);
                 }
             }
-            if (this.alphaDiff != null)
+            if (alphaStream != null && this.alphaDiff != null)
             {
                 byte[] actualAlphaDiff = MifRunLengthEncoding.Decode(this.alphaDiff, 1);
-                using (MifAlphaStream32 alphaStream = new MifAlphaStream32(bmpBuffer))
+                foreach (var change in MifDeltaEncoding.GetChanges(actualAlphaDiff, true))
                 {
-                    foreach (var change in MifDeltaEncoding.GetChanges(actualAlphaDiff, true))
-                    {
-                        alphaStream.Seek(change.StartIndex, SeekOrigin.Begin);
-                        alphaStream.Write(change.NewData, change.NewDataOffset, change.Length);
-                    }
+                    alphaStream.Seek(change.StartIndex, SeekOrigin.Begin);
+                    alphaStream.Write(change.NewData, change.NewDataOffset, change.Length);
                 }
             }
         }
@@ -926,33 +939,6 @@ namespace QQGame
                 {
                     ReadPixelData(header, frame.alphaData, true);
                 }
-#if false
-                // Check whether all pixels are fully opaque. This corresponds
-                // to an encoded alpha value of 0x20. If so, we don't need to
-                // store the alpha data at all.
-                if (frame.alphaData.All(a => (a == 0x20)))
-                    frame.alphaData = null;
-#endif
-
-#if false
-                // Disable the following for the moment because there are not
-                // so many images that are completely opaque or transparent.
-                // ----------------------------------------------------------
-                // Check whether all pixels are either fully opaque or fully
-                // transparent. If so, we only need 1 bpp for alpha channel.
-                if (frame.alphaData != null)
-                // && !frame.alphaData.All(a => (a & ~0x20) == 0))
-                {
-                    for (int k = 0; k < frame.alphaData.Length; k++)
-                    {
-                        if (frame.alphaData[k] != 0 && frame.alphaData[k] != 0x20)
-                        {
-                            int kk = 1;
-                            System.Diagnostics.Debug.WriteLine("Image is semi-transparent.");
-                        }
-                    }
-                }
-#endif
             }
 
             return frame;
