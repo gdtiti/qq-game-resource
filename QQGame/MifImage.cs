@@ -736,7 +736,6 @@ namespace QQGame
             }
         }
 
-#if true
         /// <summary>
         /// Encodes the difference between the previous contents and the 
         /// current contents of a byte buffer. The encoded format can be
@@ -826,123 +825,6 @@ namespace QQGame
             for (i = 0; i < count && x[index1 + i] == y[index2 + i]; i++) ;
             return i;
         }
-#else
-        /*private static byte[] CompareTwoBuffers(
-            byte[] array1, int offset1,
-            byte[] array2, int offset2,
-            int length)
-        {
-            for (int i = 0; i < 100; i++)
-            {
-                long v1 = Marshal.ReadInt64(array1, offset1 + i * 8);
-                long v2 = Marshal.ReadInt64(array2, offset2 + i * 8);
-
-            }
-        }*/
-
-        public static void Encode(
-            byte[] oldData, int oldOffset,
-            byte[] newData, int newOffset,
-            int length, BinaryWriter writer, int threshold)
-        {
-            if (oldData == null || newData == null || writer == null)
-                throw new ArgumentNullException();
-            if (oldOffset < 0 || newOffset < 0 || length < 0)
-                throw new ArgumentOutOfRangeException();
-            if (oldOffset + length > oldData.Length ||
-                newOffset + length > newData.Length)
-                throw new ArgumentOutOfRangeException();
-
-            // In this method, we first compare the entire old buffer
-            // and new buffer, and get a bit-mask of the bytes where
-            // 0 means same and 1 means different. (i.e. XOR).
-            // Hopefully this should be faster...
-            GCHandle h1 = GCHandle.Alloc(oldData, GCHandleType.Pinned);
-            GCHandle h2 = GCHandle.Alloc(newData, GCHandleType.Pinned);
-            IntPtr p1 = h1.AddrOfPinnedObject();
-            IntPtr p2 = h2.AddrOfPinnedObject();
-
-            int lastCommonEnd = 0; // end-index of the previous common chunk
-            int index = 0;         // begin-index of the current common chunk
-            while (index < length)
-            {
-                int L = GetCommonLength(
-                    p1, oldOffset + index,
-                    p2, newOffset + index,
-                    length - index);
-
-                // Encode this common block if the block length is greater
-                // than the threshold, or if we are at the very beginning of
-                // the buffer, in which case the format requires a common
-                // block.
-                if (index == 0 || L > threshold)
-                {
-                    // Encode last distinct chunk.
-                    if (index > lastCommonEnd)
-                    {
-                        writer.Write(index - lastCommonEnd);
-                        writer.Write(newData, newOffset + lastCommonEnd, index - lastCommonEnd);
-                    }
-
-                    // Encode current common chunk.
-                    writer.Write(L);
-                    lastCommonEnd = index + L;
-                }
-                index += L;
-                index += GetDistinctLength(
-                    oldData, oldOffset + index,
-                    newData, newOffset + index,
-                    length - index);
-            }
-
-            // Encode last distinct chunk.
-            if (index > lastCommonEnd)
-            {
-                writer.Write(index - lastCommonEnd);
-                writer.Write(newData, newOffset + lastCommonEnd, index - lastCommonEnd);
-            }
-            h1.Free();
-            h2.Free();
-        }
-
-        private static int GetCommonLength(
-            IntPtr p1, int index1,
-            IntPtr p2, int index2,
-            int count)
-        {
-            p1 += index1;
-            p2 += index2;
-            int i = 0;
-            while (i + 8 <= count)
-            {
-                long v1 = Marshal.ReadInt64(p1);
-                long v2 = Marshal.ReadInt64(p2);
-                if (v1 == v2)
-                {
-                    i += 8;
-                    p1+=8;
-                    p2+=8;
-                }
-                else
-                    break;
-            }
-
-            while (i < count)
-            {
-                byte v1 = Marshal.ReadByte(p1);
-                byte v2 = Marshal.ReadByte(p2);
-                if (v1 == v2)
-                {
-                    i++;
-                    p1 += 1;
-                    p2 += 1;
-                }
-                else
-                    break;
-            }
-            return i;
-        }
-#endif
 
         private static int GetDistinctLength(
             byte[] x, int index1,
@@ -1236,6 +1118,275 @@ namespace QQGame
     }
 #endif
 
+    /// <summary>
+    /// Provides methods to read and write the RGB channels in a 32-bpp ARGB
+    /// pixel buffer as if it were in RGB 565 pixel format.
+    /// </summary>
+    class MifColorStream32 : PixelStream
+    {
+        int width;
+        int height;
+        int[] pixels;
+        int position; // byte position as if this were 2 bytes per pixel
+
+        public MifColorStream32(int width, int height, int[] pixels)
+        {
+            if (pixels == null)
+                throw new ArgumentNullException("pixels");
+            if (width <= 0)
+                throw new ArgumentOutOfRangeException("width");
+            if (height <= 0)
+                throw new ArgumentOutOfRangeException("height");
+            if (width * height != pixels.Length)
+                throw new ArgumentException();
+
+            this.width = width;
+            this.height = height;
+            this.pixels = pixels;
+            this.position = 0;
+        }
+
+        public override PixelFormat PixelFormat
+        {
+            get { return PixelFormat.Format16bppRgb565; }
+        }
+
+        public override bool CanRead { get { return false; } }
+
+        public override bool CanWrite { get { return true; } }
+
+        public override bool CanSeek { get { return true; } }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException("buffer");
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException("offset");
+            if (count < 0 || offset + count > buffer.Length)
+                throw new ArgumentOutOfRangeException("count");
+            if (this.Position + count > this.Length)
+                throw new EndOfStreamException();
+
+            // Since we may start writing in the middle of a pixel, we need
+            // to split the data to write into three parts:
+            // 1. an odd byte at the beginning
+            // 2. WORD-aligned bytes in the middle
+            // 3. an odd byte at the end
+
+            int iPixel = position / 2;
+            int numWholePixels = (count - (position % 2)) / 2;
+
+            // Process odd byte at the beginning. This is the second byte in
+            // an RGB-565 pixel, which, in little endian, is the high byte.
+            //          RRRRR    GGG
+            // AAAAAAAA RRRRRRRR GGGGGGGG BBBBBBBB
+            if (count > 0 && position % 2 != 0)
+            {
+                byte b = buffer[offset];
+                int c = pixels[iPixel];
+                pixels[iPixel] = (c & ~0x00F8E000)
+                               | ((b & 0xF8) << 16)  // RRRRR
+                               | ((b & 0x07) << 13); // GGG
+                offset++;
+                count--;
+                iPixel++;
+            }
+
+            // Process WORD-aligned bytes.
+            //          RRRRR    GGG GGG   BBBBB
+            // AAAAAAAA RRRRRRRR GGG-GGGGG BBBBBBBB
+            for (int i = 0; i < numWholePixels; i++)
+            {
+                short b = (short)(buffer[offset] | (buffer[offset + 1] << 8));
+                int c = pixels[ iPixel ];
+                pixels[iPixel] = (c & ~0x00FFFFFF)
+                               | ((b & 0xF800) << 8)  // RRRRR
+                               | ((b & 0x07E0) << 5)  // GGGGGG
+                               | ((b & 0x001F) << 3); // BBBBB
+                offset += 2;
+                count -= 2;
+                iPixel++;
+            }
+
+            // Process odd byte at the end. This is the first byte in an
+            // RGB-565 pixel, which, in little endian, is the low byte.
+            //                      GGG   BBBBB
+            // AAAAAAAA RRRRRRRR GGGGGGGG BBBBBBBB
+            if (count > 0)
+            {
+                byte b = buffer[offset];
+                int c = pixels[iPixel];
+                pixels[iPixel] = (c & ~0x1CFF)
+                               | ((b & 0xE0) << 5)  // GGG
+                               | ((b & 0x1F) << 3); // BBBBB
+                offset++;
+                count--;
+                iPixel++;
+            }
+
+            // Update position.
+            position += count;
+        }
+
+        public override void Flush() { }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            long pos;
+            switch (origin)
+            {
+            case SeekOrigin.Begin:
+                pos = 0;
+                break;
+            case SeekOrigin.End:
+                pos = Length;
+                break;
+            case SeekOrigin.Current:
+                pos = Position;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException("origin");
+            }
+            pos += offset;
+            if (pos < 0 || pos > Length)
+                throw new ArgumentOutOfRangeException("offset");
+
+            position = (int)pos;
+            return position;
+        }
+
+        public override long Position
+        {
+            get { return position; }
+            set { Seek(value, SeekOrigin.Begin); }
+        }
+
+        public override long Length
+        {
+            get { return 2L * width * height; }
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Provides methods to read and write the Alpha channel in a 32-bpp ARGB
+    /// pixel buffer as if it has only 6 bits of alpha.
+    /// </summary>
+    class MifAlphaStream32 : PixelStream
+    {
+        int width;
+        int height;
+        int[] pixels;
+        int position; // byte position, which is equal to pixel index
+
+        public MifAlphaStream32(int width, int height, int[] pixels)
+        {
+            if (pixels == null)
+                throw new ArgumentNullException("pixels");
+            if (width <= 0)
+                throw new ArgumentOutOfRangeException("width");
+            if (height <= 0)
+                throw new ArgumentOutOfRangeException("height");
+            if (width * height != pixels.Length)
+                throw new ArgumentException();
+
+            this.width = width;
+            this.height = height;
+            this.pixels = pixels;
+            this.position = 0;
+        }
+
+        public override PixelFormat PixelFormat
+        {
+            get { return PixelFormat.Format8bppIndexed; }
+        }
+
+        public override bool CanRead { get { return false; } }
+
+        public override bool CanWrite { get { return true; } }
+
+        public override bool CanSeek { get { return true; } }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+                throw new ArgumentNullException("buffer");
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException("offset");
+            if (count < 0 || offset + count > buffer.Length)
+                throw new ArgumentOutOfRangeException("count");
+            if (this.Position + count > this.Length)
+                throw new EndOfStreamException();
+
+            for (int i = 0; i < count; i++)
+            {
+                byte a = buffer[offset + i];
+                int c = pixels[position + i];
+                pixels[position + i] = (c & ~0x00FFFFFF)
+                                     | (((a >= 32) ? 255 : (a << 3)) << 24);
+            }
+            position += count;
+        }
+
+        public override void Flush() { }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            long pos;
+            switch (origin)
+            {
+            case SeekOrigin.Begin:
+                pos = 0;
+                break;
+            case SeekOrigin.End:
+                pos = Length;
+                break;
+            case SeekOrigin.Current:
+                pos = Position;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException("origin");
+            }
+            pos += offset;
+            if (pos < 0 || pos > Length)
+                throw new ArgumentOutOfRangeException("offset");
+
+            position = (int)pos;
+            return position;
+        }
+
+        public override long Position
+        {
+            get { return position; }
+            set { Seek(value, SeekOrigin.Begin); }
+        }
+
+        public override long Length
+        {
+            get { return width * height; }
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
 #if false
     /// <summary>
     /// Supports reading and writing the (uncompressed) RGB section of a 
@@ -1272,92 +1423,7 @@ namespace QQGame
         }
     }
 
-    /// <summary>
-    /// Provides methods to read and write the RGB channels in a 32-bpp ARGB
-    /// bitmap as if its pixel format were RGB 5-6-5.
-    /// </summary>
-    class MifBitmap32ColorProxy : IPixelBuffer
-    {
-        Bitmap bmp;
-        BitmapPixelBuffer bmpBuffer;
-
-        public MifBitmap32ColorProxy(Bitmap bitmap)
-        {
-            if (bitmap.PixelFormat != PixelFormat.Format32bppArgb)
-                throw new NotSupportedException("Unsupported bitmap pixel format.");
-            this.bmp = bitmap;
-            this.bmpBuffer = new BitmapPixelBuffer(bitmap);
-        }
-
-        public void Dispose()
-        {
-            if (bmpBuffer != null)
-            {
-                bmpBuffer.Dispose();
-                bmpBuffer = null;
-                bmp = null;
-            }
-        }
-
-        public PixelFormat PixelFormat { get { return PixelFormat.Format16bppRgb565; } }
-
-        public int Length { get { return bmp.Width * bmp.Height * 2; } }
-
-        public void Read(int position, byte[] buffer, int offset, int count)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Write(int position, byte[] buffer, int offset, int count)
-        {
-            // TODO: validate parameters.
-
-            int iPixel = position / 2;
-            int numWholePixels = (count - (position % 2)) / 2;
-            byte[] argb = new byte[Math.Max(1, numWholePixels) * 4];
-
-            // Process odd byte at the beginning: GGGBBBBB
-            if (count > 0 && position % 2 != 0)
-            {
-                byte b = buffer[offset];
-                bmpBuffer.Read(iPixel * 4, argb, 0, 4);
-                argb[0] = (byte)(b << 3);
-                argb[1] = (byte)((argb[1] & 0xE0) | ((b & 0xE0) >> 3));
-                bmpBuffer.Write(iPixel * 4, argb, 0, 4);
-                offset++;
-                count--;
-                iPixel++;
-            }
-
-            // Process WORD-aligned bytes.
-            if (numWholePixels > 0)
-            {
-                bmpBuffer.Read(iPixel * 4, argb, 0, 4 * numWholePixels);
-                for (int i = 0; i < numWholePixels; i++)
-                {
-                    short c = (short)(buffer[offset] | (buffer[offset + 1] << 8));
-                    argb[4 * i + 0] = (byte)((c << 3) & 0xF8); // B
-                    argb[4 * i + 1] = (byte)((c >> 3) & 0xFC); // G
-                    argb[4 * i + 2] = (byte)((c >> 8) & 0xF8); // R
-                    offset += 2;
-                }
-                bmpBuffer.Write(iPixel * 4, argb, 0, 4 * numWholePixels);
-                count -= 2 * numWholePixels;
-                iPixel += numWholePixels;
-            }
-
-            // Process odd byte at the end: RRRRRGGG
-            if (count > 0)
-            {
-                byte b = buffer[offset];
-                bmpBuffer.Read(iPixel * 4, argb, 0, 4);
-                argb[1] = (byte)((argb[1] & 0x1F) | (b << 5)); // G
-                argb[2] = (byte)(b & 0xF8); // R
-                bmpBuffer.Write(iPixel * 4, argb, 0, 4);
-            }
-        }
-    }
-
+    
     /// <summary>
     /// Provides methods to read and write the Alpha channel in a 32-bpp ARGB
     /// bitmap as a continuous buffer with alpha value ranging from 0 to 32.
