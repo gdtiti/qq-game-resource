@@ -4,6 +4,8 @@ using System.IO.Compression;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text;
+using Util.IO;
+using Util.IO.Compression;
 
 namespace QQGame
 {
@@ -253,11 +255,13 @@ namespace QQGame
 
             // Create a stream view to restrict stream access to the range 
             // specified in the index entry.
-            Util.IO.StreamView streamView = new Util.IO.StreamView(
-                stream, info.ContentOffset, info.ContentSize);
+            stream.Seek(info.ContentOffset, SeekOrigin.Begin);
+            //Util.IO.StreamView streamView = new Util.IO.StreamView(
+            //    stream, info.ContentOffset, info.ContentSize);
+            LimitedLengthStream streamView = new LimitedLengthStream(stream, info.ContentSize, true);
 
             // Create and return a ZLibStream from here.
-            return new Util.IO.ZLibStream(streamView, CompressionMode.Decompress);
+            return new ZLibStream(streamView, CompressionMode.Decompress);
         }
 
         /// <summary>
