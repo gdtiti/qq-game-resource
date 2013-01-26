@@ -65,13 +65,13 @@ namespace QQGame
         /// Pixel stream that encapsulates the RGB channel of the underlying
         /// bitmap as RGB-565 format.
         /// </summary>
-        private PixelStream colorStream;
+        private IPixelBuffer colorBuffer;
 
         /// <summary>
         /// Pixel stream that encapsulates the alpha channel of the underying
         /// bitmap as 6-bit.
         /// </summary>
-        private PixelStream alphaStream;
+        private IPixelBuffer alphaBuffer;
 
         /// <summary>
         /// Contains compressed data of the change from one frame to the next.
@@ -164,7 +164,7 @@ namespace QQGame
                 // If no frame contains a non-opaque alpha, then we don't need
                 // to store the alpha channel at all. In this case, the bitmap
                 // is 16 bpp. Otherwise, we create a 32-bpp bitmap.
-#if true
+#if false
                 if (!alphaPresent)
                 {
                     int stride = (header.ImageWidth * 2 + 3) / 4 * 4;
@@ -176,12 +176,12 @@ namespace QQGame
                         stride,
                         PixelFormat.Format16bppRgb565,
                         bmpBufferHandle.AddrOfPinnedObject());
-                    colorStream = new ArrayPixelStream<int>(
+                    colorBuffer = new ArrayPixelStream<int>(
                         bmpBuffer,
                         PixelFormat.Format16bppRgb565,
                         stride,
                         header.ImageWidth * 2);
-                    alphaStream = null;
+                    alphaBuffer = null;
                 }
                 else // 32-bpp with alpha channel
 #endif
@@ -194,13 +194,13 @@ namespace QQGame
                         header.ImageWidth * 4,
                         PixelFormat.Format32bppArgb,
                         bmpBufferHandle.AddrOfPinnedObject());
-                    colorStream = new MifColorStream32(bmpBuffer);
-                    alphaStream = new MifAlphaStream32(bmpBuffer);
+                    colorBuffer = new MifColorBuffer32(bmpBuffer);
+                    alphaBuffer = new MifAlphaBuffer32(bmpBuffer);
                 }
 
                 // Render the first frame in the bitmap buffer.
                 this.activeIndex = 0;
-                firstFrame.UpdateBitmap(colorStream, alphaStream);
+                firstFrame.UpdateBitmap(colorBuffer, alphaBuffer);
 
                 // If there's only one frame, we don't need frames[] array.
                 if (frameDiff.Length == 1)
@@ -273,7 +273,7 @@ namespace QQGame
                 do
                 {
                     oldIndex = (oldIndex + 1) % this.FrameCount;
-                    frameDiff[oldIndex].UpdateBitmap(colorStream, alphaStream);
+                    frameDiff[oldIndex].UpdateBitmap(colorBuffer, alphaBuffer);
                 }
                 while (oldIndex != newIndex);
 
@@ -364,17 +364,15 @@ namespace QQGame
         public byte[] colorData; // uncompressed 5-6-5 RGB data of the frame
         public byte[] alphaData; // uncompressed 6-bit alpha data of the frame
 
-        public void UpdateBitmap(PixelStream colorStream, PixelStream alphaStream)
+        public void UpdateBitmap(IPixelBuffer colorBuffer, IPixelBuffer alphaBuffer)
         {
-            if (colorStream != null && colorData != null)
+            if (colorBuffer != null && colorData != null)
             {
-                colorStream.Position = 0;
-                colorStream.Write(colorData, 0, colorData.Length);
+                colorBuffer.Write(0, colorData, 0, colorData.Length);
             }
-            if (alphaStream != null && alphaData != null)
+            if (alphaBuffer != null && alphaData != null)
             {
-                alphaStream.Position = 0;
-                alphaStream.Write(alphaData, 0, alphaData.Length);
+                alphaBuffer.Write(0, alphaData, 0, alphaData.Length);
             }
         }
     }
@@ -442,24 +440,24 @@ namespace QQGame
             }
         }
 
-        internal void UpdateBitmap(PixelStream colorStream, PixelStream alphaStream)
+        internal void UpdateBitmap(IPixelBuffer colorBuffer, IPixelBuffer alphaBuffer)
         {
-            if (colorStream != null && this.colorDiff != null)
+            if (colorBuffer != null && this.colorDiff != null)
             {
                 byte[] actualColorDiff = MifRunLengthEncoding.Decode(this.colorDiff, 2);
                 foreach (var change in MifDeltaEncoding.GetChanges(actualColorDiff, true))
                 {
-                    colorStream.Seek(change.StartIndex, SeekOrigin.Begin);
-                    colorStream.Write(change.NewData, change.NewDataOffset, change.Length);
+                    colorBuffer.Write(change.StartIndex, change.NewData, 
+                                      change.NewDataOffset, change.Length);
                 }
             }
-            if (alphaStream != null && this.alphaDiff != null)
+            if (alphaBuffer != null && this.alphaDiff != null)
             {
                 byte[] actualAlphaDiff = MifRunLengthEncoding.Decode(this.alphaDiff, 1);
                 foreach (var change in MifDeltaEncoding.GetChanges(actualAlphaDiff, true))
                 {
-                    alphaStream.Seek(change.StartIndex, SeekOrigin.Begin);
-                    alphaStream.Write(change.NewData, change.NewDataOffset, change.Length);
+                    alphaBuffer.Write(change.StartIndex, change.NewData, 
+                                      change.NewDataOffset, change.Length);
                 }
             }
         }
@@ -955,31 +953,38 @@ namespace QQGame
     /// Provides methods to read and write the RGB channels in a 32-bpp ARGB
     /// pixel buffer as if it were in RGB 565 pixel format.
     /// </summary>
-    class MifColorStream32 : PixelStream
+    sealed class MifColorBuffer32 : IPixelBuffer
     {
         int[] pixels;
-        int position; // byte position as if this were 2 bytes per pixel
 
-        public MifColorStream32(int[] pixels)
+        public MifColorBuffer32(int[] pixels)
         {
             if (pixels == null)
                 throw new ArgumentNullException("pixels");
-
             this.pixels = pixels;
-            this.position = 0;
         }
 
-        public override PixelFormat PixelFormat
-        {
-            get { return PixelFormat.Format16bppRgb565; }
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
+        public void Dispose()
         {
             throw new NotImplementedException();
         }
 
-        public override void Write(byte[] buffer, int offset, int count)
+        public PixelFormat PixelFormat
+        {
+            get { return PixelFormat.Format16bppRgb565; }
+        }
+
+        public int Length
+        {
+            get { return 2 * pixels.Length; }
+        }
+
+        public void Read(int position, byte[] buffer, int offset, int count)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Write(int position, byte[] buffer, int offset, int count)
         {
             if (buffer == null)
                 throw new ArgumentNullException("buffer");
@@ -987,7 +992,7 @@ namespace QQGame
                 throw new ArgumentOutOfRangeException("offset");
             if (count < 0 || offset + count > buffer.Length)
                 throw new ArgumentOutOfRangeException("count");
-            if (this.Position + count > this.Length)
+            if (position + count > this.Length)
                 throw new EndOfStreamException();
 
             // Since we may start writing in the middle of a pixel, we need
@@ -996,7 +1001,6 @@ namespace QQGame
             // 2. WORD-aligned bytes in the middle
             // 3. an odd byte at the end
 
-            int newPosition = position + count;
             int iPixel = position / 2;
             int numWholePixels = (count - (position % 2)) / 2;
 
@@ -1047,25 +1051,6 @@ namespace QQGame
                 count--;
                 iPixel++;
             }
-
-            // Update position.
-            position = newPosition;
-        }
-
-        public override long Position
-        {
-            get { return position; }
-            set
-            {
-                if (value < 0 || value > this.Length)
-                    throw new ArgumentOutOfRangeException("value");
-                this.position = (int)value;
-            }
-        }
-
-        public override long Length
-        {
-            get { return 2L * pixels.Length; }
         }
     }
 
@@ -1073,31 +1058,37 @@ namespace QQGame
     /// Provides methods to read and write the Alpha channel in a 32-bpp ARGB
     /// pixel buffer as if it had only 6 bits of alpha.
     /// </summary>
-    class MifAlphaStream32 : PixelStream
+    sealed class MifAlphaBuffer32 : IPixelBuffer
     {
         int[] pixels;
-        int position; // byte position, which is equal to pixel index
 
-        public MifAlphaStream32(int[] pixels)
+        public MifAlphaBuffer32(int[] pixels)
         {
             if (pixels == null)
                 throw new ArgumentNullException("pixels");
-
             this.pixels = pixels;
-            this.position = 0;
         }
 
-        public override PixelFormat PixelFormat
+        public void Dispose()
+        {
+        }
+
+        public PixelFormat PixelFormat
         {
             get { return PixelFormat.Format8bppIndexed; }
         }
 
-        public override int Read(byte[] buffer, int offset, int count)
+        public int Length
+        {
+            get { return pixels.Length; }
+        }
+
+        public void Read(int position, byte[] buffer, int offset, int count)
         {
             throw new NotImplementedException();
         }
 
-        public override void Write(byte[] buffer, int offset, int count)
+        public void Write(int position, byte[] buffer, int offset, int count)
         {
             if (buffer == null)
                 throw new ArgumentNullException("buffer");
@@ -1105,7 +1096,7 @@ namespace QQGame
                 throw new ArgumentOutOfRangeException("offset");
             if (count < 0 || offset + count > buffer.Length)
                 throw new ArgumentOutOfRangeException("count");
-            if (this.Position + count > this.Length)
+            if (position + count > this.Length)
                 throw new EndOfStreamException();
 
             for (int i = 0; i < count; i++)
@@ -1115,23 +1106,6 @@ namespace QQGame
                 pixels[position + i] = (c & 0x00FFFFFF)
                                      | (((a >= 32) ? 255 : (a << 3)) << 24);
             }
-            position += count;
-        }
-
-        public override long Position
-        {
-            get { return position; }
-            set
-            {
-                if (value < 0 || value > this.Length)
-                    throw new ArgumentOutOfRangeException("value");
-                this.position = (int)value;
-            }
-        }
-
-        public override long Length
-        {
-            get { return pixels.Length; }
         }
     }
 

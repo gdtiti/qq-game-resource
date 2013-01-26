@@ -572,12 +572,12 @@ namespace QQGameRes
                 HashSet<int> frameColors = new HashSet<int>();
                 mif.FrameIndex = i;
 
-                using (PixelStream pixelStream = new BitmapPixelStream(
+                using (IPixelBuffer pixelBuffer = new BitmapPixelBuffer(
                        mif.Frame as Bitmap,
                        PixelFormat.Format32bppArgb,
                        ImageLockMode.ReadOnly))
                 {
-                    pixelStream.CopyTo(new MemoryStream(pixels));
+                    pixelBuffer.Read(0, pixels, 0, pixels.Length);
                 }
 
                 for (int j = 0; j < mif.Width * mif.Height; j++)
