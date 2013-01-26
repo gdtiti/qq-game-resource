@@ -80,30 +80,6 @@ namespace QQGame
         /// </summary>
         private int activeIndex;
 
-#if TEST_PNG_COMPRESSION
-        private int GetPngLength(byte[] colorData, byte[] alphaData)
-        {
-            int[] tmp = new int[header.ImageWidth * header.ImageHeight];
-            GCHandle hh = GCHandle.Alloc(tmp, GCHandleType.Pinned);
-            ConvertFrameToBitmap(colorData, alphaData, tmp);
-            Bitmap bmp = new Bitmap(
-                header.ImageWidth,
-                header.ImageHeight,
-                header.ImageWidth * 4,
-                PixelFormat.Format32bppArgb,
-                hh.AddrOfPinnedObject());
-            int pngLen = 0;
-            using (MemoryStream pngStream = new MemoryStream())
-            {
-                bmp.Save(pngStream, ImageFormat.Png);
-                pngLen = (int)pngStream.Length;
-            }
-            bmp.Dispose();
-            hh.Free();
-            return pngLen;
-        }
-#endif
-
         /// <summary>
         /// Creates a MIF image from the specified stream.
         /// </summary>
@@ -153,37 +129,6 @@ namespace QQGame
                     if (i == 0)
                         firstFrame = thisFrame;
 
-                    // Test compression of the first frame.
-                    if (i == 0)
-                    {
-                        //int k1, k2;
-                        //k1 = MifRunLengthEncoding.Encode(thisFrame.colorData, 2).Length;
-                        //k2 = MifRunLengthEncoding.Encode(thisFrame.alphaData, 1).Length;
-                        //compressedSize[MifCompressionMode.RleFrame] += k1 + k2;
-                        // What's the size if we save it as png?
-                        //compressedSize[MifCompressionMode.Png] += GetPngLength(thisFrame.colorData, thisFrame.alphaData);
-
-#if TEST_PNG_COMPRESSION
-                        // What if we save it after XOR?
-                        if (prevFrame != null)
-                        {
-                            byte[] aa = (byte[])thisFrame.colorData.Clone();
-                            byte[] bb = (byte[])thisFrame.alphaData.Clone();
-                            for (int j = 0; j < aa.Length; j++)
-                                aa[j] = (aa[j] == prevFrame.colorData[j]) ? (byte)0 : aa[j];
-                            for (int j = 0; j < bb.Length; j++)
-                                bb[j] = (bb[j] == prevFrame.alphaData[j]) ? (byte)0 : bb[j];
-                            compressedSize[MifCompressionMode.PngDelta]
-                                += GetPngLength(aa, bb);
-                        }
-#endif
-
-                        //compressedSize[MifCompressionMode.Delta] =
-                        //    thisFrame.colorData.Length + thisFrame.alphaData.Length;
-                        //compressedSize[MifCompressionMode.RleDelta] = (k1 + k2);
-                        //compressedSize[MifCompressionMode.PngDelta] = compressedSize[MifCompressionMode.Png];
-                    }
-
                     // Store the difference of thisFrame from prevFrame using
                     // delta encoding.
                     if (i > 0)
@@ -223,10 +168,7 @@ namespace QQGame
 
                 // Render the first frame in the bitmap buffer.
                 this.activeIndex = 0;
-                ConvertFrameToBitmap(
-                    firstFrame.colorData,
-                    firstFrame.alphaData,
-                    bmpBuffer);
+                firstFrame.UpdateBitmap(bmpBuffer);
 
                 // If there's only one frame, we don't need frames[] array.
                 if (frameDiff.Length == 1)
@@ -234,39 +176,6 @@ namespace QQGame
                     frameDiff = null;
                 }
             }
-
-            // Test various compression methods.
-            if (frameDiff == null)
-                return;
-            foreach (var f in frameDiff)
-            {
-#if false
-                byte[] data = f.colorDiff;
-
-                byte[] b1 = MifRunLengthEncoding.Encode(data, 2);
-                compressedSize[MifCompressionMode.Delta] += data.Length;
-                compressedSize[MifCompressionMode.RleDelta] += b1.Length;
-
-                data = f.alphaDiff;
-                if (data == null)
-                    continue;
-
-                byte[] b2 = MifRunLengthEncoding.Encode(data, 1);
-                compressedSize[MifCompressionMode.Delta] += data.Length;
-                compressedSize[MifCompressionMode.RleDelta] += b2.Length;
-#endif
-            }
-
-#if false
-            // Display compression info.
-            System.Diagnostics.Debug.WriteLine(string.Format(
-                "RLE={0,8:0,0}, PNG={1,8:0,0}, PNG/RLE={2,4:00.0}%",
-                compressedSize[MifCompressionMode.RleDelta],
-                compressedSize[MifCompressionMode.PngDelta],
-                (double)compressedSize[MifCompressionMode.PngDelta]/
-                compressedSize[MifCompressionMode.RleDelta]*100
-                ));
-#endif
         }
 
         protected override void Dispose(bool disposing)
@@ -318,33 +227,16 @@ namespace QQGame
                 if (newIndex == oldIndex)
                     return;
 
-#if false
-                // Get MIF frame from Bitmap buffer.
-                MifFrame frame = new MifFrame();
-                frame.colorData = new byte[2 * header.ImageWidth * header.ImageHeight];
-                frame.alphaData = new byte[header.ImageWidth * header.ImageHeight];
-                ConvertBitmapToFrame(bmpBuffer, frame.colorData, frame.alphaData);
-
-                // Delta-decode the frames.
-                do
-                {
-                    oldIndex = (oldIndex + 1) % this.FrameCount;
-                    frameDiff[oldIndex].UpdateFrame(frame);
-                }
-                while (oldIndex != newIndex);
-#else
-                // Delta-decode the frames.
+                // Delta-decode the frames. This directly updates the
+                // underlying bitmap buffer.
                 do
                 {
                     oldIndex = (oldIndex + 1) % this.FrameCount;
                     frameDiff[oldIndex].UpdateBitmap(bmpBuffer);
                 }
                 while (oldIndex != newIndex);
-#endif
 
-                // Render the requested frame.
                 this.activeIndex = newIndex;
-                //ConvertFrameToBitmap(frame.colorData, frame.alphaData, bmpBuffer);
             }
         }
 
@@ -404,65 +296,6 @@ namespace QQGame
 
 #if false
         /// <summary>
-        /// Converts MIF pixel format to 32-bpp ARGB format.
-        /// </summary>
-        private static void ConvertFrameToBitmap(
-            byte[] colorData, byte[] alphaData, int[] bmpBuffer)
-        {
-            if (bmpBuffer == null)
-                throw new ArgumentNullException("bmpBuffer");
-            if (colorData != null && colorData.Length != bmpBuffer.Length * 2)
-                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
-            if (alphaData != null && alphaData.Length != bmpBuffer.Length)
-                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
-
-            // Convert the pixels one by one.
-            for (int i = 0; i < bmpBuffer.Length; i++)
-            {
-                if (colorData != null)
-                {
-                    // RRRR-RGGG|GGGB-BBBB
-                    ushort c = (ushort)(colorData[2 * i] |
-                                       (colorData[2 * i + 1] << 8));
-                    bmpBuffer[i] = (bmpBuffer[i] & ~0x00FFFFFF) // A
-                                 | ((c & 0xF800) << 8)          // R
-                                 | ((c & 0x07E0) << 5)          // G
-                                 | ((c & 0x001F) << 3);         // B
-                }
-                if (alphaData != null)
-                {
-                    byte a = alphaData[i];
-                    bmpBuffer[i] =
-                        (bmpBuffer[i] & 0x00FFFFFF) |
-                        (a >= 0x20 ? 255 : a << 3) << 24;
-                }
-            }
-        }
-#else
-        /// <summary>
-        /// Converts MIF pixel format to 32-bpp ARGB format.
-        /// </summary>
-        private static void ConvertFrameToBitmap(
-            byte[] colorData, byte[] alphaData, int[] bmpBuffer)
-        {
-            if (bmpBuffer == null)
-                throw new ArgumentNullException("bmpBuffer");
-            if (colorData != null && colorData.Length != bmpBuffer.Length * 2)
-                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
-            if (alphaData != null && alphaData.Length != bmpBuffer.Length)
-                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
-
-            using (MifColorStream32 colorStream = new MifColorStream32(bmpBuffer))
-            {
-                colorStream.Write(colorData, 0, colorData.Length);
-            }
-            using (MifAlphaStream32 alphaStream = new MifAlphaStream32(bmpBuffer))
-            {
-                alphaStream.Write(alphaData, 0, alphaData.Length);
-            }
-        }
-#endif
-        /// <summary>
         /// Converts 32-bpp ARGB format to MIF pixel format.
         /// </summary>
         private static void ConvertBitmapToFrame(
@@ -497,6 +330,7 @@ namespace QQGame
                 }
             }
         }
+#endif
     }
 
     /// <summary>
@@ -507,112 +341,27 @@ namespace QQGame
         public int delay = 0; // delay in milliseconds
         public byte[] colorData; // uncompressed 5-6-5 RGB data of the frame
         public byte[] alphaData; // uncompressed 6-bit alpha data of the frame
-    }
 
-#if false
-    class MifConversion
-    {
-        public static void UpdateColor16(byte[] colorData, short[] bmpBuffer)
+        public void UpdateBitmap(int[] bmpBuffer)
         {
-            Buffer.BlockCopy(colorData, 0, bmpBuffer, 0, colorData.Length);
-        }
+            if (bmpBuffer == null)
+                throw new ArgumentNullException("bmpBuffer");
+            if (colorData != null && colorData.Length != bmpBuffer.Length * 2)
+                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
+            if (alphaData != null && alphaData.Length != bmpBuffer.Length)
+                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
 
-        public static void UpdateColor16DeltaEncoded(byte[] colorData, short[] bmpBuffer)
-        {
-            //foreach (IndexRange r in MifDeltaEncoding.Decode(colorData))
+            using (MifColorStream32 colorStream = new MifColorStream32(bmpBuffer))
             {
+                colorStream.Write(colorData, 0, colorData.Length);
             }
-        }
-
-        public static void UpdateColor32(short[] colorData, int[] bmpBuffer)
-        {
-            // RRRR RGGG-GGGB BBBB
-            for (int i = 0; i < colorData.Length; i++)
+            using (MifAlphaStream32 alphaStream = new MifAlphaStream32(bmpBuffer))
             {
-                ushort c = (ushort)colorData[i];
-                bmpBuffer[i] =
-                    (bmpBuffer[i] & ~0x00FFFFFF) // A
-                    | ((c & 0xF800) << 8)        // R
-                    | ((c & 0x07E0) << 5)        // G
-                    | ((c & 0x001F) << 3);       // B
-            }
-        }
-
-        /// <summary>
-        /// Updates the alpha channel data of a 16-bpp bitmap buffer.
-        /// </summary>
-        public static void UpdateAlpha16(byte[] alphaData, short[] bmpBuffer)
-        {
-            throw new NotSupportedException();
-        }
-
-        /// <summary>
-        /// Updates the alpha channel data of a 32-bpp bitmap buffer.
-        /// </summary>
-        public static void UpdateAlpha32(byte[] alphaData, int[] bmpBuffer)
-        {
-            for (int i = 0; i < alphaData.Length; i++)
-            {
-                bmpBuffer[i] = (bmpBuffer[i] & 0x00FFFFFF) | (alphaData[i] << 24);
+                alphaStream.Write(alphaData, 0, alphaData.Length);
             }
         }
     }
-#endif
-
-#if false
-    //class 
-    class MifFrame2
-    {
-        public MifCompressionMode colorCompression;
-        public MifCompressionMode alphaCompression;
-        public byte[] colorData;
-        public byte[] alphaData;
-
-
-        /// <summary>
-        /// Draws the frame onto a pixel buffer.
-        /// </summary>
-        /// <param name="bmpBuffer"></param>
-        public void Draw(IPixelBuffer colorBuffer, IPixelBuffer alphaBuffer)
-        {
-            if (colorCompression == MifCompressionMode.None)
-            {
-                colorBuffer.Write(0, colorData, 0, colorData.Length);
-            }
-            if (colorCompression == MifCompressionMode.Delta)
-            {
-                byte[] data = colorData;
-                bool expectCopyPacket = false;
-                int iInput = 0, iOutput = 0;
-                while (iInput < data.Length)
-                {
-                    int len = BitConverter.ToInt32(data, iInput);
-                    iInput += 4;
-                    if (expectCopyPacket)
-                    {
-                        colorBuffer.Write(iOutput, data, iInput, len);
-                        iInput += len;
-                    }
-                    iOutput += len;
-                    expectCopyPacket = !expectCopyPacket;
-                }
-            }
-
-            if (alphaData == null)
-            {
-                return;
-            }
-            if (alphaCompression == MifCompressionMode.None)
-            {
-                alphaBuffer.Write(0, alphaData, 0, alphaData.Length);
-            }
-            if (alphaCompression == MifCompressionMode.Delta)
-            {
-            }
-        }
-    }
-#endif
-
+    
     /// <summary>
     /// Contains information about the change from one frame to the next.
     /// </summary>
@@ -722,39 +471,6 @@ namespace QQGame
             public int NewDataOffset;
         }
 
-#if false
-        public static IEnumerable<DeltaChange> GetChanges(byte[] delta, bool use7Bit)
-        {
-            int index = 0;
-            bool expectCopyPacket = false;
-
-            using (MemoryStream deltaStream = new MemoryStream(delta))
-            using (BinaryReader deltaReader = use7Bit ?
-                   new BinaryReaderWith7BitEncoding(deltaStream) :
-                   new BinaryReader(deltaStream))
-            {
-                while (deltaStream.Position < deltaStream.Length)
-                {
-                    int len = deltaReader.ReadInt32();
-                    if (len < 0)
-                        throw new InvalidDataException("Packet length must be greater than or equal to zero.");
-
-                    if (expectCopyPacket) // copy from delta
-                    {
-                        yield return new DeltaChange {
-                            StartIndex = index,
-                            Length=len,
-                            NewData = delta,
-                            NewDataOffset = (int)deltaStream.Position
-                        };
-                        deltaStream.Seek(len, SeekOrigin.Current);
-                    }
-                    index += len;
-                    expectCopyPacket = !expectCopyPacket;
-                }
-            }
-        }
-#else
         public static IEnumerable<DeltaChange> GetChanges(byte[] delta, bool use7Bit)
         {
             if (!use7Bit)
@@ -782,7 +498,6 @@ namespace QQGame
                 expectCopyPacket = !expectCopyPacket;
             }
         }
-#endif
 
         /// <summary>
         /// Decodes a stream encoded by MifDeltaEncoding.Encode().
@@ -1248,11 +963,6 @@ namespace QQGame
     {
         None = 0,
         Delta = 1,
-
-        RleFrame = 258,
-        RleDelta = 259,
-        Png=260,
-        PngDelta = 261,
     }
 
 #if false
@@ -1391,7 +1101,7 @@ namespace QQGame
 
     /// <summary>
     /// Provides methods to read and write the Alpha channel in a 32-bpp ARGB
-    /// pixel buffer as if it has only 6 bits of alpha.
+    /// pixel buffer as if it had only 6 bits of alpha.
     /// </summary>
     class MifAlphaStream32 : PixelStream
     {
@@ -1475,95 +1185,6 @@ namespace QQGame
     {
         public MifAlphaBuffer(byte[] alphaData)
             : base(alphaData, PixelFormat.Format8bppIndexed) { }
-    }
-
-    /// <summary>
-    /// Provides methods to read and write the RGB channels in a RGB 5-6-5
-    /// bitmap.
-    /// </summary>
-    class MifBitmap16ColorProxy : BitmapPixelBuffer
-    {
-        public MifBitmap16ColorProxy(Bitmap bitmap)
-            : base(bitmap)
-        {
-            if (bitmap.PixelFormat != PixelFormat.Format16bppRgb565)
-                throw new NotSupportedException("Unsupported pixel format.");
-        }
-    }
-
-    
-    /// <summary>
-    /// Provides methods to read and write the Alpha channel in a 32-bpp ARGB
-    /// bitmap as a continuous buffer with alpha value ranging from 0 to 32.
-    /// </summary>
-    class MifBitmap32AlphaProxy : IPixelBuffer
-    {
-        Bitmap bmp;
-        BitmapPixelBuffer bmpBuffer;
-
-        public MifBitmap32AlphaProxy(Bitmap bitmap)
-        {
-            if (bitmap.PixelFormat != PixelFormat.Format32bppArgb)
-                throw new NotSupportedException("Unsupported bitmap pixel format.");
-            this.bmp = bitmap;
-            this.bmpBuffer = new BitmapPixelBuffer(bitmap);
-        }
-
-        public void Dispose()
-        {
-            if (bmpBuffer != null)
-            {
-                bmpBuffer.Dispose();
-                bmpBuffer = null;
-                bmp = null;
-            }
-        }
-
-        public PixelFormat PixelFormat { get { return PixelFormat.Format8bppIndexed; } }
-
-        public int Length { get { return bmp.Width * bmp.Height; } }
-
-        public void Read(int position, byte[] buffer, int offset, int count)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Write(int position, byte[] buffer, int offset, int count)
-        {
-            byte[] argb = new byte[count * 4];
-            bmpBuffer.Read(position, argb, 0, 4 * count);
-            for (int i = 0; i < count; i++)
-            {
-                byte a = buffer[i];
-                argb[4 * i + 3] = (byte)((a >= 32) ? 255 : (a << 3)); // A
-            }
-            bmpBuffer.Write(position, argb, 0, 4 * count);
-        }
-    }
-
-    class TestMe
-    {
-        public void Test()
-        {
-            // read uncompressed bitmap from file
-            // colorData
-            // alphaData
-            // MifColorBuffer colorBuffer;
-            // colorBuffer.Write(0, colorData, 0, colorData.Length);
-
-            // read compressed bitmap from file
-            // MifColorBuffer colorBuffer;
-            // int pos = 0;
-            // ...
-            // pos += SkipLen;
-            // colorBuffer.Write(pos, colorData, 0, CopyLen);
-            // pos += CopyLen;
-            // ...
-            // MifAlphaBuffer alphaStream;
-            // similar to above
-
-            // render colorData and alphaData to MifPixelWriter.
-        }
     }
 #endif
     

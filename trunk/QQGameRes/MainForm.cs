@@ -461,10 +461,6 @@ namespace QQGameRes
 
         private void btnAbout_Click(object sender, EventArgs e)
         {
-#if DEBUG || true
-            MyTest();
-            return;
-#endif
             FileVersionInfo ver = FileVersionInfo.GetVersionInfo(
                 System.Reflection.Assembly.GetExecutingAssembly().Location);
 
@@ -612,7 +608,7 @@ namespace QQGameRes
             }
         }
 
-        private void MyTest()
+        private void btnTest_Click(object sender, EventArgs e)
         {
             string path = @"D:\Games\QQGame\GameShow\item";
             FileInfo[] files = (new DirectoryInfo(path)).GetFiles("*.mif");
@@ -644,7 +640,7 @@ namespace QQGameRes
                         watch.Stop();
                     }
                 }
-                if (numFiles >= 1000)
+                if (numFiles >= 100)
                     break;
             }
 
@@ -658,9 +654,6 @@ namespace QQGameRes
                 "Memory size: {0:#,0} KB.\n", totalCompressed / 1024);
             System.Diagnostics.Debug.Write("\n" + msg);
             MessageBox.Show(msg);
-
-            // Note: next, we need to rotate the frames in each file
-            // 10 times to evaluate the performance.
         }
     }
 }
