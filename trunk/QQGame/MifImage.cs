@@ -392,6 +392,7 @@ namespace QQGame
         }
 #endif
 
+#if false
         /// <summary>
         /// Converts MIF pixel format to 32-bpp ARGB format.
         /// </summary>
@@ -427,7 +428,30 @@ namespace QQGame
                 }
             }
         }
+#else
+        /// <summary>
+        /// Converts MIF pixel format to 32-bpp ARGB format.
+        /// </summary>
+        private static void ConvertFrameToBitmap(
+            byte[] colorData, byte[] alphaData, int[] bmpBuffer)
+        {
+            if (bmpBuffer == null)
+                throw new ArgumentNullException("bmpBuffer");
+            if (colorData != null && colorData.Length != bmpBuffer.Length * 2)
+                throw new ArgumentException("colorData and bmpBuffer must have the same length.");
+            if (alphaData != null && alphaData.Length != bmpBuffer.Length)
+                throw new ArgumentException("alphaData and bmpBuffer must have the same length.");
 
+            using (MifColorStream32 colorStream = new MifColorStream32(bmpBuffer))
+            {
+                colorStream.Write(colorData, 0, colorData.Length);
+            }
+            using (MifAlphaStream32 alphaStream = new MifAlphaStream32(bmpBuffer))
+            {
+                alphaStream.Write(alphaData, 0, alphaData.Length);
+            }
+        }
+#endif
         /// <summary>
         /// Converts 32-bpp ARGB format to MIF pixel format.
         /// </summary>
@@ -1124,24 +1148,14 @@ namespace QQGame
     /// </summary>
     class MifColorStream32 : PixelStream
     {
-        int width;
-        int height;
         int[] pixels;
         int position; // byte position as if this were 2 bytes per pixel
 
-        public MifColorStream32(int width, int height, int[] pixels)
+        public MifColorStream32(int[] pixels)
         {
             if (pixels == null)
                 throw new ArgumentNullException("pixels");
-            if (width <= 0)
-                throw new ArgumentOutOfRangeException("width");
-            if (height <= 0)
-                throw new ArgumentOutOfRangeException("height");
-            if (width * height != pixels.Length)
-                throw new ArgumentException();
 
-            this.width = width;
-            this.height = height;
             this.pixels = pixels;
             this.position = 0;
         }
@@ -1150,12 +1164,6 @@ namespace QQGame
         {
             get { return PixelFormat.Format16bppRgb565; }
         }
-
-        public override bool CanRead { get { return false; } }
-
-        public override bool CanWrite { get { return true; } }
-
-        public override bool CanSeek { get { return true; } }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -1179,6 +1187,7 @@ namespace QQGame
             // 2. WORD-aligned bytes in the middle
             // 3. an odd byte at the end
 
+            int newPosition = position + count;
             int iPixel = position / 2;
             int numWholePixels = (count - (position % 2)) / 2;
 
@@ -1203,7 +1212,7 @@ namespace QQGame
             // AAAAAAAA RRRRRRRR GGG-GGGGG BBBBBBBB
             for (int i = 0; i < numWholePixels; i++)
             {
-                short b = (short)(buffer[offset] | (buffer[offset + 1] << 8));
+                ushort b = (ushort)(buffer[offset] | (buffer[offset + 1] << 8));
                 int c = pixels[ iPixel ];
                 pixels[iPixel] = (c & ~0x00FFFFFF)
                                | ((b & 0xF800) << 8)  // RRRRR
@@ -1231,50 +1240,23 @@ namespace QQGame
             }
 
             // Update position.
-            position += count;
-        }
-
-        public override void Flush() { }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            long pos;
-            switch (origin)
-            {
-            case SeekOrigin.Begin:
-                pos = 0;
-                break;
-            case SeekOrigin.End:
-                pos = Length;
-                break;
-            case SeekOrigin.Current:
-                pos = Position;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException("origin");
-            }
-            pos += offset;
-            if (pos < 0 || pos > Length)
-                throw new ArgumentOutOfRangeException("offset");
-
-            position = (int)pos;
-            return position;
+            position = newPosition;
         }
 
         public override long Position
         {
             get { return position; }
-            set { Seek(value, SeekOrigin.Begin); }
+            set
+            {
+                if (value < 0 || value > this.Length)
+                    throw new ArgumentOutOfRangeException("value");
+                this.position = (int)value;
+            }
         }
 
         public override long Length
         {
-            get { return 2L * width * height; }
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotImplementedException();
+            get { return 2L * pixels.Length; }
         }
     }
 
@@ -1284,24 +1266,14 @@ namespace QQGame
     /// </summary>
     class MifAlphaStream32 : PixelStream
     {
-        int width;
-        int height;
         int[] pixels;
         int position; // byte position, which is equal to pixel index
 
-        public MifAlphaStream32(int width, int height, int[] pixels)
+        public MifAlphaStream32(int[] pixels)
         {
             if (pixels == null)
                 throw new ArgumentNullException("pixels");
-            if (width <= 0)
-                throw new ArgumentOutOfRangeException("width");
-            if (height <= 0)
-                throw new ArgumentOutOfRangeException("height");
-            if (width * height != pixels.Length)
-                throw new ArgumentException();
 
-            this.width = width;
-            this.height = height;
             this.pixels = pixels;
             this.position = 0;
         }
@@ -1310,12 +1282,6 @@ namespace QQGame
         {
             get { return PixelFormat.Format8bppIndexed; }
         }
-
-        public override bool CanRead { get { return false; } }
-
-        public override bool CanWrite { get { return true; } }
-
-        public override bool CanSeek { get { return true; } }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -1337,53 +1303,26 @@ namespace QQGame
             {
                 byte a = buffer[offset + i];
                 int c = pixels[position + i];
-                pixels[position + i] = (c & ~0x00FFFFFF)
+                pixels[position + i] = (c & 0x00FFFFFF)
                                      | (((a >= 32) ? 255 : (a << 3)) << 24);
             }
             position += count;
         }
 
-        public override void Flush() { }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            long pos;
-            switch (origin)
-            {
-            case SeekOrigin.Begin:
-                pos = 0;
-                break;
-            case SeekOrigin.End:
-                pos = Length;
-                break;
-            case SeekOrigin.Current:
-                pos = Position;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException("origin");
-            }
-            pos += offset;
-            if (pos < 0 || pos > Length)
-                throw new ArgumentOutOfRangeException("offset");
-
-            position = (int)pos;
-            return position;
-        }
-
         public override long Position
         {
             get { return position; }
-            set { Seek(value, SeekOrigin.Begin); }
+            set
+            {
+                if (value < 0 || value > this.Length)
+                    throw new ArgumentOutOfRangeException("value");
+                this.position = (int)value;
+            }
         }
 
         public override long Length
         {
-            get { return width * height; }
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotImplementedException();
+            get { return pixels.Length; }
         }
     }
 
