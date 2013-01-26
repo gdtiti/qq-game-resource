@@ -461,6 +461,9 @@ namespace QQGameRes
 
         private void btnAbout_Click(object sender, EventArgs e)
         {
+            MyTest();
+            return;
+
             FileVersionInfo ver = FileVersionInfo.GetVersionInfo(
                 System.Reflection.Assembly.GetExecutingAssembly().Location);
 
@@ -568,10 +571,13 @@ namespace QQGameRes
             {
                 HashSet<int> frameColors = new HashSet<int>();
                 mif.FrameIndex = i;
-                using (BitmapPixelBuffer buffer = new BitmapPixelBuffer(
-                    mif.Frame as Bitmap, PixelFormat.Format32bppArgb))
+
+                using (PixelStream pixelStream = new BitmapPixelStream(
+                       mif.Frame as Bitmap,
+                       PixelFormat.Format32bppArgb,
+                       ImageLockMode.ReadOnly))
                 {
-                    buffer.Read(0, pixels, 0, pixels.Length);
+                    pixelStream.CopyTo(new MemoryStream(pixels));
                 }
 
                 for (int j = 0; j < mif.Width * mif.Height; j++)
@@ -603,6 +609,57 @@ namespace QQGameRes
             if (sender == btnPlayNone)
             {
             }
+        }
+
+        private void MyTest()
+        {
+            string path = @"D:\Games\QQGame\GameShow\item";
+            FileInfo[] files = (new DirectoryInfo(path)).GetFiles("*.mif");
+            int numFiles = 0;
+            long totalSize = 0;
+            long totalCompressed = 0;
+
+            // Load and release all the files.
+            Stopwatch watch = new Stopwatch();
+            foreach (FileInfo file in files)
+            {
+                numFiles++;
+                totalSize += file.Length;
+                using (Stream input = file.OpenRead())
+                using (MemoryStream memory = new MemoryStream())
+                {
+                    input.CopyTo(memory);
+                    memory.Seek(0, SeekOrigin.Begin);
+
+                    using (QQGame.MifImage mif = new QQGame.MifImage(memory))
+                    {
+                        watch.Start();
+                        totalCompressed += mif.CompressedSize;
+                        if (mif.FrameCount > 1)
+                        {
+                            for (int i = 0; i < mif.FrameCount * 10; i++)
+                                mif.AdvanceFrame(true);
+                        }
+                        watch.Stop();
+                    }
+                }
+                if (numFiles >= 10)
+                    break;
+            }
+
+            string msg = "";
+            msg += string.Format(
+                "Loaded {0} files in {1:0.000} seconds.\n",
+                numFiles, watch.Elapsed.TotalSeconds);
+            msg += string.Format(
+                "Total  size: {0:#,0} KB.\n", totalSize / 1024);
+            msg += string.Format(
+                "Memory size: {0:#,0} KB.\n", totalCompressed / 1024);
+            System.Diagnostics.Debug.Write("\n" + msg);
+            MessageBox.Show(msg);
+
+            // Note: next, we need to rotate the frames in each file
+            // 10 times to evaluate the performance.
         }
     }
 }

@@ -64,7 +64,7 @@ namespace QQGameRes
             get { return Path.GetFileName(archive.FileName); }
         }
 
-        IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
+        IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemTypes type)
         {
             if (children == null)
             {
@@ -139,16 +139,15 @@ namespace QQGameRes
             imageFolders.Add(imageFolder);
             if (FolderChanged != null)
             {
-                FolderChangedEventArgs e = new FolderChangedEventArgs();
-                e.ChangeType = FolderChangeType.ItemsAdded;
-                e.Item = imageFolder;
+                FolderChangedEventArgs e = new FolderChangedEventArgs(
+                    FolderChangeType.ItemsAdded, imageFolder);
                 FolderChanged(this, e);
             }
         }
 
-        IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
+        IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemTypes type)
         {
-            if (type.HasFlag(VirtualItemType.Folder))
+            if (type.HasFlag(VirtualItemTypes.Folder))
                 return imageFolders;
             else
                 return null;
@@ -232,7 +231,7 @@ namespace QQGameRes
             }
         }
 
-        IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemType type)
+        IEnumerable<IVirtualItem> IVirtualFolder.EnumerateItems(VirtualItemTypes type)
         {
 #if false
             // The following code is to test the VirtualFolderListView.
@@ -242,7 +241,7 @@ namespace QQGameRes
                 System.Threading.Thread.Sleep(100);
             }
 #else
-            if (type.HasFlag(VirtualItemType.NonFolder))
+            if (type.HasFlag(VirtualItemTypes.NonFolder))
                 return files;
             else
                 return null;

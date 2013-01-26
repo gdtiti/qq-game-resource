@@ -31,7 +31,6 @@ using Util.IO;
 using Util.Media;
 using System.IO.Compression;
 
-
 namespace QQGame
 {
     /// <summary>
@@ -118,13 +117,11 @@ namespace QQGame
         /// contain a valid MIF image format.</exception>
         public MifImage(Stream stream)
         {
-
 #if false
             byte[] test = new byte[] { 1, 3, 5, 5, 4, 6, 7, 9, 7, 7, 7, 5, 7, 8 };
             byte[] aa = MifRunLengthEncoding.Encode(test, 1);
             byte[] bb = MifRunLengthEncoding.Decode(aa, 1);
 #endif
-
             // Create a MIF reader on the stream.
             using (stream)
             using (MifReader reader = new MifReader(stream))
@@ -727,6 +724,19 @@ namespace QQGame
             }
         }
 
+        public static byte[] Encode(byte[] oldData, byte[] newData, bool use7Bit)
+        {
+            using (var output = new MemoryStream())
+            using (var writer = use7Bit ?
+                   new BinaryWriterWith7BitEncoding(output) :
+                   new BinaryWriter(output))
+            {
+                Encode(oldData, 0, newData, 0, newData.Length, writer, use7Bit ? 2 : 8);
+                return output.ToArray();
+            }
+        }
+
+#if true
         /// <summary>
         /// Encodes the difference between the previous contents and the 
         /// current contents of a byte buffer. The encoded format can be
@@ -807,18 +817,6 @@ namespace QQGame
             }
         }
 
-        public static byte[] Encode(byte[] oldData, byte[] newData, bool use7Bit)
-        {
-            using (var output = new MemoryStream())
-            using (var writer = use7Bit ?
-                   new BinaryWriterWith7BitEncoding(output) :
-                   new BinaryWriter(output))
-            {
-                Encode(oldData, 0, newData, 0, newData.Length, writer, use7Bit ? 2 : 8);
-                return output.ToArray();
-            }
-        }
-
         private static int GetCommonLength(
             byte[] x, int index1,
             byte[] y, int index2,
@@ -828,6 +826,123 @@ namespace QQGame
             for (i = 0; i < count && x[index1 + i] == y[index2 + i]; i++) ;
             return i;
         }
+#else
+        /*private static byte[] CompareTwoBuffers(
+            byte[] array1, int offset1,
+            byte[] array2, int offset2,
+            int length)
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                long v1 = Marshal.ReadInt64(array1, offset1 + i * 8);
+                long v2 = Marshal.ReadInt64(array2, offset2 + i * 8);
+
+            }
+        }*/
+
+        public static void Encode(
+            byte[] oldData, int oldOffset,
+            byte[] newData, int newOffset,
+            int length, BinaryWriter writer, int threshold)
+        {
+            if (oldData == null || newData == null || writer == null)
+                throw new ArgumentNullException();
+            if (oldOffset < 0 || newOffset < 0 || length < 0)
+                throw new ArgumentOutOfRangeException();
+            if (oldOffset + length > oldData.Length ||
+                newOffset + length > newData.Length)
+                throw new ArgumentOutOfRangeException();
+
+            // In this method, we first compare the entire old buffer
+            // and new buffer, and get a bit-mask of the bytes where
+            // 0 means same and 1 means different. (i.e. XOR).
+            // Hopefully this should be faster...
+            GCHandle h1 = GCHandle.Alloc(oldData, GCHandleType.Pinned);
+            GCHandle h2 = GCHandle.Alloc(newData, GCHandleType.Pinned);
+            IntPtr p1 = h1.AddrOfPinnedObject();
+            IntPtr p2 = h2.AddrOfPinnedObject();
+
+            int lastCommonEnd = 0; // end-index of the previous common chunk
+            int index = 0;         // begin-index of the current common chunk
+            while (index < length)
+            {
+                int L = GetCommonLength(
+                    p1, oldOffset + index,
+                    p2, newOffset + index,
+                    length - index);
+
+                // Encode this common block if the block length is greater
+                // than the threshold, or if we are at the very beginning of
+                // the buffer, in which case the format requires a common
+                // block.
+                if (index == 0 || L > threshold)
+                {
+                    // Encode last distinct chunk.
+                    if (index > lastCommonEnd)
+                    {
+                        writer.Write(index - lastCommonEnd);
+                        writer.Write(newData, newOffset + lastCommonEnd, index - lastCommonEnd);
+                    }
+
+                    // Encode current common chunk.
+                    writer.Write(L);
+                    lastCommonEnd = index + L;
+                }
+                index += L;
+                index += GetDistinctLength(
+                    oldData, oldOffset + index,
+                    newData, newOffset + index,
+                    length - index);
+            }
+
+            // Encode last distinct chunk.
+            if (index > lastCommonEnd)
+            {
+                writer.Write(index - lastCommonEnd);
+                writer.Write(newData, newOffset + lastCommonEnd, index - lastCommonEnd);
+            }
+            h1.Free();
+            h2.Free();
+        }
+
+        private static int GetCommonLength(
+            IntPtr p1, int index1,
+            IntPtr p2, int index2,
+            int count)
+        {
+            p1 += index1;
+            p2 += index2;
+            int i = 0;
+            while (i + 8 <= count)
+            {
+                long v1 = Marshal.ReadInt64(p1);
+                long v2 = Marshal.ReadInt64(p2);
+                if (v1 == v2)
+                {
+                    i += 8;
+                    p1+=8;
+                    p2+=8;
+                }
+                else
+                    break;
+            }
+
+            while (i < count)
+            {
+                byte v1 = Marshal.ReadByte(p1);
+                byte v2 = Marshal.ReadByte(p2);
+                if (v1 == v2)
+                {
+                    i++;
+                    p1 += 1;
+                    p2 += 1;
+                }
+                else
+                    break;
+            }
+            return i;
+        }
+#endif
 
         private static int GetDistinctLength(
             byte[] x, int index1,
@@ -1623,27 +1738,6 @@ namespace QQGame
         /// Number of frames in this image.
         /// </summary>
         public int FrameCount;
-
-        /// <summary>
-        /// Gets the number of bytes per frame.
-        /// </summary>
-        /// <exception cref="NotSupportedException">The image frames are 
-        /// compressed.</exception>
-        public int BytesPerFrame
-        {
-            get
-            {
-                if (Flags.HasFlag(MifFlags.Compressed))
-                    throw new NotSupportedException();
-
-                int n = 2 * ImageWidth * ImageHeight;
-                if (Flags.HasFlag(MifFlags.HasAlpha))
-                    n += ImageWidth * ImageHeight;
-                if (Flags.HasFlag(MifFlags.HasDelay))
-                    n += 4;
-                return n;
-            }
-        }
     }
 
     [Flags]
