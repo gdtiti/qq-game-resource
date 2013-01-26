@@ -722,6 +722,7 @@ namespace QQGame
             public int NewDataOffset;
         }
 
+#if false
         public static IEnumerable<DeltaChange> GetChanges(byte[] delta, bool use7Bit)
         {
             int index = 0;
@@ -753,28 +754,29 @@ namespace QQGame
                 }
             }
         }
-
-#if false
-        public static IEnumerable<DeltaChange> GetChanges(BinaryReader delta, bool use7Bit)
+#else
+        public static IEnumerable<DeltaChange> GetChanges(byte[] delta, bool use7Bit)
         {
+            if (!use7Bit)
+                throw new NotSupportedException();
+
             int index = 0;
             bool expectCopyPacket = false;
-            while (delta.BaseStream.Position < delta.BaseStream.Length)
+            for (int i = 0; i < delta.Length; )
             {
-                int len = delta.ReadInt32();
+                int len = SevenBitIntegerEncoding.Read(delta, ref i);
                 if (len < 0)
                     throw new InvalidDataException("Packet length must be greater than or equal to zero.");
 
                 if (expectCopyPacket) // copy from delta
                 {
-                    byte[] newData = new byte[len];
-                    delta.ReadFull(newData, 0, newData.Length);
                     yield return new DeltaChange {
                         StartIndex = index,
-                        //Length=len,
-                        NewData = newData,
-                        //NewDataOffset
+                        Length = len,
+                        NewData = delta,
+                        NewDataOffset = i
                     };
+                    i += len;
                 }
                 index += len;
                 expectCopyPacket = !expectCopyPacket;
@@ -967,6 +969,24 @@ namespace QQGame
             int i;
             for (i = 0; i < count && x[index1 + i] != y[index2 + i]; i++) ;
             return i;
+        }
+    }
+
+    static class SevenBitIntegerEncoding
+    {
+        public static int Read(byte[] buffer, ref int index)
+        {
+            int result = 0;
+            int shift = 0;
+            byte b;
+            do
+            {
+                b = buffer[index++];
+                result |= ((b & 0x7F) << shift);
+                shift += 7;
+            }
+            while ((b & 0x80) != 0);
+            return result;
         }
     }
 
