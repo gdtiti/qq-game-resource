@@ -461,9 +461,10 @@ namespace QQGameRes
 
         private void btnAbout_Click(object sender, EventArgs e)
         {
+#if DEBUG || true
             MyTest();
             return;
-
+#endif
             FileVersionInfo ver = FileVersionInfo.GetVersionInfo(
                 System.Reflection.Assembly.GetExecutingAssembly().Location);
 
@@ -643,7 +644,7 @@ namespace QQGameRes
                         watch.Stop();
                     }
                 }
-                if (numFiles >= 10)
+                if (numFiles >= 1000)
                     break;
             }
 
