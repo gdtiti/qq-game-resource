@@ -318,6 +318,7 @@ namespace QQGame
                 if (newIndex == oldIndex)
                     return;
 
+#if false
                 // Get MIF frame from Bitmap buffer.
                 MifFrame frame = new MifFrame();
                 frame.colorData = new byte[2 * header.ImageWidth * header.ImageHeight];
@@ -331,10 +332,19 @@ namespace QQGame
                     frameDiff[oldIndex].UpdateFrame(frame);
                 }
                 while (oldIndex != newIndex);
+#else
+                // Delta-decode the frames.
+                do
+                {
+                    oldIndex = (oldIndex + 1) % this.FrameCount;
+                    frameDiff[oldIndex].UpdateBitmap(bmpBuffer);
+                }
+                while (oldIndex != newIndex);
+#endif
 
                 // Render the requested frame.
                 this.activeIndex = newIndex;
-                ConvertFrameToBitmap(frame.colorData, frame.alphaData, bmpBuffer);
+                //ConvertFrameToBitmap(frame.colorData, frame.alphaData, bmpBuffer);
             }
         }
 
@@ -661,6 +671,37 @@ namespace QQGame
             }
         }
 
+        internal void UpdateBitmap(int[] bmpBuffer)
+        {
+            if (bmpBuffer == null)
+                throw new ArgumentNullException("frame");
+
+            if (this.colorDiff != null)
+            {
+                byte[] actualColorDiff = MifRunLengthEncoding.Decode(this.colorDiff, 2);
+                using (MifColorStream32 colorStream = new MifColorStream32(bmpBuffer))
+                {
+                    foreach (var change in MifDeltaEncoding.GetChanges(actualColorDiff, true))
+                    {
+                        colorStream.Seek(change.StartIndex, SeekOrigin.Begin);
+                        colorStream.Write(change.NewData, change.NewDataOffset, change.Length);
+                    }
+                }
+            }
+            if (this.alphaDiff != null)
+            {
+                byte[] actualAlphaDiff = MifRunLengthEncoding.Decode(this.alphaDiff, 1);
+                using (MifAlphaStream32 alphaStream = new MifAlphaStream32(bmpBuffer))
+                {
+                    foreach (var change in MifDeltaEncoding.GetChanges(actualAlphaDiff, true))
+                    {
+                        alphaStream.Seek(change.StartIndex, SeekOrigin.Begin);
+                        alphaStream.Write(change.NewData, change.NewDataOffset, change.Length);
+                    }
+                }
+            }
+        }
+
         public int CompressedSize
         {
             get
@@ -673,6 +714,74 @@ namespace QQGame
 
     class MifDeltaEncoding
     {
+        public class DeltaChange
+        {
+            public int StartIndex;
+            public int Length;
+            public byte[] NewData;
+            public int NewDataOffset;
+        }
+
+        public static IEnumerable<DeltaChange> GetChanges(byte[] delta, bool use7Bit)
+        {
+            int index = 0;
+            bool expectCopyPacket = false;
+
+            using (MemoryStream deltaStream = new MemoryStream(delta))
+            using (BinaryReader deltaReader = use7Bit ?
+                   new BinaryReaderWith7BitEncoding(deltaStream) :
+                   new BinaryReader(deltaStream))
+            {
+                while (deltaStream.Position < deltaStream.Length)
+                {
+                    int len = deltaReader.ReadInt32();
+                    if (len < 0)
+                        throw new InvalidDataException("Packet length must be greater than or equal to zero.");
+
+                    if (expectCopyPacket) // copy from delta
+                    {
+                        yield return new DeltaChange {
+                            StartIndex = index,
+                            Length=len,
+                            NewData = delta,
+                            NewDataOffset = (int)deltaStream.Position
+                        };
+                        deltaStream.Seek(len, SeekOrigin.Current);
+                    }
+                    index += len;
+                    expectCopyPacket = !expectCopyPacket;
+                }
+            }
+        }
+
+#if false
+        public static IEnumerable<DeltaChange> GetChanges(BinaryReader delta, bool use7Bit)
+        {
+            int index = 0;
+            bool expectCopyPacket = false;
+            while (delta.BaseStream.Position < delta.BaseStream.Length)
+            {
+                int len = delta.ReadInt32();
+                if (len < 0)
+                    throw new InvalidDataException("Packet length must be greater than or equal to zero.");
+
+                if (expectCopyPacket) // copy from delta
+                {
+                    byte[] newData = new byte[len];
+                    delta.ReadFull(newData, 0, newData.Length);
+                    yield return new DeltaChange {
+                        StartIndex = index,
+                        //Length=len,
+                        NewData = newData,
+                        //NewDataOffset
+                    };
+                }
+                index += len;
+                expectCopyPacket = !expectCopyPacket;
+            }
+        }
+#endif
+
         /// <summary>
         /// Decodes a stream encoded by MifDeltaEncoding.Encode().
         /// </summary>
