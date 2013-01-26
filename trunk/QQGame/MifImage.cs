@@ -164,7 +164,7 @@ namespace QQGame
                 // If no frame contains a non-opaque alpha, then we don't need
                 // to store the alpha channel at all. In this case, the bitmap
                 // is 16 bpp. Otherwise, we create a 32-bpp bitmap.
-#if false
+#if true
                 if (!alphaPresent)
                 {
                     int stride = (header.ImageWidth * 2 + 3) / 4 * 4;
@@ -176,7 +176,7 @@ namespace QQGame
                         stride,
                         PixelFormat.Format16bppRgb565,
                         bmpBufferHandle.AddrOfPinnedObject());
-                    colorBuffer = new ArrayPixelStream<int>(
+                    colorBuffer = new ArrayPixelBuffer<int>(
                         bmpBuffer,
                         PixelFormat.Format16bppRgb565,
                         stride,
