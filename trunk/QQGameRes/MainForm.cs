@@ -517,19 +517,30 @@ namespace QQGameRes
 
             if (vItem == null)
             {
-                ImageFolder f = vFolderListView.Folder as ImageFolder;
-                if (f != null)
+                IVirtualFolder folder = vFolderListView.Folder;
+                if (folder is ImageFolder)
                 {
-                    txtStatus.Text = "共 " + f.Files.Length + " 个文件";
+                    txtStatus.Text = string.Format(
+                        "共 {0} 个文件",
+                        (folder as ImageFolder).Files.Length);
+                }
+                else if (folder is PackageFolder)
+                {
+                    txtStatus.Text = string.Format(
+                        "共 {0} 个文件",
+                        (folder as PackageFolder).Archive.Entries.Count);
                 }
                 return;
             }
 
-            if (vItem is ImageFile)
+            if (vItem is ImageFile || vItem is PackageItem)
             {
                 var mif = vFolderListView.GetLoadedThumbnail(vItem) as QQGame.MifImage;
                 if (mif != null)
                 {
+                    int fileSize =
+                        (vItem is ImageFile) ? (int)(vItem as ImageFile).File.Length :
+                        (vItem as PackageItem).ArchiveEntry.CompressedLength;
                     bool is16bit = (mif.Frame.PixelFormat == PixelFormat.Format16bppRgb565);
 
                     txtImageSize.Text = string.Format(
@@ -537,7 +548,7 @@ namespace QQGameRes
                         mif.Width,
                         mif.Height,
                         is16bit ? 16 : 32,
-                        ((vItem as ImageFile).File.Length + 1023) / 1024,
+                        (fileSize + 1023) / 1024,
                         (mif.CompressedSize + 1023) / 1024);
 #if true
                     txtFrames.Text = string.Format(
