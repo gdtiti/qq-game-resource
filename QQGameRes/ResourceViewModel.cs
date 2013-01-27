@@ -91,7 +91,7 @@ namespace QQGameRes
     /// <summary>
     /// Encapsulates <code>QQGame.PkgArchiveEntry</code> as a virtual item.
     /// </summary>
-    class PackageItem : IVirtualItem, IVirtualFile
+    class PackageItem : IVirtualItem, IVirtualFile, IExtractIcon
     {
         private QQGame.PkgArchiveEntry entry;
 
@@ -99,6 +99,8 @@ namespace QQGameRes
         {
             entry = ent;
         }
+
+        public QQGame.PkgArchiveEntry ArchiveEntry { get { return entry; } }
 
         string IVirtualItem.Name
         {
@@ -116,6 +118,51 @@ namespace QQGameRes
                 && access == FileAccess.Read)
                 return entry.Open();
             throw new NotSupportedException();
+        }
+
+        // NOTE: The following implementation duplicates with ImageFile.
+        // We need to consolidate and remove one of them.
+        string IExtractIcon.GetIconKey(ExtractIconType type, Size desiredSize)
+        {
+            if (type == ExtractIconType.Thumbnail)
+            {
+                return null;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        // NOTE: The following implementation duplicates with ImageFile.
+        // We need to consolidate and remove one of them.
+        object IExtractIcon.ExtractIcon(ExtractIconType type, Size desiredSize)
+        {
+            if (type == ExtractIconType.Thumbnail)
+            {
+                // Do we support this extension?
+                string ext = Path.GetExtension( entry.FullName).ToLowerInvariant();
+                if (ext == ".mif")
+                {
+                    using (Stream stream = entry.Open())
+                    {
+                        QQGame.MifImage mif = new QQGame.MifImage(stream);
+                        mif.Name = entry.FullName;
+                        return mif;
+                    }
+                }
+                else if (ext == ".bmp")
+                {
+                    using (Stream stream = entry.Open())
+                    using (Bitmap bmp = new Bitmap(stream))
+                    {
+                        // Make a copy of the bitmap, because MSDN says "You must
+                        // keep the stream open for the lifetime of the Bitmap."
+                        return bmp.Clone();
+                    }
+                }
+            }
+            return null;
         }
     }
 
@@ -235,10 +282,13 @@ namespace QQGameRes
         {
 #if false
             // The following code is to test the VirtualFolderListView.
-            foreach (var file in files)
+            if (type.HasFlag(VirtualItemTypes.NonFolder))
             {
-                yield return file;
-                System.Threading.Thread.Sleep(100);
+                foreach (var file in files)
+                {
+                    yield return file;
+                    System.Threading.Thread.Sleep(500);
+                }
             }
 #else
             if (type.HasFlag(VirtualItemTypes.NonFolder))
