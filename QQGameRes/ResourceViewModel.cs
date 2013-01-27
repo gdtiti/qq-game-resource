@@ -161,6 +161,16 @@ namespace QQGameRes
                         return bmp.Clone();
                     }
                 }
+                else if (ext == ".tga")
+                {
+                    using (Stream stream = entry.Open())
+                    using (TgaImage tga = new TgaImage(stream))
+                    {
+                        // Make a copy of the bitmap so that we can dispose
+                        // the TgaImage object.
+                        return tga.Image.Clone();
+                    }
+                }
             }
             return null;
         }
