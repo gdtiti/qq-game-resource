@@ -151,7 +151,7 @@ namespace QQGameRes
                         return mif;
                     }
                 }
-                else if (ext == ".bmp")
+                else if (ext == ".bmp" || ext == ".png")
                 {
                     using (Stream stream = entry.Open())
                     using (Bitmap bmp = new Bitmap(stream))
@@ -366,7 +366,7 @@ namespace QQGameRes
                     return mif;
 #endif
                 }
-                else if (ext == ".bmp")
+                else if (ext == ".bmp" || ext == ".png")
                 {
                     using (Stream stream = base.File.OpenRead())
                     using (Bitmap bmp = new Bitmap(stream))
