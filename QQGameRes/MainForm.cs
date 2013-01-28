@@ -624,6 +624,11 @@ namespace QQGameRes
 
         private void btnTest_Click(object sender, EventArgs e)
         {
+            //if (true)
+            //{
+            //    Bitmap icon = Util.IO.Shell.GetExtensionIcon("bmp");
+            //}
+
             string path = @"D:\Games\QQGame\GameShow\item";
             FileInfo[] files = (new DirectoryInfo(path)).GetFiles("*.mif");
             int numFiles = 0;
