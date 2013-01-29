@@ -160,6 +160,9 @@ namespace QQGameRes
         {
             StopLoadingRepository();
 
+            txtStatus.Text = "";
+            txtImageInfo.Text = "";
+
             // Add icons for toolbar items. We need to do this manually
             // because adding icons in the IDE somehow deteroriates the
             // image quality.
@@ -218,7 +221,7 @@ namespace QQGameRes
                 "-" + number.ToString(numberFormat) + ext;
         }
 
-        private void NewSafeImage()
+        private void NewSaveImage()
         {
             IVirtualItem vItem = vFolderListView.ActiveItem;
             if (vItem == null || !(vItem is IExtractIcon) || !(vItem is IVirtualFile))
@@ -260,28 +263,131 @@ namespace QQGameRes
                 filter += "|TIFF 图片|*.tif";
             }
 #endif
-            string filter = "Flash 动画|*.swf";
+
+            // Create a suitable filter for this type of file.
+            string filter = "Flash 动画|*.swf|SVG 动画|*.svg|PNG 图片|*.png|原始文件|*";
+            string ext = Path.GetExtension(vItem.Name);
+            if (ext.StartsWith("."))
+                filter += ext;
+            else
+                filter += ".*";
             saveFileDialog1.Filter = filter;
-            saveFileDialog1.FilterIndex = 1;
-            //if (image.FrameCount > 1)
-            //{
-            //    saveFileDialog1.FilterIndex = 2;
-            //}
-            saveFileDialog1.FileName = Path.GetFileNameWithoutExtension(
-                vItem.Name);
+
+            if (image.FrameCount > 1)
+                saveFileDialog1.FilterIndex = 1; // SWF
+            else
+                saveFileDialog1.FilterIndex = 3; // PNG
+
+            saveFileDialog1.FileName = Path.GetFileNameWithoutExtension(vItem.Name);
 
             // Show the dialog.
             if (saveFileDialog1.ShowDialog(this) != DialogResult.OK)
                 return;
 
-            SwfImageEncoder.Encode(image, saveFileDialog1.FileName);
+            // Save the file in the chosen format.
+            string filename = saveFileDialog1.FileName;
+            using (image)
+            {
+                int choice = saveFileDialog1.FilterIndex;
+                if (choice == 1) // SWF 
+                {
+                    SwfImageEncoder.Encode(image, filename);
+                }
+                else if (choice == 2) // SVG
+                {
+                    SvgImageEncoder.Encode(image, filename);
+                }
+                else if (choice == 3) // PNG
+                {
+                    if (image.FrameCount <= 1) // single frame
+                    {
+                        image.Frame.Save(filename, ImageFormat.Png);
+                    }
+                    else // multiple images
+                    {
+                        SaveMultipleFrames(image, filename);
+                    }
+                }
+                else if (choice == 4) // original format
+                {
+                    using (Stream input = (vItem as IVirtualFile).Open(FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (Stream output = File.Create(filename))
+                    {
+                        input.CopyTo(output);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show(this, "请选择要保存的文件格式！", "导出素材",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                txtStatus.Text = vItem.Name + " 导出成功！";
+            }
+        }
+
+        private void SaveMultipleFrames(MultiFrameImage image, string filename)
+        {
+            int n = image.FrameCount;
+
+            // Ask the user what to do.
+            DialogResult result = MessageBox.Show(this, string.Format(
+                "选中的图片包含 {0} 帧。是否将每一帧单独存为一个文件？\r\n" +
+                "如果选择是，则各帧将分别保存为\r\n" +
+                "    {1}\r\n" +
+                "    ......\r\n" +
+                "    {2}\r\n" +
+                "如果选择否，则只保存第一帧到 {3}。",
+                n,
+                GetNumberedFileName(Path.GetFileName(filename), 1, n),
+                GetNumberedFileName(Path.GetFileName(filename), n, n),
+                Path.GetFileName(filename)),
+                this.Text, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            // Do nothing if the user cancelled the action.
+            if (result == DialogResult.Cancel)
+            {
+                return;
+            }
+
+            // If the user clicked "No", then we only save the first frame.
+            if (result == DialogResult.No)
+            {
+                image.Frame.Save(filename, ImageFormat.Png);
+                return;
+            }
+
+            // Now the user clicked "Yes", so we need to save each frame
+            // in an individual file.
+            for (int i = 0; i < n; i++)
+            {
+                image.FrameIndex = i;
+                FileInfo file = new FileInfo(GetNumberedFileName(filename, i + 1, n));
+                if (file.Exists)
+                {
+                    DialogResult ret = MessageBox.Show(this,
+                        "文件 " + file.FullName +
+                        " 已经存在。是否要覆盖？", "导出素材",
+                        MessageBoxButtons.YesNoCancel,
+                        MessageBoxIcon.Exclamation);
+                    if (ret == DialogResult.Cancel)
+                    {
+                        return;
+                    }
+                    if (ret == DialogResult.No)
+                    {
+                        continue;
+                    }
+                }
+                image.Frame.Save(file.FullName);
+            }
         }
 
         private void btnExport_Click(object sender, EventArgs e)
         {
-            NewSafeImage();
+            NewSaveImage();
             return;
-
+#if false
             IVirtualItem vItem = vFolderListView.ActiveItem;
             if (vItem == null || !(vItem is IExtractIcon) || !(vItem is IVirtualFile))
             {
@@ -457,6 +563,7 @@ namespace QQGameRes
             }
             txtStatus.Text = "保存成功";
             image.Dispose();
+#endif
         }
 
         private void btnAbout_Click(object sender, EventArgs e)
@@ -530,6 +637,7 @@ namespace QQGameRes
                         "共 {0} 个文件",
                         (folder as PackageFolder).Archive.Entries.Count);
                 }
+                txtImageInfo.Text = "";
                 return;
             }
 
@@ -543,19 +651,16 @@ namespace QQGameRes
                         (vItem as PackageItem).ArchiveEntry.CompressedLength;
                     bool is16bit = (mif.Frame.PixelFormat == PixelFormat.Format16bppRgb565);
 
-                    txtImageSize.Text = string.Format(
-                        "{0} x {1} 像素 / {2} 位 / 原始 {3:#,0} KB / 占用 {4:#,0} KB",
+                    txtImageInfo.Text = string.Format(
+                        "{5} 帧 / {6:0.00} 秒 / {0} x {1} 像素 / {2} 位 / 原始 {3:#,0} KB / 占用 {4:#,0} KB",
                         mif.Width,
                         mif.Height,
                         is16bit ? 16 : 32,
                         (fileSize + 1023) / 1024,
-                        (mif.CompressedSize + 1023) / 1024);
-#if true
-                    txtFrames.Text = string.Format(
-                        "共 {0} 帧，{1:0.0} 秒",
+                        (mif.CompressedSize + 1023) / 1024,
                         mif.FrameCount,
                         mif.Duration.TotalSeconds);
-#else
+#if false
                     int alphaCount;
                     int maxColorCount;
                     int totalColorCount = CountColors(mif, out alphaCount, out maxColorCount);
@@ -567,6 +672,10 @@ namespace QQGameRes
                         totalColorCount,
                         alphaCount);
 #endif
+                }
+                else
+                {
+                    txtImageInfo.Text = "";
                 }
             }
         }
