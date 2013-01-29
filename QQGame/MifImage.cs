@@ -18,6 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+//#define TEST_ZIP_COMPRESSION
+
 using System;
 using System.IO;
 using System.Linq;
@@ -65,13 +67,13 @@ namespace QQGame
         /// Pixel stream that encapsulates the RGB channel of the underlying
         /// bitmap as RGB-565 format.
         /// </summary>
-        private IPixelBuffer colorBuffer;
+        private PixelBuffer colorBuffer;
 
         /// <summary>
         /// Pixel stream that encapsulates the alpha channel of the underying
         /// bitmap as 6-bit.
         /// </summary>
-        private IPixelBuffer alphaBuffer;
+        private PixelBuffer alphaBuffer;
 
         /// <summary>
         /// Contains compressed data of the change from one frame to the next.
@@ -103,11 +105,6 @@ namespace QQGame
         /// contain a valid MIF image format.</exception>
         public MifImage(Stream stream)
         {
-#if false
-            byte[] test = new byte[] { 1, 3, 5, 5, 4, 6, 7, 9, 7, 7, 7, 5, 7, 8 };
-            byte[] aa = MifRunLengthEncoding.Encode(test, 1);
-            byte[] bb = MifRunLengthEncoding.Decode(aa, 1);
-#endif
             // Create a MIF reader on the stream.
             using (stream)
             using (MifReader reader = new MifReader(stream))
@@ -115,13 +112,21 @@ namespace QQGame
                 // Reads and validates the MIF file header.
                 this.header = reader.ReadHeader();
                 if (!header.Flags.HasFlag(MifFlags.HasImage))
+                {
                     throw new InvalidDataException("The stream does not contain an image.");
+                }
                 if (header.ImageWidth <= 0)
+                {
                     throw new InvalidDataException("ImageWidth field must be positive.");
+                }
                 if (header.ImageHeight <= 0)
+                {
                     throw new InvalidDataException("ImageHeight field must be positive.");
+                }
                 if (header.FrameCount <= 0)
+                {
                     throw new InvalidDataException("FrameCount field must be positive.");
+                }
 
                 // TODO: avoid DoS attach if FrameCount, Width, or Height
                 // are very large.
@@ -139,6 +144,21 @@ namespace QQGame
                     delays[i] = thisFrame.delay;
                     if (i == 0)
                         firstFrame = thisFrame;
+
+#if TEST_ZIP_COMPRESSION
+                    using (MemoryStream input=new MemoryStream(thisFrame.colorData))
+                    using (MemoryStream output=new MemoryStream())
+                    using (DeflateStream zip = new DeflateStream(output, CompressionMode.Compress))
+                    {
+                        input.CopyTo(zip);
+                    }
+                    using (MemoryStream input = new MemoryStream(thisFrame.alphaData))
+                    using (MemoryStream output = new MemoryStream())
+                    using (DeflateStream zip = new DeflateStream(output, CompressionMode.Compress))
+                    {
+                        input.CopyTo(zip);
+                    }
+#endif
 
                     // Check whether this frame contains non-opaque alpha.
                     if (!alphaPresent && thisFrame.alphaData != null)
@@ -364,7 +384,7 @@ namespace QQGame
         public byte[] colorData; // uncompressed 5-6-5 RGB data of the frame
         public byte[] alphaData; // uncompressed 6-bit alpha data of the frame
 
-        public void UpdateBitmap(IPixelBuffer colorBuffer, IPixelBuffer alphaBuffer)
+        public void UpdateBitmap(PixelBuffer colorBuffer, PixelBuffer alphaBuffer)
         {
             if (colorBuffer != null && colorData != null)
             {
@@ -440,7 +460,7 @@ namespace QQGame
             }
         }
 
-        internal void UpdateBitmap(IPixelBuffer colorBuffer, IPixelBuffer alphaBuffer)
+        internal void UpdateBitmap(PixelBuffer colorBuffer, PixelBuffer alphaBuffer)
         {
             if (colorBuffer != null && this.colorDiff != null)
             {
@@ -953,7 +973,7 @@ namespace QQGame
     /// Provides methods to read and write the RGB channels in a 32-bpp ARGB
     /// pixel buffer as if it were in RGB 565 pixel format.
     /// </summary>
-    sealed class MifColorBuffer32 : IPixelBuffer
+    sealed class MifColorBuffer32 : PixelBuffer
     {
         int[] pixels;
 
@@ -964,37 +984,18 @@ namespace QQGame
             this.pixels = pixels;
         }
 
-        public void Dispose()
-        {
-            throw new NotImplementedException();
-        }
-
-        public PixelFormat PixelFormat
+        public override PixelFormat PixelFormat
         {
             get { return PixelFormat.Format16bppRgb565; }
         }
 
-        public int Length
+        public override int Length
         {
             get { return 2 * pixels.Length; }
         }
 
-        public void Read(int position, byte[] buffer, int offset, int count)
+        protected override void WriteCore(int position, byte[] buffer, int offset, int count)
         {
-            throw new NotImplementedException();
-        }
-
-        public void Write(int position, byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException("buffer");
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException("offset");
-            if (count < 0 || offset + count > buffer.Length)
-                throw new ArgumentOutOfRangeException("count");
-            if (position + count > this.Length)
-                throw new EndOfStreamException();
-
             // Since we may start writing in the middle of a pixel, we need
             // to split the data to write into three parts:
             // 1. an odd byte at the beginning
@@ -1058,7 +1059,7 @@ namespace QQGame
     /// Provides methods to read and write the Alpha channel in a 32-bpp ARGB
     /// pixel buffer as if it had only 6 bits of alpha.
     /// </summary>
-    sealed class MifAlphaBuffer32 : IPixelBuffer
+    sealed class MifAlphaBuffer32 : PixelBuffer
     {
         int[] pixels;
 
@@ -1069,36 +1070,18 @@ namespace QQGame
             this.pixels = pixels;
         }
 
-        public void Dispose()
-        {
-        }
-
-        public PixelFormat PixelFormat
+        public override PixelFormat PixelFormat
         {
             get { return PixelFormat.Format8bppIndexed; }
         }
 
-        public int Length
+        public override int Length
         {
             get { return pixels.Length; }
         }
 
-        public void Read(int position, byte[] buffer, int offset, int count)
+        protected override void WriteCore(int position, byte[] buffer, int offset, int count)
         {
-            throw new NotImplementedException();
-        }
-
-        public void Write(int position, byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
-                throw new ArgumentNullException("buffer");
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException("offset");
-            if (count < 0 || offset + count > buffer.Length)
-                throw new ArgumentOutOfRangeException("count");
-            if (position + count > this.Length)
-                throw new EndOfStreamException();
-
             for (int i = 0; i < count; i++)
             {
                 byte a = buffer[offset + i];
@@ -1108,282 +1091,6 @@ namespace QQGame
             }
         }
     }
-
-#if false
-
-    public class PixelBuffer
-    {
-    }
-
-    public class MifPixelChunk
-    {
-        public int StartIndex;  // index of the pixels
-        public int Count;       // number of pixels
-        public int ChannelMask; // what channels are contained
-        public byte[] Data;
-    }
-
-    public class MifFrameNewTest
-    {
-        public LinkedList<MifPixelChunk> Chunks;
-    }
-
-    /// Each pixel chunk has three members: data, repeat, mask.
-    public class PixelChunk
-    {
-        private readonly byte[] data;
-        private readonly int repeat;
-        private readonly int mask;
-
-        public PixelChunk(byte[] data, int repeat, int mask)
-        {
-            this.data = data;
-            this.repeat = repeat;
-            this.mask = mask;
-        }
-
-        /// <summary>
-        /// Gets the (unrepeated) data.
-        /// </summary>
-        public byte[] Data { get { return data; } }
-
-        /// <summary>
-        /// Gets the number of times Data repeats.
-        /// </summary>
-        public int RepeatCount { get { return repeat; } }
-
-        /// <summary>
-        /// Gets a bit-mask that indicates the channels present in this chunk.
-        /// The bits in Data corresponding to unset bits in the mask must be
-        /// set to zero, so that an external user can simply OR the result.
-        /// Examples:
-        /// 0xFF000000 - contains the alpha channel only
-        /// 0x00FFFFFF - contains the RGB channel only
-        /// 0x00000000 - contains no data; used to skip bytes
-        /// </summary>
-        public int Mask { get { return mask; } }
-    }
-
-    public abstract class PixelReader
-    {
-        // public PixelFormat PixelFormat { get; }
-
-        // public abstract PixelChunk ReadPixels(int count);
-        public abstract int ReadPixels(int[] pixels, int startIndex, int count, out int mask);
-    }
-
-    public abstract class PixelWriter
-    {
-        public abstract void WritePixels(int[] pixels, int startIndex, int count, int mask);
-    }
-
-    public class BitmapPixelWriter:PixelWriter
-    {
-        public override void WritePixels(int[] pixels, int startIndex, int count, int mask)
-        {
-            // throw new NotImplementedException();
-            // just copy the data is fine.
-        }
-    }
-
-    public class OpaqueAlphaReader : PixelReader
-    {
-        // TODO: make it int.
-        private static readonly byte[] OnePixel = new byte[] { 255 };
-
-        public override PixelChunk ReadPixels(int count)
-        {
-            return new PixelChunk(
-                data: OnePixel,
-                mask: (0xFF << 24),
-                repeat: count);
-        }
-    }
-
-    public class MifRgbChannelReader: PixelReader
-    {
-        public override PixelChunk ReadPixels(int count)
-        {
-            // if (pixel format is 16bpp) then copy as is
-
-            // if (pixel format is 32bpp) then decode
-            for (int i = 0; i < count; i++)
-            {
-                buffer[startIndex + i] |= (0xFF << 24);
-            }
-
-            // if (chunk type is rle), then do a loop
-            // if (chunk type is rle and mask == 0) // skip
-        }
-    }
-#endif
-
-#if true
-    /// <summary>
-    /// Provides methods to decode a multi-frame MIF image from a stream.
-    /// </summary>
-    public class MifImageDecoder : Util.Media.ImageDecoder
-    {
-        private MifReader reader;
-        private MifHeader header;
-
-        /// <summary>
-        /// Creates a MIF image from the specified data stream. 
-        /// </summary>
-        /// <param name="stream">A stream that contains the data for this
-        /// image.</param>
-        /// <exception cref="InvalidDataException">The stream does not 
-        /// contain a valid MIF image format.</exception>
-        /// <remarks>The stream must remain open throughout the lifetime of
-        /// this object, and will be automatically disposed when this object
-        /// is disposed. However, it will not be disposed if the underlying
-        /// reader cannot be created.</remarks>
-        public MifImageDecoder(Stream stream)
-        {
-            try
-            {
-                // Create a MIF reader on the stream. The stream will be
-                // automatically closed when the reader is disposed.
-                this.reader = new MifReader(stream);
-
-                // Reads and validates the MIF file header.
-                this.header = reader.ReadHeader();
-                if ((header.Flags & MifFlags.HasImage) == 0)
-                    throw new InvalidDataException("The stream does not contain an image.");
-                if (header.ImageWidth <= 0)
-                    throw new InvalidDataException("ImageWidth field must be positive.");
-                if (header.ImageHeight <= 0)
-                    throw new InvalidDataException("ImageHeight field must be positive.");
-                if (header.FrameCount <= 0)
-                    throw new InvalidDataException("FrameCount field must be positive.");
-
-                // Create the internal buffer for RGB data and Alpha data.
-                // We need to maintain this buffer across frames because
-                // the frames may be delta-encoded, in which case the next
-                // frame depend on the previous frame.
-                rgbData = new byte[2 * header.ImageWidth * header.ImageHeight];
-                alphaData = new byte[header.ImageWidth * header.ImageHeight];
-
-                // TODO: avoid DoS attach if very large fields are specified
-                // in Width and Height.
-
-                // Decode the first frame.
-                //this.currentFrame = MifCodec.DecodeFrame(reader, header);
-                //this.currentIndex = 0;
-            }
-            catch (Exception)
-            {
-                if (reader != null)
-                    reader.Dispose();
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Gets the width of the image in pixels.
-        /// </summary>
-        public int Width
-        {
-            get { return header.ImageWidth; }
-        }
-
-        /// <summary>
-        /// Gets the height of the image in pixels.
-        /// </summary>
-        public int Height
-        {
-            get { return header.ImageHeight; }
-        }
-
-        /// <summary>
-        /// Gets the number of frames in this image.
-        /// </summary>
-        public override int FrameCount
-        {
-            get { return header.FrameCount; }
-        }
-
-        /// <summary>
-        /// Disposes the image and closes the underlying stream.
-        /// </summary>
-        protected override void Dispose(bool disposing)
-        {
-            reader.Dispose();
-        }
-
-        public override Util.Media.ImageFrame DecodeFrame()
-        {
-            // Read Delay field if present.
-            int delay;
-            if ((header.Flags & MifFlags.HasDelay) != 0)
-                delay = reader.ReadInt32();
-            else
-                delay = 0;
-
-            // Read primary channels.
-            reader.ReadPixelData(header, rgbData, false);
-
-            // Read alpha channel if present.
-            if ((header.Flags & MifFlags.HasAlpha) != 0)
-                reader.ReadPixelData(header, alphaData, false);
-
-            // Convert RGB and Alpha data to an image.
-            return new Util.Media.ImageFrame(ConvertPixelsToBitmap(), delay);
-        }
-
-        /// <summary>
-        /// Decodes a frame from the given stream.
-        /// </summary>
-        /// <param name="reader">The underlying stream.</param>
-        /// <param name="header">The MifHeader.</param>
-        /// <exception cref="InvalidDataException">The stream does not 
-        /// contain a valid MIF image format.</exception>
-        /// <remarks>The caller is responsible for disposing the returned
-        /// <code>MifFrame.Image</code>.</remarks>
-        private Bitmap ConvertPixelsToBitmap()
-        {
-            int width = header.ImageWidth;
-            int height = header.ImageHeight;
-
-            // Create a bitmap and get a pointer to its pixel data.
-            Bitmap bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            BitmapData bmpData = bmp.LockBits(new Rectangle(0, 0, width, height),
-                ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-            IntPtr bmpPtr = bmpData.Scan0;
-
-            // Convert the pixels scanline by scanline.
-            int[] scanline = new int[width];
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    byte a = alphaData[y * width + x];
-                    byte b1 = rgbData[2 * (y * width + x)];
-                    byte b2 = rgbData[2 * (y * width + x) + 1];
-
-                    byte alpha = (byte)((a << 3) - (a >> 5));
-                    byte red = (byte)(b2 & 0xF8);
-                    byte green = (byte)(((b2 << 5) | (b1 >> 3)) & 0xFC);
-                    byte blue = (byte)((b1 & 0x1F) << 3);
-
-                    scanline[x] = (alpha << 24)
-                                | (red << 16)
-                                | (green << 8)
-                                | (blue << 0);
-                }
-                Marshal.Copy(scanline, 0, bmpPtr, width);
-                bmpPtr += bmpData.Stride;
-            }
-
-            // Return the bitmap.
-            bmp.UnlockBits(bmpData);
-            return bmp;
-        }
-
-        private byte[] rgbData;   // 5-6-5 RGB data of current frame
-        private byte[] alphaData; // 6-bit alpha data of current frame
-    }
-#endif
 
     /// <summary>
     /// Represents the file header of a MIF image.

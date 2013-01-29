@@ -31,7 +31,6 @@
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
-            this.timerAnimation = new System.Windows.Forms.Timer(this.components);
             this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
@@ -46,6 +45,7 @@
             this.toolStripDropDownButton2 = new System.Windows.Forms.ToolStripDropDownButton();
             this.btnChooseDirectory = new System.Windows.Forms.ToolStripMenuItem();
             this.btnChoosePackage = new System.Windows.Forms.ToolStripMenuItem();
+            this.btnExport = new System.Windows.Forms.ToolStripButton();
             this.btnExportGroup = new System.Windows.Forms.ToolStripDropDownButton();
             this.btnExportConverted = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
@@ -61,7 +61,6 @@
             this.btnPlaySelected = new System.Windows.Forms.ToolStripMenuItem();
             this.btnPlayNone = new System.Windows.Forms.ToolStripMenuItem();
             this.btnAbout = new System.Windows.Forms.ToolStripButton();
-            this.btnExport = new System.Windows.Forms.ToolStripButton();
             this.btnTest = new System.Windows.Forms.ToolStripButton();
             this.vFolderTreeView = new Util.Forms.VirtualFolderTreeView();
             this.vFolderListView = new Util.Forms.VirtualFolderListView();
@@ -197,6 +196,16 @@
             this.btnChoosePackage.Text = "选择文件...";
             this.btnChoosePackage.Click += new System.EventHandler(this.btnChoosePackage_Click);
             // 
+            // btnExport
+            // 
+            this.btnExport.Enabled = false;
+            this.btnExport.Image = ((System.Drawing.Image)(resources.GetObject("btnExport.Image")));
+            this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnExport.Name = "btnExport";
+            this.btnExport.Size = new System.Drawing.Size(85, 23);
+            this.btnExport.Text = "导出素材";
+            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
+            // 
             // btnExportGroup
             // 
             this.btnExportGroup.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -312,23 +321,12 @@
             this.btnAbout.Text = "版本信息";
             this.btnAbout.Click += new System.EventHandler(this.btnAbout_Click);
             // 
-            // btnExport
-            // 
-            this.btnExport.Enabled = false;
-            this.btnExport.Image = ((System.Drawing.Image)(resources.GetObject("btnExport.Image")));
-            this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnExport.Name = "btnExport";
-            this.btnExport.Size = new System.Drawing.Size(85, 23);
-            this.btnExport.Text = "导出素材";
-            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
-            // 
             // btnTest
             // 
             this.btnTest.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnTest.Name = "btnTest";
             this.btnTest.Size = new System.Drawing.Size(41, 23);
             this.btnTest.Text = "测试";
-            this.btnTest.Visible = false;
             this.btnTest.Click += new System.EventHandler(this.btnTest_Click);
             // 
             // vFolderTreeView
@@ -391,7 +389,6 @@
         private System.Windows.Forms.ColumnHeader columnPath;
         private System.Windows.Forms.ColumnHeader columnSize;
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
-        private System.Windows.Forms.Timer timerAnimation;
         private System.Windows.Forms.SaveFileDialog saveFileDialog1;
         private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.StatusStrip statusStrip1;
