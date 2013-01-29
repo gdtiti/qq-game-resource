@@ -163,6 +163,12 @@ namespace QQGameRes
             txtStatus.Text = "";
             txtImageInfo.Text = "";
 
+#if DEBUG
+            btnTest.Visible = true;
+#else
+            btnTest.Visible = false;
+#endif
+
             // Add icons for toolbar items. We need to do this manually
             // because adding icons in the IDE somehow deteroriates the
             // image quality.
@@ -692,7 +698,7 @@ namespace QQGameRes
                 HashSet<int> frameColors = new HashSet<int>();
                 mif.FrameIndex = i;
 
-                using (IPixelBuffer pixelBuffer = new BitmapPixelBuffer(
+                using (PixelBuffer pixelBuffer = new BitmapPixelBuffer(
                        mif.Frame as Bitmap,
                        PixelFormat.Format32bppArgb,
                        ImageLockMode.ReadOnly))
@@ -744,6 +750,9 @@ namespace QQGameRes
             long totalSize = 0;
             long totalCompressed = 0;
 
+            const int LoopCount = 0;
+            const int FileLimit = 100;
+
             // Load and release all the files.
             Stopwatch watch = new Stopwatch();
             foreach (FileInfo file in files)
@@ -756,19 +765,19 @@ namespace QQGameRes
                     input.CopyTo(memory);
                     memory.Seek(0, SeekOrigin.Begin);
 
+                    watch.Start();
                     using (QQGame.MifImage mif = new QQGame.MifImage(memory))
                     {
-                        watch.Start();
                         totalCompressed += mif.CompressedSize;
                         if (mif.FrameCount > 1)
                         {
-                            for (int i = 0; i < mif.FrameCount * 10; i++)
+                            for (int i = 0; i < mif.FrameCount * LoopCount; i++)
                                 mif.AdvanceFrame(true);
                         }
-                        watch.Stop();
                     }
+                    watch.Stop();
                 }
-                if (numFiles >= 100)
+                if (numFiles >= FileLimit)
                     break;
             }
 
