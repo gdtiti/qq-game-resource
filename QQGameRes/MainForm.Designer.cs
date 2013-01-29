@@ -37,8 +37,7 @@
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.progLoadDirectory = new System.Windows.Forms.ToolStripProgressBar();
             this.txtStatus = new System.Windows.Forms.ToolStripStatusLabel();
-            this.txtImageSize = new System.Windows.Forms.ToolStripStatusLabel();
-            this.txtFrames = new System.Windows.Forms.ToolStripStatusLabel();
+            this.txtImageInfo = new System.Windows.Forms.ToolStripStatusLabel();
             this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
             this.columnPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnSize = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -81,8 +80,8 @@
             // 
             // saveFileDialog1
             // 
-            this.saveFileDialog1.Filter = "所有文件 (*.*)|*.*";
-            this.saveFileDialog1.Title = "保存素材";
+            this.saveFileDialog1.Filter = "Flash 动画|*.swf|SVG 动画|*.svg|PNG 图片|*.png|原始文件|*.*";
+            this.saveFileDialog1.Title = "导出素材";
             // 
             // splitContainer1
             // 
@@ -109,8 +108,7 @@
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.progLoadDirectory,
             this.txtStatus,
-            this.txtImageSize,
-            this.txtFrames});
+            this.txtImageInfo});
             this.statusStrip1.Location = new System.Drawing.Point(0, 459);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.RenderMode = System.Windows.Forms.ToolStripRenderMode.ManagerRenderMode;
@@ -126,25 +124,16 @@
             // txtStatus
             // 
             this.txtStatus.Name = "txtStatus";
-            this.txtStatus.Size = new System.Drawing.Size(559, 23);
+            this.txtStatus.Size = new System.Drawing.Size(606, 23);
             this.txtStatus.Spring = true;
             this.txtStatus.Text = "Status";
             this.txtStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // txtImageSize
+            // txtImageInfo
             // 
-            this.txtImageSize.Name = "txtImageSize";
-            this.txtImageSize.Size = new System.Drawing.Size(65, 23);
-            this.txtImageSize.Text = "图片尺寸";
-            // 
-            // txtFrames
-            // 
-            this.txtFrames.BorderSides = ((System.Windows.Forms.ToolStripStatusLabelBorderSides)((((System.Windows.Forms.ToolStripStatusLabelBorderSides.Left | System.Windows.Forms.ToolStripStatusLabelBorderSides.Top) 
-            | System.Windows.Forms.ToolStripStatusLabelBorderSides.Right) 
-            | System.Windows.Forms.ToolStripStatusLabelBorderSides.Bottom)));
-            this.txtFrames.Name = "txtFrames";
-            this.txtFrames.Size = new System.Drawing.Size(47, 23);
-            this.txtFrames.Text = "共?帧";
+            this.txtImageInfo.Name = "txtImageInfo";
+            this.txtImageInfo.Size = new System.Drawing.Size(65, 23);
+            this.txtImageInfo.Text = "图片尺寸";
             // 
             // folderBrowserDialog1
             // 
@@ -171,10 +160,10 @@
             this.toolStrip3.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
             this.toolStrip3.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolStripDropDownButton2,
+            this.btnExport,
             this.btnExportGroup,
             this.toolStripDropDownButton1,
             this.btnAbout,
-            this.btnExport,
             this.btnTest});
             this.toolStrip3.Location = new System.Drawing.Point(0, 0);
             this.toolStrip3.Name = "toolStrip3";
@@ -223,6 +212,7 @@
             this.btnExportGroup.Name = "btnExportGroup";
             this.btnExportGroup.Size = new System.Drawing.Size(94, 23);
             this.btnExportGroup.Text = "导出素材";
+            this.btnExportGroup.Visible = false;
             // 
             // btnExportConverted
             // 
@@ -329,7 +319,7 @@
             this.btnExport.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnExport.Name = "btnExport";
             this.btnExport.Size = new System.Drawing.Size(85, 23);
-            this.btnExport.Text = "保存素材";
+            this.btnExport.Text = "导出素材";
             this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
             // 
             // btnTest
@@ -338,6 +328,7 @@
             this.btnTest.Name = "btnTest";
             this.btnTest.Size = new System.Drawing.Size(41, 23);
             this.btnTest.Text = "测试";
+            this.btnTest.Visible = false;
             this.btnTest.Click += new System.EventHandler(this.btnTest_Click);
             // 
             // vFolderTreeView
@@ -356,6 +347,7 @@
             this.vFolderListView.Folder = null;
             this.vFolderListView.Location = new System.Drawing.Point(0, 0);
             this.vFolderListView.Margin = new System.Windows.Forms.Padding(4);
+            this.vFolderListView.MultiSelect = false;
             this.vFolderListView.Name = "vFolderListView";
             this.vFolderListView.Size = new System.Drawing.Size(548, 429);
             this.vFolderListView.TabIndex = 3;
@@ -403,8 +395,7 @@
         private System.Windows.Forms.SaveFileDialog saveFileDialog1;
         private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.StatusStrip statusStrip1;
-        private System.Windows.Forms.ToolStripStatusLabel txtFrames;
-        private System.Windows.Forms.ToolStripStatusLabel txtImageSize;
+        private System.Windows.Forms.ToolStripStatusLabel txtImageInfo;
         private System.Windows.Forms.ToolStripStatusLabel txtStatus;
         private System.Windows.Forms.FolderBrowserDialog folderBrowserDialog1;
         private System.Windows.Forms.ToolStripProgressBar progLoadDirectory;
